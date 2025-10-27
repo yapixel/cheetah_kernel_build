@@ -1,5 +1,3 @@
-
-
 name: Bluspark KowSU
 permissions:
   contents: write  # Allow writing to repository contents (for pushing tags)
@@ -35,15 +33,26 @@ jobs:
 
       - name: Set CONFIG Environment Variable
         run: |
-          CONFIG="gs"
+          CONFIG="${{ inputs.repo }}"
           echo "CONFIG=$CONFIG" >> $GITHUB_ENV
           echo "CONFIG set to: $CONFIG"
 
+      - name: Get Latest Bluspark Tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          LATEST_BLUSPARK_TAG=$(gh api repos/engstk/gs/tags --jq '.[0].name')
+          if [ -z "$LATEST_BLUSPARK_TAG" ]; then
+            echo "Error: Could not fetch latest Bluspark tag"
+            exit 1
+          fi
+          echo "LATEST_BLUSPARK_TAG=$LATEST_BLUSPARK_TAG" >> $GITHUB_ENV
+          echo "Latest Bluspark tag: $LATEST_BLUSPARK_TAG"
 
       - name: Clone AnyKernel3 and Other Dependencies
         run: |
           echo "Cloning AnyKernel3 and other dependencies..."
-          ANYKERNEL_BRANCH="sultan-${{ inputs.codename }}"
+          ANYKERNEL_BRANCH="sultan-${{ inputs.codename }}"  # Adjust if Bluspark uses a different branch
           SUSFS_BRANCH="gki-android14-6.1"
           echo "Using branch for AnyKernel3: $ANYKERNEL_BRANCH"
           echo "Using branch for SUSFS: $SUSFS_BRANCH"
@@ -59,7 +68,6 @@ jobs:
           cd "$CONFIG"    
           echo "Adding KernelSU..."
           curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/master/kernel/setup.sh" | bash -s master
-          #git clone https://github.com/yapixel/KowSU KernelSU -b susfs-master
           
       - name: Apply SUSFS Patches
         run: |
@@ -76,20 +84,15 @@ jobs:
           patch -p1 -F 3 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
 
           cd ./KernelSU
-          echo "Revert commitbconflict with susfs"
+          echo "Revert commit conflict with susfs"
           cp ../../kowsu_patches/KowSU/revert_commit_conflict_with_susfs.patch .
           patch -p1 --fuzz=3 < revert_commit_conflict_with_susfs.patch
           
           echo "Apply KSU integration patches"   
           cp ../../kowsu_patches/KowSU/enable_susfs_for_kowsu.patch ./
-          patch -p1 < enable_susfs_for_kowsu.patch || true
-
-          #cp ../../kowsu_patches/KowSU/fix_core_hook_kowsu.patch ./
-          #patch -p1 --fuzz=3 < fix_core_hook_kowsu.patch
+          patch -p1 < enable_susfs_for_kowsu.patch
          
 
-
-       
       - name: Apply KSU Hook Patches
         run: |
           echo "Changing to configuration directory: $CONFIG..."
@@ -97,14 +100,6 @@ jobs:
           echo "Applying manual hook patches..."
           cp ../kernel_patches/syscall_hook/min_scope_syscall_hooks_v1.5.patch ./
           patch -p1 --forward < min_scope_syscall_hooks_v1.5.patch      
-
-
-   #   - name: Apply syscall Hooks
-   #     run: |
-   #       echo "Changing to configuration directory: $CONFIG..."
-   #       cd "$CONFIG"
-   #       cp ../kernel_patches/sultan/syscall_hooks.patch ./
-   #       patch -p1 -F 3 < syscall_hooks.patch 
 
       - name: Getting KernelSU Version
         run: |
@@ -125,73 +120,71 @@ jobs:
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
-          echo "CONFIG_KSU=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_KSU_KPROBES_HOOK=n" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_KSU_SUSFS=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_TMPFS_XATTR=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_TMPFS_POSIX_ACL=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_IP_NF_TARGET_TTL=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_TCP_CONG_BBR=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_NET_SCH_FQ=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_TCP_CONG_BIC=n" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_TCP_CONG_WESTWOOD=n" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_TCP_CONG_HTCP=n" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_BPF_STREAM_PARSER=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_NETFILTER_XT_SET=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_IP_SET=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_IP_SET_MAX=65534" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_IP_SET_BITMAP_IP=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_IP_SET_BITMAP_IPMAC=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_IP_SET_BITMAP_PORT=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_IP_SET_HASH_IP=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_IP_SET_HASH_IPMARK=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_IP_SET_HASH_IPPORT=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_IP_SET_HASH_IPPORTIP=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_IP_SET_HASH_IPPORTNET=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_IP_SET_HASH_IPMAC=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_IP_SET_HASH_MAC=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_IP_SET_HASH_NETPORTNET=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_IP_SET_HASH_NET=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_IP_SET_HASH_NETNET=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_IP_SET_HASH_NETPORT=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_IP_SET_HASH_NETIFACE=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_IP_SET_LIST_SET=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_IP6_NF_NAT=y" >> ./arch/arm64/configs/zuma_defconfig
-          echo "CONFIG_IP6_NF_TARGET_MASQUERADE=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_KSU=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_KSU_KPROBES_HOOK=n" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_KSU_SUSFS=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_TMPFS_XATTR=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_TMPFS_POSIX_ACL=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_IP_NF_TARGET_TTL=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_TCP_CONG_BBR=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_NET_SCH_FQ=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_TCP_CONG_BIC=n" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_TCP_CONG_WESTWOOD=n" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_TCP_CONG_HTCP=n" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_BPF_STREAM_PARSER=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_NETFILTER_XT_SET=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_IP_SET=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_IP_SET_MAX=65534" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_IP_SET_BITMAP_IP=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_IP_SET_BITMAP_IPMAC=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_IP_SET_BITMAP_PORT=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_IP_SET_HASH_IP=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_IP_SET_HASH_IPMARK=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_IP_SET_HASH_IPPORT=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_IP_SET_HASH_IPPORTIP=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_IP_SET_HASH_IPPORTNET=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_IP_SET_HASH_IPMAC=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_IP_SET_HASH_MAC=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_IP_SET_HASH_NETPORTNET=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_IP_SET_HASH_NET=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_IP_SET_HASH_NETNET=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_IP_SET_HASH_NETPORT=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_IP_SET_HASH_NETIFACE=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_IP_SET_LIST_SET=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_IP6_NF_NAT=y" >> ./arch/arm64/configs/gs_defconfig
+          echo "CONFIG_IP6_NF_TARGET_MASQUERADE=y" >> ./arch/arm64/configs/gs_defconfig
           
-
-
       - name: Run sed and perl Commands
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
           echo "Running sed commands..."
-          # Replace the entire CONFIG_LOCALVERSION line with the provided local_version
-          sed -i 's/CONFIG_LOCALVERSION="-Sultan"/CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"/' ./arch/arm64/configs/${{ inputs.codename }}_defconfig
+          # Adjust CONFIG_LOCALVERSION for Bluspark
+          sed -i 's/CONFIG_LOCALVERSION=".*"/CONFIG_LOCALVERSION="-android14-11-blu_spark-16"/' ./arch/arm64/configs/gs_defconfig
           # Prevent setlocalversion from appending '+' for dirty state
           sed -i 's/${LOCALVERSION+set}/set/' ./scripts/setlocalversion
           # Set build timestamp
           perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "Tue Jul 8 09:17:32 UTC 2025"/' ./init/Makefile
-          echo "Kernel version suffix set to -android14-11-g66e758f7d0c0-ab13748739 without dirty state '+'"
+          echo "Kernel version suffix set to -android14-11-blu_spark-16 without dirty state '+'"
           echo "Build timestamp set to Tue Jul 8 09:17:32 UTC 2025"
           
       - name: Build the Kernel
@@ -207,7 +200,7 @@ jobs:
           if [ "${{ inputs.codename }}" == "zumapro" ]; then
             export KCFLAGS="-march=armv8.6-a -O3 --param=min-pagesize=0"
           fi
-          make ${{ inputs.codename }}_defconfig -j$(nproc --all)
+          make gs_defconfig -j$(nproc --all)
           make V=1 -j$(nproc --all) 
 
       - name: Copy Images
@@ -228,7 +221,7 @@ jobs:
         run: |
           echo "Navigating to AnyKernel3 directory..."
           cd ./AnyKernel3
-          ZIP_NAME="KowSU-${{ env.KSUVER }}-zuma_A16_Sultan-${{ env.LATEST_SULTAN_TAG }}_SUSFS-${{ inputs.release_tag }}.zip"
+          ZIP_NAME="KowSU-${{ env.KSUVER }}-zuma_A16_Bluspark-${{ env.LATEST_BLUSPARK_TAG }}_SUSFS-${{ inputs.release_tag }}.zip"
           echo "Creating zip file $ZIP_NAME..."
           zip -r "../$ZIP_NAME" ./*
 
