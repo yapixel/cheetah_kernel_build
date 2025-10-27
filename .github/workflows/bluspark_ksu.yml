@@ -34,7 +34,7 @@ jobs:
       - name: Verify Toolchain
         run: |
           echo "Checking for aarch64-linux-gnu-gcc..."
-          which aarch64-linux-gnu-gcc || { echo "Error: aarch64-linux-gnu-gcc not found"; exit 1; }
+          which aarch64-linux-gnu-gcc
           aarch64-linux-gnu-gcc --version
 
       - name: Set CONFIG Environment Variable
