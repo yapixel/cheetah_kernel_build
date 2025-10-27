@@ -24,28 +24,30 @@ on:
   
 jobs:
   build-kernel-bluspark-kowsu-susfs:
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-24.04  # Changed to x86_64 runner
     steps:
       - name: Installing dependencies
         run: |
           sudo apt update
-          # Install Clang 17, LLVM tools, and other dependencies for ARM64
-          sudo apt install -y wget unzip build-essential flex bison libssl-dev libelf-dev bc binutils-aarch64-linux-gnu lz4 clang-17 lld-17 llvm rustc dwarves
-          # Set CLANG_BIN_PATH to system Clang
-          echo "CLANG_BIN_PATH=/usr/bin" >> $GITHUB_ENV
-          echo "CLANG_VERSION=17" >> $GITHUB_ENV
-          echo "/usr/bin" >> $GITHUB_PATH
-          echo "Clang 17, LLVM tools, and dependencies installed via apt"
+          # Install dependencies for cross-compilation and other tools
+          sudo apt install -y wget unzip build-essential flex bison libssl-dev libelf-dev bc binutils-aarch64-linux-gnu lz4 rustc dwarves
+          # Download and extract x86_64 Clang/LLVM 17.0.6
+          wget https://github.com/llvm/llvm-project/releases/download/llvmorg-17.0.6/clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04.tar.xz
+          tar -xJf clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04.tar.xz
+          echo "CLANG_BIN_PATH=$GITHUB_WORKSPACE/clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04/bin" >> $GITHUB_ENV
+          echo "CLANG_VERSION=17.0.6" >> $GITHUB_ENV
+          echo "$GITHUB_WORKSPACE/clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04/bin" >> $GITHUB_PATH
+          echo "Clang/LLVM 17.0.6 installed in $GITHUB_WORKSPACE/clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04"
 
       - name: Verify Clang and Linker Setup
         run: |
-          export PATH=/usr/bin:$PATH
+          export PATH=$GITHUB_WORKSPACE/clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04/bin:$PATH
           echo "Verifying Clang version..."
-          clang-17 --version || { echo "Clang-17 not found"; exit 1; }
+          clang --version || { echo "Clang not found"; exit 1; }
           echo "Verifying lld version..."
-          ld.lld-17 --version || { echo "lld-17 not found"; exit 1; }
+          ld.lld --version || { echo "lld not found"; exit 1; }
           echo "Verifying aarch64-linux-gnu-ld availability (fallback)..."
-          aarch64-linux-gnu-ld --version || echo "Using ld.lld-17 as primary linker"
+          aarch64-linux-gnu-ld --version || echo "Using ld.lld as primary linker"
           echo "Verifying lz4 availability..."
           lz4 --version || { echo "lz4 not found"; exit 1; }
           echo "Verifying rustc availability..."
@@ -54,7 +56,7 @@ jobs:
           pahole --version || { echo "pahole not found"; exit 1; }
           echo "Verifying llvm-ar availability..."
           llvm-ar --version || { echo "llvm-ar not found"; exit 1; }
-          echo "Clang and linker setup verified on ARM64 runner"
+          echo "Clang and linker setup verified on x86_64 runner"
 
       - name: Set CONFIG Environment Variable
         run: |
@@ -224,17 +226,17 @@ jobs:
           CLANG_BIN_PATH="${{ env.CLANG_BIN_PATH }}"
           CLANG_VERSION="${{ env.CLANG_VERSION }}"
           
-          if [ -d "$CLANG_BIN_PATH" ] && [ -x "$CLANG_BIN_PATH/clang-17" ]; then
+          if [ -d "$CLANG_BIN_PATH" ] && [ -x "$CLANG_BIN_PATH/clang" ]; then
             export PATH="$CLANG_BIN_PATH:$PATH"
-            SELECTED_CLANG="$CLANG_BIN_PATH/clang-17"
-          elif command -v clang-17 >/dev/null 2>&1; then
-            SELECTED_CLANG="$(command -v clang-17)"
+            SELECTED_CLANG="$CLANG_BIN_PATH/clang"
+          elif command -v clang >/dev/null 2>&1; then
+            SELECTED_CLANG="$(command -v clang)"
           else
-            echo "Error: Clang-17 not found"
+            echo "Error: Clang not found"
             exit 1
           fi
           
-          LLVM_TOOLS="clang-17 ld.lld-17 llvm-ar llvm-objcopy-17 llvm-objdump-17 llvm-nm-17"
+          LLVM_TOOLS="clang ld.lld llvm-ar llvm-objcopy llvm-objdump llvm-nm"
           MISSING_TOOLS=""
           for tool in $LLVM_TOOLS; do
             if ! command -v $tool >/dev/null 2>&1; then
@@ -243,14 +245,8 @@ jobs:
           done
           
           if [ -n "$MISSING_TOOLS" ]; then
-            sudo apt-get update
-            sudo apt-get install -yq --no-install-recommends llvm
-            for tool in $MISSING_TOOLS; do
-              if ! command -v $tool >/dev/null 2>&1; then
-                echo "Error: $tool not found after installation"
-                exit 1
-              fi
-            done
+            echo "Error: Missing LLVM tools: $MISSING_TOOLS"
+            exit 1
           fi
           
           KERNEL_VERSION="${{ inputs.kernel_version }}"
@@ -260,7 +256,7 @@ jobs:
           
           cd "$KERNEL_PATH" || { echo "Error: Failed to change to $KERNEL_PATH"; exit 1; }
           
-          MAKE_ARGS="LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LD=ld.lld-17 HOSTLD=ld.lld-17"
+          MAKE_ARGS="LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LD=ld.lld HOSTLD=ld.lld"
           if [[ -v USE_LLVM_IAS ]]; then
             MAKE_ARGS="LLVM_IAS=1 $MAKE_ARGS"
           fi
