@@ -198,7 +198,7 @@ jobs:
           if [ "${{ inputs.codename }}" == "zumapro" ]; then
             export KCFLAGS="-march=armv8.6-a -O3 --param=min-pagesize=0"
           fi
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- ./arch/arm64/configs/blu_spark_defconfig -j$(nproc --all)
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- blu_spark_defconfig -j$(nproc --all)
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- V=1 -j$(nproc --all)
 
       - name: Copy Images
