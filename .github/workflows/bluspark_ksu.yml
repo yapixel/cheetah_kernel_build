@@ -31,22 +31,15 @@ jobs:
      #     sudo apt update
      #     sudo apt install -y gcc-aarch64-linux-gnu
 
-      - name: Installing dependencies
+      - name: Install Android NDK
         run: |
-         sudo apt update
-         sudo apt install -y clang lld llvm gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
-         bc bison flex libssl-dev libelf-dev make python3 git lz4
-         echo "CC=clang" >> $GITHUB_ENV
-         echo "LD=ld.lld" >> $GITHUB_ENV
-         echo "AR=llvm-ar" >> $GITHUB_ENV
-         echo "OBJCOPY=llvm-objcopy" >> $GITHUB_ENV
-         echo "OBJDUMP=llvm-objdump" >> $GITHUB_ENV
-      
-      - name: Verify Toolchain
-        run: |
-          echo "Checking for aarch64-linux-gnu-gcc..."
-          which aarch64-linux-gnu-gcc
-          aarch64-linux-gnu-gcc --version
+         echo "Installing Android NDK..."
+         cd /opt
+         wget https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
+         unzip android-ndk-r25c-linux.zip
+         echo "NDK_PATH=$(pwd)/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_ENV
+         echo "CROSS_COMPILE=$(pwd)/android-ndk-r25c/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android-" >> $GITHUB_ENV
+    
 
       - name: Set CONFIG Environment Variable
         run: |
@@ -205,8 +198,12 @@ jobs:
           export KBUILD_BUILD_USER="build-user"
           export KBUILD_BUILD_HOST="build-host"
           
+          export ARCH=arm64
+          export CROSS_COMPILE=${{ env.CROSS_COMPILE }}
+          export PATH=${{ env.NDK_PATH }}:$PATH
+
           make blu_spark_defconfig -j$(nproc --all)
-          make V=1 -j$(nproc --all) 
+          make V=1 -j$(nproc --all)
           
       - name: Copy Images
         run: |
