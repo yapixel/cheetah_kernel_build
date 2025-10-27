@@ -31,14 +31,27 @@ jobs:
      #     sudo apt update
      #     sudo apt install -y gcc-aarch64-linux-gnu
 
-      - name: Install Android NDK
-        run: |
-         echo "Installing Android NDK r25c..."
-         wget https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
-         unzip android-ndk-r25c-linux.zip -d /opt
-         echo "NDK_PATH=/opt/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_ENV
-         echo "CROSS_COMPILE=/opt/android-ndk-r25c/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android-" >> $GITHUB_ENV
+      - name: Setup NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+         ndk-version: r25c
+         add-to-path: false
+         local-cache: false
 
+      - name: Verify Toolchain
+        env:
+        ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+         echo "Checking for aarch64-linux-gnu-gcc..."
+         which aarch64-linux-gnu-gcc
+         aarch64-linux-gnu-gcc --version
+         echo "Checking for clang..."
+         which clang
+         clang --version
+         echo "Checking for aarch64-linux-android-gcc..."
+         which ${{ env.ANDROID_NDK_HOME }}/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android-gcc || echo "aarch64-linux-android-gcc not found"
+         ls -la ${{ env.ANDROID_NDK_HOME }}/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/
       
       - name: Set CONFIG Environment Variable
         run: |
@@ -198,8 +211,8 @@ jobs:
           export KBUILD_BUILD_HOST="build-host"
           
           export ARCH=arm64
-          export CROSS_COMPILE=${{ env.CROSS_COMPILE }}
-          export PATH=${{ env.NDK_PATH }}:$PATH
+          export CROSS_COMPILE=${{ env.ANDROID_NDK_HOME }}/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android-
+          export PATH=${{ env.ANDROID_NDK_HOME }}/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
 
           make blu_spark_defconfig -j$(nproc --all)
           make V=1 -j$(nproc --all)
