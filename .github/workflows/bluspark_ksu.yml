@@ -216,7 +216,7 @@ jobs:
         run: |
          echo "Listing build output..."
          cd $CONFIG
-         ls -l ./out/ -lart
+         ls -lart
          before: |
          echo "Copying Image.lz4 and concatenating DTB files..."
          cp ./out/arch/arm64/boot/Image.lz4 ../AnyKernel3/Image.lz4
