@@ -49,7 +49,7 @@ jobs:
           echo "Using branch for SUSFS: $SUSFS_BRANCH"
           git clone https://github.com/TheWildJames/AnyKernel3.git -b "$ANYKERNEL_BRANCH"
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
-          https://github.com/engstk/gs -b blu_spark-16
+          git clone https://github.com/engstk/gs -b blu_spark-16
           git clone https://github.com/yapixel/kernel_patches.git 
           git clone https://github.com/KOWX712/files.git kowsu_patches
           
