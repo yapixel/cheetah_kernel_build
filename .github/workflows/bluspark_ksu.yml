@@ -39,19 +39,7 @@ jobs:
          add-to-path: false
          local-cache: false
 
-      - name: Verify Toolchain
-        env:
-         ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-        run: |
-         echo "Checking for aarch64-linux-gnu-gcc..."
-         which aarch64-linux-gnu-gcc
-         aarch64-linux-gnu-gcc --version
-         echo "Checking for clang..."
-         which clang
-         clang --version
-         echo "Checking for aarch64-linux-android-gcc..."
-         which ${{ env.ANDROID_NDK_HOME }}/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android-gcc || echo "aarch64-linux-android-gcc not found"
-         ls -la ${{ env.ANDROID_NDK_HOME }}/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/
+      
       
       - name: Set CONFIG Environment Variable
         run: |
