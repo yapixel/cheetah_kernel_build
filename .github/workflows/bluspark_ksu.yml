@@ -212,6 +212,14 @@ jobs:
           make CC=clang LD=ld.lld CROSS_COMPILE=aarch64-linux-gnu- blu_spark_defconfig -j$(nproc --all)
           make CC=clang LD=ld.lld CROSS_COMPILE=aarch64-linux-gnu- V=1 -j$(nproc --all)
 
+      - name: Debug Build Output
+        run: |
+         echo "Listing build output..."
+         ls -l $CONFIG/out/arch/arm64/boot/
+         before: |
+         echo "Copying Image.lz4 and concatenating DTB files..."
+         cp ./out/arch/arm64/boot/Image.lz4 ../AnyKernel3/Image.lz4
+
       - name: Copy Images
         run: |
           echo "Changing to configuration directory: $CONFIG..."
