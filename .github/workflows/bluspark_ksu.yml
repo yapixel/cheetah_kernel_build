@@ -29,28 +29,9 @@ jobs:
       - name: Installing dependencies
         run: |
           sudo apt update
-          # Install GCC, binutils, and other dependencies for ARM64 cross-compilation
-          sudo apt install -y wget unzip build-essential flex bison libssl-dev libelf-dev bc gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu lz4 rustc dwarves file binutils
-          echo "GCC and dependencies installed via apt"
+          sudo apt install -y gcc-aarch64-linux-gnu
 
-      - name: Verify GCC and Toolchain Setup
-        run: |
-          export PATH=/usr/bin:$PATH
-          echo "Verifying GCC version..."
-          aarch64-linux-gnu-gcc --version || { echo "aarch64-linux-gnu-gcc not found"; exit 1; }
-          echo "Verifying GNU ld version..."
-          aarch64-linux-gnu-ld --version || { echo "aarch64-linux-gnu-ld not found"; exit 1; }
-          echo "Verifying GNU ar availability..."
-          aarch64-linux-gnu-ar --version || { echo "aarch64-linux-gnu-ar not found"; exit 1; }
-          echo "Verifying lz4 availability..."
-          lz4 --version || { echo "lz4 not found"; exit 1; }
-          echo "Verifying rustc availability..."
-          rustc --version || { echo "rustc not found"; exit 1; }
-          echo "Verifying pahole availability..."
-          pahole --version || { echo "pahole not found"; exit 1; }
-          echo "Verifying file utility availability..."
-          file --version || { echo "file not found"; exit 1; }
-          echo "GCC and toolchain setup verified on x86_64 runner"
+      
 
       - name: Set CONFIG Environment Variable
         run: |
