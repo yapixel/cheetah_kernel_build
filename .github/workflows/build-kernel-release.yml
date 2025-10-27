@@ -26,7 +26,7 @@ jobs:
       new_tag: ${{ steps.generate-tag.outputs.new_tag }}
     env:
       REPO_OWNER: yapixel
-      REPO_NAME: Sultan_KernelSU_SUSFS
+      REPO_NAME: Husky_KernelSU_SUSFS
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout code
@@ -62,8 +62,8 @@ jobs:
       kernel_version: "6.1"
       release_tag: ${{ needs.generate-tag.outputs.new_tag }}
 
-  build-kernel-bluspark-kowsu:
-    uses: ./.github/workflows/bluspark_kowsu.yml
+  build-kernel-bluspark-ksu:
+    uses: ./.github/workflows/bluspark_ksu.yml
     secrets: inherit
     needs: generate-tag
     if: ${{ inputs.make_release || inputs.dry_run }}
@@ -92,7 +92,7 @@ jobs:
       - generate-tag
       - build-kernel-zuma-sukisu
       - build-kernel-zuma-kowsu
-      - build-kernel-bluspark-kowsu
+      - build-kernel-bluspark-ksu
       
     if: ${{ inputs.make_release && !inputs.dry_run }}
     env:
