@@ -142,6 +142,7 @@ jobs:
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
+          echo "CONFIG_KERNEL_LZ4=y" >> arch/arm64/configs/blu_spark_defconfig
           echo "Adding KernelSU and SUSFS configurations..."
           echo "CONFIG_KSU=y" >> ./arch/arm64/configs/blu_spark_defconfig
           echo "CONFIG_KSU_KPROBES_HOOK=n" >> ./arch/arm64/configs/blu_spark_defconfig
