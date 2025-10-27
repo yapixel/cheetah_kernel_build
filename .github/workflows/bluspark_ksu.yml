@@ -41,7 +41,7 @@ jobs:
 
       - name: Verify Toolchain
         env:
-        ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+         ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: |
          echo "Checking for aarch64-linux-gnu-gcc..."
          which aarch64-linux-gnu-gcc
