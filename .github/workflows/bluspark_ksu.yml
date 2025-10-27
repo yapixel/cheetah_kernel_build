@@ -24,39 +24,33 @@ on:
   
 jobs:
   build-kernel-bluspark-kowsu-susfs:
-    runs-on: ubuntu-24.04  # Changed to x86_64 runner
+    runs-on: ubuntu-24.04  # x86_64 runner for x86_64 GCC toolchain
     steps:
       - name: Installing dependencies
         run: |
           sudo apt update
-          # Install dependencies for cross-compilation and other tools
-          sudo apt install -y wget unzip build-essential flex bison libssl-dev libelf-dev bc binutils-aarch64-linux-gnu lz4 rustc dwarves
-          # Download and extract x86_64 Clang/LLVM 17.0.6
-          wget https://github.com/llvm/llvm-project/releases/download/llvmorg-17.0.6/clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04.tar.xz
-          tar -xJf clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04.tar.xz
-          echo "CLANG_BIN_PATH=$GITHUB_WORKSPACE/clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04/bin" >> $GITHUB_ENV
-          echo "CLANG_VERSION=17.0.6" >> $GITHUB_ENV
-          echo "$GITHUB_WORKSPACE/clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04/bin" >> $GITHUB_PATH
-          echo "Clang/LLVM 17.0.6 installed in $GITHUB_WORKSPACE/clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04"
+          # Install GCC, binutils, and other dependencies for ARM64 cross-compilation
+          sudo apt install -y wget unzip build-essential flex bison libssl-dev libelf-dev bc gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu lz4 rustc dwarves file binutils
+          echo "GCC and dependencies installed via apt"
 
-      - name: Verify Clang and Linker Setup
+      - name: Verify GCC and Toolchain Setup
         run: |
-          export PATH=$GITHUB_WORKSPACE/clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04/bin:$PATH
-          echo "Verifying Clang version..."
-          clang --version || { echo "Clang not found"; exit 1; }
-          echo "Verifying lld version..."
-          ld.lld --version || { echo "lld not found"; exit 1; }
-          echo "Verifying aarch64-linux-gnu-ld availability (fallback)..."
-          aarch64-linux-gnu-ld --version || echo "Using ld.lld as primary linker"
+          export PATH=/usr/bin:$PATH
+          echo "Verifying GCC version..."
+          aarch64-linux-gnu-gcc --version || { echo "aarch64-linux-gnu-gcc not found"; exit 1; }
+          echo "Verifying GNU ld version..."
+          aarch64-linux-gnu-ld --version || { echo "aarch64-linux-gnu-ld not found"; exit 1; }
+          echo "Verifying GNU ar availability..."
+          aarch64-linux-gnu-ar --version || { echo "aarch64-linux-gnu-ar not found"; exit 1; }
           echo "Verifying lz4 availability..."
           lz4 --version || { echo "lz4 not found"; exit 1; }
           echo "Verifying rustc availability..."
           rustc --version || { echo "rustc not found"; exit 1; }
           echo "Verifying pahole availability..."
           pahole --version || { echo "pahole not found"; exit 1; }
-          echo "Verifying llvm-ar availability..."
-          llvm-ar --version || { echo "llvm-ar not found"; exit 1; }
-          echo "Clang and linker setup verified on x86_64 runner"
+          echo "Verifying file utility availability..."
+          file --version || { echo "file not found"; exit 1; }
+          echo "GCC and toolchain setup verified on x86_64 runner"
 
       - name: Set CONFIG Environment Variable
         run: |
@@ -223,46 +217,32 @@ jobs:
       - name: Build Kernel
         run: |
           KERNEL_PATH="$GITHUB_WORKSPACE/$CONFIG"
-          CLANG_BIN_PATH="${{ env.CLANG_BIN_PATH }}"
-          CLANG_VERSION="${{ env.CLANG_VERSION }}"
           
-          if [ -d "$CLANG_BIN_PATH" ] && [ -x "$CLANG_BIN_PATH/clang" ]; then
-            export PATH="$CLANG_BIN_PATH:$PATH"
-            SELECTED_CLANG="$CLANG_BIN_PATH/clang"
-          elif command -v clang >/dev/null 2>&1; then
-            SELECTED_CLANG="$(command -v clang)"
+          if command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
+            SELECTED_GCC="$(command -v aarch64-linux-gnu-gcc)"
           else
-            echo "Error: Clang not found"
+            echo "Error: aarch64-linux-gnu-gcc not found"
             exit 1
           fi
           
-          LLVM_TOOLS="clang ld.lld llvm-ar llvm-objcopy llvm-objdump llvm-nm"
+          GCC_TOOLS="aarch64-linux-gnu-gcc aarch64-linux-gnu-ld aarch64-linux-gnu-ar aarch64-linux-gnu-objcopy aarch64-linux-gnu-objdump aarch64-linux-gnu-nm"
           MISSING_TOOLS=""
-          for tool in $LLVM_TOOLS; do
+          for tool in $GCC_TOOLS; do
             if ! command -v $tool >/dev/null 2>&1; then
               MISSING_TOOLS="$MISSING_TOOLS $tool"
             fi
           done
           
           if [ -n "$MISSING_TOOLS" ]; then
-            echo "Error: Missing LLVM tools: $MISSING_TOOLS"
+            echo "Error: Missing GCC tools: $MISSING_TOOLS"
             exit 1
-          fi
-          
-          KERNEL_VERSION="${{ inputs.kernel_version }}"
-          if [[ "$KERNEL_VERSION" == "5.10" ]]; then
-            USE_LLVM_IAS=true
           fi
           
           cd "$KERNEL_PATH" || { echo "Error: Failed to change to $KERNEL_PATH"; exit 1; }
           
-          MAKE_ARGS="LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LD=ld.lld HOSTLD=ld.lld"
-          if [[ -v USE_LLVM_IAS ]]; then
-            MAKE_ARGS="LLVM_IAS=1 $MAKE_ARGS"
-          fi
-          
-          make -j$(nproc --all) O=out $MAKE_ARGS KCFLAGS+="-Wno-error -O2 -flto=thin -fno-stack-protector" blu_spark_defconfig || { echo "Failed to generate blu_spark_defconfig"; exit 1; }
-          make -j$(nproc --all) O=out $MAKE_ARGS KCFLAGS+="-Wno-error -O2 -flto=thin -fno-stack-protector" || { echo "Kernel build failed"; exit 1; }
+          MAKE_ARGS="ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LD=aarch64-linux-gnu-ld"
+          make -j$(nproc --all) O=out $MAKE_ARGS CFLAGS+="-Wno-error -O2" blu_spark_defconfig || { echo "Failed to generate blu_spark_defconfig"; exit 1; }
+          make -j$(nproc --all) O=out $MAKE_ARGS CFLAGS+="-Wno-error -O2" || { echo "Kernel build failed"; exit 1; }
           # Verify output
           echo "Checking for kernel image..."
           ls -la out/arch/arm64/boot/ || echo "Output directory not found"
