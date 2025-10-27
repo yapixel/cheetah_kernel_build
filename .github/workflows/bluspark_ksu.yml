@@ -198,8 +198,7 @@ jobs:
           echo "CONFIG_IP6_NF_TARGET_MASQUERADE=y" >> ./arch/arm64/configs/blu_spark_defconfig
           echo "CONFIG_LZ4_COMPRESS=y" >> ./arch/arm64/configs/blu_spark_defconfig
           echo "CONFIG_LZ4HC_COMPRESS=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "Verifying KernelSU and LZ4 config..."
-          grep -E "CONFIG_KSU|CONFIG_KSU_SUSFS|CONFIG_LZ4" ./arch/arm64/configs/blu_spark_defconfig
+          
 
       - name: Run sed and perl Commands
         run: |
@@ -212,38 +211,21 @@ jobs:
           echo "Kernel version suffix set to -android14-11-blu_spark-16 without dirty state '+'"
           echo "Build timestamp set to Tue Jul 8 09:17:32 UTC 2025"
 
-      - name: Build Kernel
+      - name: Build the Kernel
         run: |
-          KERNEL_PATH="$GITHUB_WORKSPACE/$CONFIG"
-          
-          if command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
-            SELECTED_GCC="$(command -v aarch64-linux-gnu-gcc)"
-          else
-            echo "Error: aarch64-linux-gnu-gcc not found"
-            exit 1
+          echo "Changing to configuration directory: $CONFIG..."
+          cd "$CONFIG"
+          echo "Building the kernel..."
+          # Set SOURCE_DATE_EPOCH for reproducible build timestamp
+          export SOURCE_DATE_EPOCH=$(date -d "Tue Jul 8 09:17:32 UTC 2025" +%s)
+          # Set build user and host
+          export KBUILD_BUILD_USER="build-user"
+          export KBUILD_BUILD_HOST="build-host"
+          if [ "${{ inputs.codename }}" == "zumapro" ]; then
+            export KCFLAGS="-march=armv8.6-a -O3 --param=min-pagesize=0"
           fi
-          
-          GCC_TOOLS="aarch64-linux-gnu-gcc aarch64-linux-gnu-ld aarch64-linux-gnu-ar aarch64-linux-gnu-objcopy aarch64-linux-gnu-objdump aarch64-linux-gnu-nm"
-          MISSING_TOOLS=""
-          for tool in $GCC_TOOLS; do
-            if ! command -v $tool >/dev/null 2>&1; then
-              MISSING_TOOLS="$MISSING_TOOLS $tool"
-            fi
-          done
-          
-          if [ -n "$MISSING_TOOLS" ]; then
-            echo "Error: Missing GCC tools: $MISSING_TOOLS"
-            exit 1
-          fi
-          
-          cd "$KERNEL_PATH" || { echo "Error: Failed to change to $KERNEL_PATH"; exit 1; }
-          
-          MAKE_ARGS="ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LD=aarch64-linux-gnu-ld"
-          make -j$(nproc --all) O=out $MAKE_ARGS CFLAGS+="-Wno-error -O2" blu_spark_defconfig || { echo "Failed to generate blu_spark_defconfig"; exit 1; }
-          make -j$(nproc --all) O=out $MAKE_ARGS CFLAGS+="-Wno-error -O2" || { echo "Kernel build failed"; exit 1; }
-          # Verify output
-          echo "Checking for kernel image..."
-          ls -la out/arch/arm64/boot/ || echo "Output directory not found"
+          make ./arch/arm64/configs/blu_spark_defconfig -j$(nproc --all)
+          make V=1 -j$(nproc --all) 
 
       - name: Copy Images
         run: |
