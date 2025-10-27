@@ -99,13 +99,13 @@ jobs:
           cp ../../kowsu_patches/KowSU/enable_susfs_for_kowsu.patch ./
           patch -p1 < enable_susfs_for_kowsu.patch
          
-      - name: Apply KSU Hook Patches
-        run: |
-          echo "Changing to configuration directory: $CONFIG..."
-          cd "$CONFIG"
-          echo "Applying manual hook patches..."
-          cp ../kernel_patches/syscall_hook/min_scope_syscall_hooks_v1.5.patch ./
-          patch -p1 --forward < min_scope_syscall_hooks_v1.5.patch      
+ #     - name: Apply KSU Hook Patches
+ #       run: |
+ #         echo "Changing to configuration directory: $CONFIG..."
+ #         cd "$CONFIG"
+ #         echo "Applying manual hook patches..."
+ #         cp ../kernel_patches/syscall_hook/min_scope_syscall_hooks_v1.5.patch ./
+ #         patch -p1 --forward < min_scope_syscall_hooks_v1.5.patch      
 
       - name: Getting KernelSU Version
         run: |
