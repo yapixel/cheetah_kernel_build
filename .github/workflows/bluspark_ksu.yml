@@ -73,7 +73,7 @@ jobs:
       - name: Clone AnyKernel3 and Other Dependencies
         run: |
           echo "Cloning AnyKernel3 and other dependencies..."
-          ANYKERNEL_BRANCH="sultan-${{ inputs.codename }}"
+          ANYKERNEL_BRANCH="sultan-zuma"
           SUSFS_BRANCH="gki-android14-6.1"
           echo "Using branch for AnyKernel3: $ANYKERNEL_BRANCH"
           echo "Using branch for SUSFS: $SUSFS_BRANCH"
@@ -111,10 +111,8 @@ jobs:
           patch -p1 --fuzz=3 < revert_commit_conflict_with_susfs.patch || { echo "Failed to apply revert_commit_conflict_with_susfs.patch"; exit 1; }
           echo "Apply KSU integration patches"
           cp ../../kowsu_patches/KowSU/enable_susfs_for_kowsu.patch ./
-          patch -p1 < enable_susfs_for_kowsu.patch || { echo "Failed to apply enable_susfs_for_kowsu.patch"; exit 1; }
-          echo "Checking for ksu_input_hook in patched files..."
-          grep -r "ksu_input_hook" ../ || echo "ksu_input_hook not found in source"
-          grep -r "ksu_vfs_read_hook" ../ || echo "ksu_vfs_read_hook not found in source"
+          patch -p1 < enable_susfs_for_kowsu.patch 
+          
 
   #    - name: Apply KSU Hook Patches
   #      run: |
