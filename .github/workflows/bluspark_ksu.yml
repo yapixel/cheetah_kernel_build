@@ -29,13 +29,13 @@ jobs:
       - name: Installing dependencies
         run: |
           sudo apt update
-          # Install Clang 17 and LLVM tools for ARM64, plus other dependencies
-          sudo apt install -y wget unzip build-essential flex bison libssl-dev libelf-dev bc binutils-aarch64-linux-gnu lz4 clang-17 lld-17 llvm-17 rustc dwarves
+          # Install Clang 17, LLVM tools, and other dependencies for ARM64
+          sudo apt install -y wget unzip build-essential flex bison libssl-dev libelf-dev bc binutils-aarch64-linux-gnu lz4 clang-17 lld-17 llvm rustc dwarves
           # Set CLANG_BIN_PATH to system Clang
           echo "CLANG_BIN_PATH=/usr/bin" >> $GITHUB_ENV
           echo "CLANG_VERSION=17" >> $GITHUB_ENV
           echo "/usr/bin" >> $GITHUB_PATH
-          echo "Clang 17 and dependencies installed via apt"
+          echo "Clang 17, LLVM tools, and dependencies installed via apt"
 
       - name: Verify Clang and Linker Setup
         run: |
@@ -52,6 +52,8 @@ jobs:
           rustc --version || { echo "rustc not found"; exit 1; }
           echo "Verifying pahole availability..."
           pahole --version || { echo "pahole not found"; exit 1; }
+          echo "Verifying llvm-ar availability..."
+          llvm-ar --version || { echo "llvm-ar not found"; exit 1; }
           echo "Clang and linker setup verified on ARM64 runner"
 
       - name: Set CONFIG Environment Variable
@@ -148,69 +150,69 @@ jobs:
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
           echo "Adding KernelSU and SUSFS configurations..."
-          echo "CONFIG_KSU=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_KPROBES_HOOK=n" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_TMPFS_XATTR=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_TMPFS_POSIX_ACL=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_NF_TARGET_TTL=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_TCP_CONG_BBR=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_NET_SCH_FQ=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_TCP_CONG_BIC=n" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_TCP_CONG_WESTWOOD=n" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_TCP_CONG_HTCP=n" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_BPF_STREAM_PARSER=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_NETFILTER_XT_SET=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_MAX=65534" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_BITMAP_IP=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_BITMAP_IPMAC=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_BITMAP_PORT=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_HASH_IP=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_HASH_IPMARK=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_HASH_IPPORT=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_HASH_IPPORTIP=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_HASH_IPPORTNET=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_HASH_IPMAC=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_HASH_MAC=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_HASH_NETPORTNET=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_HASH_NET=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_HASH_NETNET=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_HASH_NETPORT=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_HASH_NETIFACE=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_LIST_SET=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP6_NF_NAT=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP6_NF_TARGET_MASQUERADE=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_LZ4_COMPRESS=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_LZ4HC_COMPRESS=y" >> ./arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_KSU_KPROBES_HOOK=n" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_KSU_SUSFS=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_TMPFS_XATTR=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_TMPFS_POSIX_ACL=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_IP_NF_TARGET_TTL=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_TCP_CONG_BBR=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_NET_SCH_FQ=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_TCP_CONG_BIC=n" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_TCP_CONG_WESTWOOD=n" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_TCP_CONG_HTCP=n" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_BPF_STREAM_PARSER=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_NETFILTER_XT_SET=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_IP_SET=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_IP_SET_MAX=65534" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_IP_SET_BITMAP_IP=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_IP_SET_BITMAP_IPMAC=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_IP_SET_BITMAP_PORT=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_IP_SET_HASH_IP=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_IP_SET_HASH_IPMARK=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_IP_SET_HASH_IPPORT=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_IP_SET_HASH_IPPORTIP=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_IP_SET_HASH_IPPORTNET=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_IP_SET_HASH_IPMAC=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_IP_SET_HASH_MAC=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_IP_SET_HASH_NETPORTNET=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_IP_SET_HASH_NET=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_IP_SET_HASH_NETNET=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_IP_SET_HASH_NETPORT=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_IP_SET_HASH_NETIFACE=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_IP_SET_LIST_SET=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_IP6_NF_NAT=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_IP6_NF_TARGET_MASQUERADE=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_LZ4_COMPRESS=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG_LZ4HC_COMPRESS=y" >> ./arch/arm64/configs/blu_spark_defconfig
           echo "Verifying KernelSU and LZ4 config..."
-          grep -E "CONFIG_KSU|CONFIG_KSU_SUSFS|CONFIG_LZ4" ./arch/arm64/configs/gki_defconfig
+          grep -E "CONFIG_KSU|CONFIG_KSU_SUSFS|CONFIG_LZ4" ./arch/arm64/configs/blu_spark_defconfig
 
       - name: Run sed and perl Commands
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
           echo "Running sed commands..."
-          sed -i 's/CONFIG_LOCALVERSION=".*"/CONFIG_LOCALVERSION="-android14-11-blu_spark-16"/' ./arch/arm64/configs/gki_defconfig
+          sed -i 's/CONFIG_LOCALVERSION=".*"/CONFIG_LOCALVERSION="-android14-11-blu_spark-16"/' ./arch/arm64/configs/blu_spark_defconfig
           sed -i 's/${LOCALVERSION+set}/set/' ./scripts/setlocalversion
           perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "Tue Jul 8 09:17:32 UTC 2025"/' ./init/Makefile
           echo "Kernel version suffix set to -android14-11-blu_spark-16 without dirty state '+'"
@@ -232,7 +234,7 @@ jobs:
             exit 1
           fi
           
-          LLVM_TOOLS="clang-17 ld.lld-17 llvm-ar-17 llvm-objcopy-17 llvm-objdump-17 llvm-nm-17"
+          LLVM_TOOLS="clang-17 ld.lld-17 llvm-ar llvm-objcopy-17 llvm-objdump-17 llvm-nm-17"
           MISSING_TOOLS=""
           for tool in $LLVM_TOOLS; do
             if ! command -v $tool >/dev/null 2>&1; then
@@ -242,7 +244,7 @@ jobs:
           
           if [ -n "$MISSING_TOOLS" ]; then
             sudo apt-get update
-            sudo apt-get install -yq --no-install-recommends llvm-17
+            sudo apt-get install -yq --no-install-recommends llvm
             for tool in $MISSING_TOOLS; do
               if ! command -v $tool >/dev/null 2>&1; then
                 echo "Error: $tool not found after installation"
@@ -263,7 +265,7 @@ jobs:
             MAKE_ARGS="LLVM_IAS=1 $MAKE_ARGS"
           fi
           
-          make -j$(nproc --all) O=out $MAKE_ARGS KCFLAGS+="-Wno-error -O2 -flto=thin -fno-stack-protector" gki_defconfig || { echo "Failed to generate gki_defconfig"; exit 1; }
+          make -j$(nproc --all) O=out $MAKE_ARGS KCFLAGS+="-Wno-error -O2 -flto=thin -fno-stack-protector" blu_spark_defconfig || { echo "Failed to generate blu_spark_defconfig"; exit 1; }
           make -j$(nproc --all) O=out $MAKE_ARGS KCFLAGS+="-Wno-error -O2 -flto=thin -fno-stack-protector" || { echo "Kernel build failed"; exit 1; }
           # Verify output
           echo "Checking for kernel image..."
