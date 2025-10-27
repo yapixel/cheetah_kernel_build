@@ -29,34 +29,14 @@ jobs:
       - name: Installing dependencies
         run: |
           sudo apt update
-          sudo apt install -y \
-            gcc-aarch64-linux-gnu \
-            bc \
-            bison \
-            flex \
-            git \
-            gnupg \
-            gperf \
-            libncurses5-dev \
-            libssl-dev \
-            libelf-dev \
-            make \
-            python3 \
-            unzip \
-            wget \
-            zip
-
-      - name: Install LLVM 17.0.6
-        run: |
-          # Download and install LLVM 17.0.6 prebuilt binaries
-          wget https://github.com/llvm/llvm-project/releases/download/llvmorg-17.0.6/clang+llvm-17.0.6-aarch64-linux-gnu-ubuntu-22.04.tar.xz
-          tar -xJf clang+llvm-17.0.6-aarch64-linux-gnu-ubuntu-22.04.tar.xz -C /tmp/
-          sudo mv /tmp/clang+llvm-17.0.6-aarch64-linux-gnu-ubuntu-22.04 /opt/llvm-17.0.6
-          sudo ln -sf /opt/llvm-17.0.6/bin/* /usr/local/bin/
-          
-          # Verify installation
-          clang --version | head -1
-          ld.lld --version | head -1
+          # Install basic dependencies
+          sudo apt install -y wget unzip build-essential flex bison libssl-dev libelf-dev bc
+          # Download and extract Clang/LLVM 17.0.6
+          wget https://github.com/llvm/llvm-project/releases/download/llvmorg-17.0.6/clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04.tar.xz
+          tar -xJf clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04.tar.xz
+          mv clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04 /usr/local/clang
+          echo "/usr/local/clang/bin" >> $GITHUB_PATH
+          echo "Clang/LLVM 17.0.6 installed"
 
       - name: Set CONFIG Environment Variable
         run: |
@@ -119,7 +99,6 @@ jobs:
           cp ../../kowsu_patches/KowSU/enable_susfs_for_kowsu.patch ./
           patch -p1 < enable_susfs_for_kowsu.patch
          
-
       - name: Apply KSU Hook Patches
         run: |
           echo "Changing to configuration directory: $CONFIG..."
@@ -190,7 +169,7 @@ jobs:
           echo "CONFIG_IP_SET_HASH_IPPORTIP=y" >> ./arch/arm64/configs/blu_spark_defconfig
           echo "CONFIG_IP_SET_HASH_IPPORTNET=y" >> ./arch/arm64/configs/blu_spark_defconfig
           echo "CONFIG_IP_SET_HASH_IPMAC=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_IP_SET_HASH_MAC=y" >> ./arch64/configs/blu_spark_defconfig
+          echo "CONFIG_IP_SET_HASH_MAC=y" >> ./arch/arm64/configs/blu_spark_defconfig
           echo "CONFIG_IP_SET_HASH_NETPORTNET=y" >> ./arch/arm64/configs/blu_spark_defconfig
           echo "CONFIG_IP_SET_HASH_NET=y" >> ./arch/arm64/configs/blu_spark_defconfig
           echo "CONFIG_IP_SET_HASH_NETNET=y" >> ./arch/arm64/configs/blu_spark_defconfig
@@ -214,46 +193,26 @@ jobs:
           echo "Kernel version suffix set to -android14-11-blu_spark-16 without dirty state '+'"
           echo "Build timestamp set to Tue Jul 8 09:17:32 UTC 2025"
           
-      - name: Build the Kernel with LLVM 17.0.6
+      - name: Build the Kernel
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
-          echo "Building the kernel with LLVM 17.0.6..."
-          
+          echo "Building the kernel with Clang/LLVM..."
           export SOURCE_DATE_EPOCH=$(date -d "Tue Jul 8 09:17:32 UTC 2025" +%s)
           export KBUILD_BUILD_USER="build-user"
           export KBUILD_BUILD_HOST="build-host"
-          
-          # LLVM/Clang toolchain setup
-          export CC="/usr/local/bin/clang"
-          export CLANG_TRIPLE=aarch64-linux-gnu-
+          # Set Clang as the compiler
+          export CC=clang
           export CROSS_COMPILE=aarch64-linux-gnu-
           export CROSS_COMPILE_ARM32=arm-linux-gnueabi-
-          export LD="/usr/local/bin/ld.lld"
-          export AR="/usr/local/bin/llvm-ar"
-          export NM="/usr/local/bin/llvm-nm"
-          export OBJCOPY="/usr/local/bin/llvm-objcopy"
-          export OBJDUMP="/usr/local/bin/llvm-objdump"
-          export STRIP="/usr/local/bin/llvm-strip"
-          
-          # LLVM-specific optimizations
+          export CLANG_TRIPLE=aarch64-linux-gnu-
           if [ "${{ inputs.codename }}" == "zumapro" ]; then
-            export KCFLAGS="-march=armv8.6-a -O3 --param=min-pagesize=0 -Wno-missing-prototypes -Wno-unused-parameter"
-          else
-            export KCFLAGS="-O3 -Wno-missing-prototypes -Wno-unused-parameter"
+            export KCFLAGS="-march=armv8.6-a -O3 --param=min-pagesize=0"
           fi
-          
-          # Verify toolchain
-          echo "Using Clang version:"
-          $CC --version | head -3
-          echo "Using LLD version:"
-          $LD --version | head -1
-          
-          echo "Configuring kernel..."
-          make O=out blu_spark_defconfig -j$(nproc --all)
-          
-          echo "Building kernel with LLVM 17.0.6..."
-          make O=out V=1 -j$(nproc --all) LLVM=1 LLVM_IAS=1
+          # Ensure the path includes Clang
+          export PATH=/usr/local/clang/bin:$PATH
+          make CC=clang CROSS_COMPILE=aarch64-linux-gnu- blu_spark_defconfig -j$(nproc --all)
+          make CC=clang CROSS_COMPILE=aarch64-linux-gnu- V=1 -j$(nproc --all)
 
       - name: Copy Images
         run: |
@@ -280,6 +239,6 @@ jobs:
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: kernel-${{ inputs.codename }}-kowsu-llvm17
+          name: kernel-${{ inputs.codename }}-kowsu
           path: |
             *.zip
