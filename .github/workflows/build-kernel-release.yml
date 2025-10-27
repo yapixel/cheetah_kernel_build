@@ -63,7 +63,7 @@ jobs:
       release_tag: ${{ needs.generate-tag.outputs.new_tag }}
 
   build-kernel-bluspark-kowsu:
-    uses: ./.github/workflows/sultan_sukisu.yml
+    uses: ./.github/workflows/bluspark_kowsu.yml
     secrets: inherit
     needs: generate-tag
     if: ${{ inputs.make_release || inputs.dry_run }}
