@@ -215,7 +215,7 @@ jobs:
       - name: Debug Build Output
         run: |
          echo "Listing build output..."
-         ls -l $CONFIG/out/arch/arm64/boot/
+         ls -l $CONFIG/out -lart
          before: |
          echo "Copying Image.lz4 and concatenating DTB files..."
          cp ./out/arch/arm64/boot/Image.lz4 ../AnyKernel3/Image.lz4
