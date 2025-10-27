@@ -29,12 +29,12 @@ jobs:
       - name: Installing dependencies
         run: |
           sudo apt update
-          # Install basic dependencies
-          sudo apt install -y wget unzip build-essential flex bison libssl-dev libelf-dev bc
+          # Install basic dependencies, including binutils for aarch64
+          sudo apt install -y wget unzip build-essential flex bison libssl-dev libelf-dev bc binutils-aarch64-linux-gnu
           # Download and extract Clang/LLVM 17.0.6
           wget https://github.com/llvm/llvm-project/releases/download/llvmorg-17.0.6/clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04.tar.xz
           tar -xJf clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04.tar.xz
-          # Keep Clang in the workspace directory instead of moving to /usr/local
+          # Keep Clang in the workspace directory
           echo "$GITHUB_WORKSPACE/clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04/bin" >> $GITHUB_PATH
           echo "Clang/LLVM 17.0.6 installed in $GITHUB_WORKSPACE/clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04"
 
@@ -153,7 +153,7 @@ jobs:
           echo "CONFIG_TCP_CONG_BBR=y" >> ./arch/arm64/configs/blu_spark_defconfig
           echo "CONFIG_NET_SCH_FQ=y" >> ./arch/arm64/configs/blu_spark_defconfig
           echo "CONFIG_TCP_CONG_BIC=n" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_TCP_CONG_WESTWOOD=n" >> ./arch/arm64/configs/blu_spark_defconfig
+          echo "CONFIG TCP_CONG_WESTWOOD=n" >> ./arch/arm64/configs/blu_spark_defconfig
           echo "CONFIG_TCP_CONG_HTCP=n" >> ./arch/arm64/configs/blu_spark_defconfig
           echo "CONFIG_BPF_STREAM_PARSER=y" >> ./arch/arm64/configs/blu_spark_defconfig
           echo "CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y" >> ./arch/arm64/configs/blu_spark_defconfig
@@ -201,8 +201,9 @@ jobs:
           export SOURCE_DATE_EPOCH=$(date -d "Tue Jul 8 09:17:32 UTC 2025" +%s)
           export KBUILD_BUILD_USER="build-user"
           export KBUILD_BUILD_HOST="build-host"
-          # Set Clang as the compiler
+          # Set Clang as the compiler and lld as the linker
           export CC=clang
+          export LD=ld.lld
           export CROSS_COMPILE=aarch64-linux-gnu-
           export CROSS_COMPILE_ARM32=arm-linux-gnueabi-
           export CLANG_TRIPLE=aarch64-linux-gnu-
@@ -211,8 +212,8 @@ jobs:
           fi
           # Ensure the path includes Clang
           export PATH=$GITHUB_WORKSPACE/clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04/bin:$PATH
-          make CC=clang CROSS_COMPILE=aarch64-linux-gnu- blu_spark_defconfig -j$(nproc --all)
-          make CC=clang CROSS_COMPILE=aarch64-linux-gnu- V=1 -j$(nproc --all)
+          make CC=clang LD=ld.lld CROSS_COMPILE=aarch64-linux-gnu- blu_spark_defconfig -j$(nproc --all)
+          make CC=clang LD=ld.lld CROSS_COMPILE=aarch64-linux-gnu- V=1 -j$(nproc --all)
 
       - name: Copy Images
         run: |
