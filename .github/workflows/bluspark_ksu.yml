@@ -199,7 +199,7 @@ jobs:
           export KBUILD_BUILD_HOST="build-host"
           
           export ARCH=arm64
-          export CROSS_COMPILE=${{ env.ANDROID_NDK_HOME }}/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android-
+          #export CROSS_COMPILE=${{ env.ANDROID_NDK_HOME }}/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android-
           export PATH=${{ env.ANDROID_NDK_HOME }}/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
 
           make blu_spark_defconfig -j$(nproc --all)
