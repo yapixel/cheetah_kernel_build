@@ -26,11 +26,22 @@ jobs:
   build-kernel-bluspark-kowsu-susfs:
     runs-on: ubuntu-24.04
     steps:
+     # - name: Installing dependencies
+     #   run: |
+     #     sudo apt update
+     #     sudo apt install -y gcc-aarch64-linux-gnu
+
       - name: Installing dependencies
         run: |
-          sudo apt update
-          sudo apt install -y gcc-aarch64-linux-gnu
-
+         sudo apt update
+         sudo apt install -y clang lld llvm gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
+         bc bison flex libssl-dev libelf-dev make python3 git lz4
+         echo "CC=clang" >> $GITHUB_ENV
+         echo "LD=ld.lld" >> $GITHUB_ENV
+         echo "AR=llvm-ar" >> $GITHUB_ENV
+         echo "OBJCOPY=llvm-objcopy" >> $GITHUB_ENV
+         echo "OBJDUMP=llvm-objdump" >> $GITHUB_ENV
+      
       - name: Verify Toolchain
         run: |
           echo "Checking for aarch64-linux-gnu-gcc..."
