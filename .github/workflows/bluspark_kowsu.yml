@@ -34,9 +34,9 @@ jobs:
           # Download and extract Clang/LLVM 17.0.6
           wget https://github.com/llvm/llvm-project/releases/download/llvmorg-17.0.6/clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04.tar.xz
           tar -xJf clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04.tar.xz
-          sudo mv clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04 /usr/local/clang
-          echo "/usr/local/clang/bin" >> $GITHUB_PATH
-          echo "Clang/LLVM 17.0.6 installed"
+          # Keep Clang in the workspace directory instead of moving to /usr/local
+          echo "$GITHUB_WORKSPACE/clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04/bin" >> $GITHUB_PATH
+          echo "Clang/LLVM 17.0.6 installed in $GITHUB_WORKSPACE/clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04"
 
       - name: Set CONFIG Environment Variable
         run: |
@@ -210,7 +210,7 @@ jobs:
             export KCFLAGS="-march=armv8.6-a -O3 --param=min-pagesize=0"
           fi
           # Ensure the path includes Clang
-          export PATH=/usr/local/clang/bin:$PATH
+          export PATH=$GITHUB_WORKSPACE/clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04/bin:$PATH
           make CC=clang CROSS_COMPILE=aarch64-linux-gnu- blu_spark_defconfig -j$(nproc --all)
           make CC=clang CROSS_COMPILE=aarch64-linux-gnu- V=1 -j$(nproc --all)
 
