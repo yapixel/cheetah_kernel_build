@@ -62,6 +62,18 @@ jobs:
       kernel_version: "6.1"
       release_tag: ${{ needs.generate-tag.outputs.new_tag }}
 
+  build-kernel-bluspark-kowsu:
+    uses: ./.github/workflows/sultan_sukisu.yml
+    secrets: inherit
+    needs: generate-tag
+    if: ${{ inputs.make_release || inputs.dry_run }}
+    with:
+      codename: "zuma"
+      repo: "android_kernel_google_zuma"
+      android_version: "android14"
+      kernel_version: "6.1"
+      release_tag: ${{ needs.generate-tag.outputs.new_tag }}
+
   build-kernel-zuma-kowsu:
     uses: ./.github/workflows/sultan_kowsu.yml
     secrets: inherit
@@ -80,6 +92,8 @@ jobs:
       - generate-tag
       - build-kernel-zuma-sukisu
       - build-kernel-zuma-kowsu
+      - build-kernel-bluspark-kowsu
+      
     if: ${{ inputs.make_release && !inputs.dry_run }}
     env:
       GH_TOKEN: ${{ github.token }}
