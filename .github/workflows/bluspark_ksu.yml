@@ -193,14 +193,10 @@ jobs:
           export SOURCE_DATE_EPOCH=$(date -d "Tue Jul 8 09:17:32 UTC 2025" +%s)
           export KBUILD_BUILD_USER="build-user"
           export KBUILD_BUILD_HOST="build-host"
-          export CROSS_COMPILE=aarch64-linux-gnu-
-          export ARCH=arm64
-          if [ "${{ inputs.codename }}" == "zumapro" ]; then
-            export KCFLAGS="-march=armv8.6-a -O3 --param=min-pagesize=0"
-          fi
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- blu_spark_defconfig -j$(nproc --all)
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- V=1 -j$(nproc --all)
-
+          
+          make blu_spark_defconfig -j$(nproc --all)
+          make V=1 -j$(nproc --all) 
+          
       - name: Copy Images
         run: |
           echo "Changing to configuration directory: $CONFIG..."
