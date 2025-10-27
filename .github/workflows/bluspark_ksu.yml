@@ -1,7 +1,7 @@
 name: Bluspark KowSU
 permissions:
-  contents: write  # Allow writing to repository contents (for pushing tags)
-  actions: write   # Allows triggering actions
+  contents: write
+  actions: write
 
 on:
   workflow_call:
@@ -24,14 +24,18 @@ on:
   
 jobs:
   build-kernel-bluspark-kowsu-susfs:
-    runs-on: ubuntu-24.04  # x86_64 runner for x86_64 GCC toolchain
+    runs-on: ubuntu-24.04
     steps:
       - name: Installing dependencies
         run: |
           sudo apt update
           sudo apt install -y gcc-aarch64-linux-gnu
 
-      
+      - name: Verify Toolchain
+        run: |
+          echo "Checking for aarch64-linux-gnu-gcc..."
+          which aarch64-linux-gnu-gcc || { echo "Error: aarch64-linux-gnu-gcc not found"; exit 1; }
+          aarch64-linux-gnu-gcc --version
 
       - name: Set CONFIG Environment Variable
         run: |
@@ -93,16 +97,6 @@ jobs:
           echo "Apply KSU integration patches"
           cp ../../kowsu_patches/KowSU/enable_susfs_for_kowsu.patch ./
           patch -p1 < enable_susfs_for_kowsu.patch 
-          
-
-  #    - name: Apply KSU Hook Patches
-  #      run: |
-  #        echo "Changing to configuration directory: $CONFIG..."
-  #        cd "$CONFIG"
-  #        echo "Applying manual hook patches..."
-  #        cp ../kernel_patches/syscall_hook/min_scope_syscall_hooks_v1.5.patch ./
-  #        patch -p1 --forward < min_scope_syscall_hooks_v1.5.patch || { echo "Failed to apply min_scope_syscall_hooks_v1.5.patch"; exit 1; }
-          
 
       - name: Getting KernelSU Version
         run: |
@@ -179,7 +173,6 @@ jobs:
           echo "CONFIG_IP6_NF_TARGET_MASQUERADE=y" >> ./arch/arm64/configs/blu_spark_defconfig
           echo "CONFIG_LZ4_COMPRESS=y" >> ./arch/arm64/configs/blu_spark_defconfig
           echo "CONFIG_LZ4HC_COMPRESS=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          
 
       - name: Run sed and perl Commands
         run: |
@@ -197,16 +190,16 @@ jobs:
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
           echo "Building the kernel..."
-          # Set SOURCE_DATE_EPOCH for reproducible build timestamp
           export SOURCE_DATE_EPOCH=$(date -d "Tue Jul 8 09:17:32 UTC 2025" +%s)
-          # Set build user and host
           export KBUILD_BUILD_USER="build-user"
           export KBUILD_BUILD_HOST="build-host"
+          export CROSS_COMPILE=aarch64-linux-gnu-
+          export ARCH=arm64
           if [ "${{ inputs.codename }}" == "zumapro" ]; then
             export KCFLAGS="-march=armv8.6-a -O3 --param=min-pagesize=0"
           fi
-          make ./arch/arm64/configs/blu_spark_defconfig -j$(nproc --all)
-          make V=1 -j$(nproc --all) 
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- ./arch/arm64/configs/blu_spark_defconfig -j$(nproc --all)
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- V=1 -j$(nproc --all)
 
       - name: Copy Images
         run: |
