@@ -39,17 +39,7 @@ jobs:
          echo "NDK_PATH=/opt/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_ENV
          echo "CROSS_COMPILE=/opt/android-ndk-r25c/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android-" >> $GITHUB_ENV
 
-      - name: Verify Toolchain
-        run: |
-         echo "Checking for aarch64-linux-gnu-gcc..."
-         which aarch64-linux-gnu-gcc
-         aarch64-linux-gnu-gcc --version
-         echo "Checking for clang..."
-         which clang
-         clang --version
-         echo "Checking for aarch64-linux-android-gcc..."
-         which /opt/android-ndk-r25c/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android-gcc || echo "aarch64-linux-android-gcc not found"
-
+      
       - name: Set CONFIG Environment Variable
         run: |
           CONFIG="gs"
