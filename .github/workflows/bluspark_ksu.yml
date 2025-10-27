@@ -116,15 +116,14 @@ jobs:
           grep -r "ksu_input_hook" ../ || echo "ksu_input_hook not found in source"
           grep -r "ksu_vfs_read_hook" ../ || echo "ksu_vfs_read_hook not found in source"
 
-      - name: Apply KSU Hook Patches
-        run: |
-          echo "Changing to configuration directory: $CONFIG..."
-          cd "$CONFIG"
-          echo "Applying manual hook patches..."
-          cp ../kernel_patches/syscall_hook/min_scope_syscall_hooks_v1.5.patch ./
-          patch -p1 --forward < min_scope_syscall_hooks_v1.5.patch || { echo "Failed to apply min_scope_syscall_hooks_v1.5.patch"; exit 1; }
-          grep -r "ksu_input_hook" drivers/input/input.c || echo "ksu_input_hook not found in input.c"
-          grep -r "ksu_vfs_read_hook" fs/read_write.c || echo "ksu_vfs_read_hook not found in read_write.c"
+  #    - name: Apply KSU Hook Patches
+  #      run: |
+  #        echo "Changing to configuration directory: $CONFIG..."
+  #        cd "$CONFIG"
+  #        echo "Applying manual hook patches..."
+  #        cp ../kernel_patches/syscall_hook/min_scope_syscall_hooks_v1.5.patch ./
+  #        patch -p1 --forward < min_scope_syscall_hooks_v1.5.patch || { echo "Failed to apply min_scope_syscall_hooks_v1.5.patch"; exit 1; }
+          
 
       - name: Getting KernelSU Version
         run: |
