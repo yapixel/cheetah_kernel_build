@@ -238,10 +238,23 @@ jobs:
       
       - name: Copy images
         run: |
-          cd "$CONFIG"
-          [ -f "$OUT_DIR/arch/arm64/boot/Image.lz4" ] || exit 1
-          cp "$OUT_DIR/arch/arm64/boot/Image.lz4" ../AnyKernel3/Image.lz4
-          cat $OUT_DIR/google_devices/zuma/dts/*.dtb    > ../AnyKernel3/dtb 
+         set -euo pipefail
+         cd "$CONFIG"
+
+         # Verify Image.lz4 exists
+         [ -f "$OUT_DIR/arch/arm64/boot/Image.lz4" ] || { echo "Image.lz4 not found!"; exit 1; }
+
+         # Copy kernel
+         cp "$OUT_DIR/arch/arm64/boot/Image.lz4" ../AnyKernel3/Image.lz4
+
+         # GKI: No DTB concatenation
+         echo "GKI device (zuma): skipping DTB concatenation"
+
+         # Optional: copy dtbo.img if present
+         if [ -f "$OUT_DIR/arch/arm64/boot/dtbo.img" ]; then
+         cp "$OUT_DIR/arch/arm64/boot/dtbo.img" ../AnyKernel3/dtbo.img
+         echo "dtbo.img copied"
+         fi
            
 
       - name: Create ZIP
