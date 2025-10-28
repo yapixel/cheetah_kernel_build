@@ -31,27 +31,57 @@ jobs:
      #     sudo apt update
      #     sudo apt install -y gcc-aarch64-linux-gnu
 
-      - name: Setup NDK in ~/android/toolchains
-        uses: nttld/setup-ndk@v1
-        id: ndk
-        with:
-         ndk-version: r25c
-         add-to-path: false
-
-      - name: Install NDK to Expected Path
-        env:
-         NDK_PATH: ${{ steps.ndk.outputs.ndk-path }}
+      - name: Manual Install NDK r25c + Clang Toolchain
         run: |
-         mkdir -p ~/android/toolchains/aarch64-linux-android-4.9
-         cp -r "$NDK_PATH/toolchains/aarch64-linux-android-4.9"/*/prebuilt/linux-x86_64 ~/android/toolchains/aarch64-linux-android-4.9/
-    
-         COMPILER=~/android/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android-gcc
-         if [ ! -f "$COMPILER" ]; then
-         echo "Compiler not found!"
-         exit 1
-         fi
-         echo "NDK GCC 4.9 ready:"
-         $COMPILER --version
+              set -euo pipefail
+
+              # ------------------------------------------------------------------
+              # 1. Download & extract NDK r25c
+              # ------------------------------------------------------------------
+              NDK_URL="https://dl.google.com/android/repository/android-ndk-r25c-linux.zip"
+              NDK_ZIP="/tmp/android-ndk-r25c-linux.zip"
+              NDK_ROOT="/opt/android-ndk-r25c"
+
+              echo "Downloading NDK r25c..."
+              curl -L -o "$NDK_ZIP" "$NDK_URL"
+
+              echo "Extracting to $NDK_ROOT..."
+              sudo mkdir -p "$NDK_ROOT"
+              sudo unzip -q "$NDK_ZIP" -d /opt/
+              sudo mv /opt/android-ndk-r25c "$NDK_ROOT"  # in case name differs
+
+              # ------------------------------------------------------------------
+              # 2. Copy Clang toolchain to expected user path
+              # ------------------------------------------------------------------
+              CLANG_SRC="$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64"
+              CLANG_DST="$HOME/android/toolchains/aarch64-clang"
+
+              mkdir -p "$CLANG_DST"
+              cp -r "$CLANG_SRC" "$CLANG_DST/"
+
+              # ------------------------------------------------------------------
+              # 3. Pick API level (change 21 → your minSdk if needed)
+              # ------------------------------------------------------------------
+              CLANG_API=21
+              COMPILER="$CLANG_DST/prebuilt/linux-x86_64/bin/aarch64-linux-android${CLANG_API}-clang"
+
+              if [ ! -f "$COMPILER" ]; then
+              echo "ERROR: Clang not found at $COMPILER"
+              echo "Available binaries:"
+              ls -1 "$CLANG_DST/prebuilt/linux-x86_64/bin/" | grep clang || true
+              exit 1
+               fi
+
+              echo "NDK r25c + Clang ready (API $CLANG_API):"
+              "$COMPILER" --version
+
+              # ------------------------------------------------------------------
+              # 4. Export for later steps
+              # ------------------------------------------------------------------
+              echo "NDK_ROOT=$NDK_ROOT" >> $GITHUB_ENV
+              echo "CLANG_ROOT=$CLANG_DST/prebuilt/linux-x86_64" >> $GITHUB_ENV
+              echo "CLANG_API=$CLANG_API" >> $GITHUB_ENV
+              echo "PATH=$CLANG_ROOT/bin:$PATH" >> $GITHUB_ENV
 
       
       
