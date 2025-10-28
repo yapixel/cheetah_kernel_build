@@ -1,361 +1,117 @@
-name: Bluspark KSU – Kleaf Build
-
-permissions:
-  contents: write
-  actions: write
+name: BluSpark Kernel Build (KSU + SUSFS)
 
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       codename:
+        description: 'Device codename (gs201, zuma, zumapro)'
         required: true
-        type: string
-      repo:
-        required: true
-        type: string
-      android_version:
-        required: true
-        type: string
-      kernel_version:
-        required: true
-        type: string
-      release_tag:
-        required: true
-        type: string
+        default: 'zuma'
+
+env:
+  CONFIG: gs
+  OUT_DIR: out_gs
+  ANYKERNEL_DIR: AnyKernel3
 
 jobs:
-  build-kernel-bluspark-ksu-kleaf:
-    runs-on: ubuntu-latest
-    env:
-      CONFIG: gs
-      OUT_DIR: out_gs
-      BAZELISK_VERSION: 1.21.0
-      KLEAF_SHA256: "1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z"  # Update if needed
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: write
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Check Initial Disk Space
-        run: |
-          echo "===== Initial Total Disk Space in GB ====="
-          df -BG
-          
-      - name: Download Apache Arrow's util_free_space.sh
-        run: |
-          curl -L -o util_free_space.sh https://raw.githubusercontent.com/apache/arrow/main/ci/scripts/util_free_space.sh
-          chmod +x util_free_space.sh
-          ./util_free_space.sh
-          
-      - name: Check Disk Space After Cleanup
-        run: |
-          echo "===== Total Disk Space After Cleanup in GB ====="
-          df -BG
-          
       - name: Install dependencies
         run: |
+          set -euo pipefail
           sudo apt update
-          sudo apt install -y \
-            curl zip unzip git jq gh \
-            python3 python3-pip openjdk-17-jdk \
-            repo wget xz-utils
+          sudo apt install -y git curl wget unzip bc bison flex libssl-dev libelf-dev \
+            python3 python3-pip build-essential clang lld llvm \
+            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu lz4
 
-      - name: Install Bazelisk
-        run: |
-         set -euo pipefail
-
-         BAZELISK_VERSION="1.21.0"
-         URL="https://github.com/bazelbuild/bazelisk/releases/download/v${BAZELISK_VERSION}/bazelisk-linux-amd64"
-         TARGET="/usr/local/bin/bazel"
-
-         echo "Creating directory /usr/local/bin..."
-         sudo mkdir -p /usr/local/bin
-  
-         echo "Downloading Bazelisk from $URL..."
-         curl -fsSL "$URL" -o "$TARGET.tmp"
-
-         echo "Installing to $TARGET..."
-         sudo mv "$TARGET.tmp" "$TARGET"
-         sudo chmod 755 "$TARGET"
-
-         echo "Bazel version:"
-         bazel version
-
-      - name: Install NDK r25c + Clang
-        run: |
-         set -euo pipefail
-
-         # === URLs & Paths ===
-         NDK_URL="https://dl.google.com/android/repository/android-ndk-r25c-linux.zip"
-         NDK_ZIP="/tmp/android-ndk-r25c-linux.zip"
-         NDK_ROOT="/opt/android-ndk-r25c"
-         CLANG_SRC="$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64"
-         CLANG_DST="$HOME/android/clang"  # Use $HOME, not ~
-
-         # === Download NDK ===
-         echo "Downloading NDK r25c..."
-         curl -L -o "$NDK_ZIP" "$NDK_URL"
-
-         # === Extract NDK ===
-         echo "Extracting NDK to /opt..."
-         sudo unzip -q "$NDK_ZIP" -d /opt/
-
-         # === Setup
-
-      # ------------------------------------------------------------------
-      # Clone Kernel & Patches
-      # ------------------------------------------------------------------
-      - name: Clone engstk/gs (blu_spark kernel source)
-        run: |
-          git clone https://github.com/engstk/gs -b blu_spark-16-susfs gs
-
-      - name: Clone additional repos
-        run: |
-          git clone https://github.com/TheWildJames/AnyKernel3.git -b sultan-zuma
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
-          git clone https://github.com/yapixel/kernel_patches.git
-          git clone https://github.com/KOWX712/files.git kowsu_patches
-
-      - name: Get Latest Bluspark Tag
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          TAG=$(gh api repos/engstk/gs/tags --jq '.[0].name')
-          [ -n "$TAG" ] || { echo "Failed to fetch tag"; exit 1; }
-          echo "LATEST_BLUSPARK_TAG=$TAG" >> "$GITHUB_ENV"
-
-      # ------------------------------------------------------------------
-      # Apply Patches & Configs
-      # ------------------------------------------------------------------
-      - name: Add KernelSU
-        run: |
-          cd "$CONFIG"
-          curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s 37ef0d27067d3d7e7bf07a80547a1949864789c4
-
-      
-      
-
-      - name: KernelSU version
-        id: ksuver
-        run: |
-          cd "$CONFIG/KernelSU/kernel"
-          BASE=10200
-          CNT=$(git rev-list --count HEAD)
-          KSUVER=$((CNT + BASE))
-          echo "KSUVER=$KSUVER" >> "$GITHUB_ENV"
-          echo "ksu_version=$KSUVER" >> "$GITHUB_OUTPUT"
-
-      - name: Hide-stuff patch
-        run: |
-          cd "$CONFIG"
-          cp ../kernel_patches/69_hide_stuff.patch .
-          patch -p1 -F 3 < 69_hide_stuff.patch || exit 1
-
-      - name: Disable stack protector (Kleaf-safe)
-        run: |
-          cd "$CONFIG"
-          DEFCONFIG="arch/arm64/configs/blu_spark_defconfig"
-          echo "CONFIG_CC_STACKPROTECTOR=n" >> "$DEFCONFIG"
-          echo "CONFIG_CC_STACKPROTECTOR_STRONG=n" >> "$DEFCONFIG"
-          echo "KBUILD_CFLAGS += -fno-stack-protector" >> "$DEFCONFIG"
-          echo "KBUILD_CFLAGS_MODULE += -fno-stack-protector" >> "$DEFCONFIG"
-
-      - name: Add extra CONFIGs
-        run: |
-          cd "$CONFIG"
-          DEFCONFIG="arch/arm64/configs/blu_spark_defconfig"
-          echo "CONFIG_TMPFS_XATTR=y" >> "$DEFCONFIG"
-          echo "CONFIG_TMPFS_POSIX_ACL=y" >> "$DEFCONFIG"
-          echo "CONFIG_IP_NF_TARGET_TTL=y" >> "$DEFCONFIG"
-          echo "CONFIG_IP6_NF_TARGET_HL=y" >> "$DEFCONFIG"
-          echo "CONFIG_IP6_NF_MATCH_HL=y" >> "$DEFCONFIG"
-          echo "CONFIG_TCP_CONG_ADVANCED=y" >> "$DEFCONFIG"
-          echo "CONFIG_TCP_CONG_BBR=y" >> "$DEFCONFIG"
-          echo "CONFIG_NET_SCH_FQ=y" >> "$DEFCONFIG"
-          echo "CONFIG_TCP_CONG_BIC=n" >> "$DEFCONFIG"
-          echo "CONFIG_TCP_CONG_WESTWOOD=n" >> "$DEFCONFIG"
-          echo "CONFIG_TCP_CONG_HTCP=n" >> "$DEFCONFIG"
-          echo "CONFIG_BPF_STREAM_PARSER=y" >> "$DEFCONFIG"
-          echo "CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y" >> "$DEFCONFIG"
-          echo "CONFIG_NETFILTER_XT_SET=y" >> "$DEFCONFIG"
-          echo "CONFIG_IP_SET=y" >> "$DEFCONFIG"
-          echo "CONFIG_IP_SET_MAX=65534" >> "$DEFCONFIG"
-          echo "CONFIG_LZ4_COMPRESS=y" >> "$DEFCONFIG"
-          echo "CONFIG_LZ4HC_COMPRESS=y" >> "$DEFCONFIG"
-
-      - name: sed / perl tweaks
-        run: |
-          cd "$CONFIG"
-          sed -i 's/CONFIG_LOCALVERSION=".*"/CONFIG_LOCALVERSION="-android14-11-blu_spark-16"/' arch/arm64/configs/blu_spark_defconfig
-          sed -i 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
-          perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "Tue Jul 8 09:17:32 UTC 2025"/' init/Makefile
-
-      # ------------------------------------------------------------------
-      # Kleaf: Setup Bazel Workspace
-      # ------------------------------------------------------------------
-      - name: Create WORKSPACE
-        run: |
-          cat > WORKSPACE <<'EOF'
-          workspace(name = "blu_spark_kleaf")
-          EOF
-          
-      - name: Download and setup Kleaf
+      - name: Setup Build Environment
         run: |
           set -euo pipefail
+          AOSP_MIRROR=https://android.googlesource.com
+          BRANCH=main-kernel-2025
 
-          KLEAF_DIR="build-kernel-kleaf"
-          mkdir -p "$KLEAF_DIR"
+          git clone $AOSP_MIRROR/kernel/prebuilts/build-tools -b $BRANCH --depth 1 kernel-build-tools &
+          git clone $AOSP_MIRROR/platform/system/tools/mkbootimg -b $BRANCH --depth 1 mkbootimg &
+          wait
 
-          echo "Downloading Kleaf..."
-          curl -fsSL "https://android.googlesource.com/kernel/build/+archive/refs/heads/main/kleaf.tar.gz" \
-            | tar -xz -C "$KLEAF_DIR" --strip-components=1
+          echo "AVBTOOL=$GITHUB_WORKSPACE/kernel-build-tools/linux-x86/bin/avbtool" >> $GITHUB_ENV
+          echo "MKBOOTIMG=$GITHUB_WORKSPACE/mkbootimg/mkbootimg.py" >> $GITHUB_ENV
+          echo "UNPACK_BOOTIMG=$GITHUB_WORKSPACE/mkbootimg/unpack_bootimg.py" >> $GITHUB_ENV
+          echo "BOOT_SIGN_KEY_PATH=$GITHUB_WORKSPACE/kernel-build-tools/linux-x86/share/avb/testkey_rsa2048.pem" >> $GITHUB_ENV
+          echo "PATH=$GITHUB_WORKSPACE/kernel-build-tools/linux-x86/bin:$PATH" >> $GITHUB_ENV
 
-          # Verify extraction
-          if [ ! -f "$KLEAF_DIR/kernel_build.bzl" ]; then
-            echo "Error: Kleaf extraction failed!"
-            ls -la "$KLEAF_DIR" || true
+          mkdir -p ./git-repo
+          curl https://storage.googleapis.com/git-repo-downloads/repo > ./git-repo/repo
+          chmod a+rx ./git-repo/repo
+          echo "REPO=$GITHUB_WORKSPACE/git-repo/repo" >> $GITHUB_ENV
+
+      - name: Initialize and Sync Kernel Source
+        run: |
+          set -euo pipefail
+          mkdir -p "$CONFIG"
+          cd "$CONFIG"
+
+          # Use a real GKI branch (adjust as needed)
+          $REPO init --depth=1 -u https://android.googlesource.com/kernel/manifest -b common-android14-6.1
+          $REPO sync -c -j$(nproc) --no-tags
+
+          # Verify build.sh exists
+          if [ ! -f "build/build.sh" ]; then
+            echo "ERROR: build.sh not found!"
+            ls -la build/
             exit 1
           fi
 
-          echo "Kleaf extracted successfully into $KLEAF_DIR"
-          echo "Contents of $KLEAF_DIR (first 20 entries):"
-
-          # --- FIXED: Safe listing without pipefail triggering ---
-          set +o pipefail  # Temporarily disable pipefail
-          ls -la "$KLEAF_DIR" | head -20 || true
-          set -o pipefail  # Re-enable pipefail
-          # ----------------------------------------------------
-
-      - name: Create BUILD.bazel
-        run: |
-          cat > BUILD.bazel <<'EOF'
-          load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-
-          # Load Kleaf rules
-          local_repository(
-              name = "kleaf",
-              path = "kleaf",
-          )
-
-          load("@kleaf//:kernel.bzl", "kernel_build")
-          load("@kleaf//:common_kernels.bzl", "arm64_outs")
-
-          kernel_build(
-              name = "blu_spark_gs",
-              srcs = glob(
-                  ["**"],
-                  exclude = [
-                      "**/BUILD.bazel",
-                      "**/*.bzl",
-                      ".git/**",
-                      "out_gs/**",
-                      "bazel-*",
-                  ],
-              ),
-              outs = arm64_outs + [
-                  "Image.lz4",
-              ],
-              defconfig = "arch/arm64/configs/blu_spark_defconfig",
-              build_config = "build.config.gs",
-              module_outs = [
-                  "drivers/block/zram/zram.ko",
-                  "drivers/scsi/sg.ko",
-                  "drivers/spi/spidev.ko",
-                  "drivers/misc/eeprom/at24.ko",
-                  "drivers/misc/open-dice.ko",
-                  "drivers/net/mii.ko",
-                  "drivers/net/can/dev/can-dev.ko",
-                  "drivers/net/can/slcan/slcan.ko",
-              ],
-          )
-          EOF
-
-      - name: Create build.config.gs
-        run: |
-          cat > build.config.gs <<EOF
-          KERNEL_DIR=gs
-          FILES="Image.lz4 vmlinux System.map Module.symvers"
-          DTB_FILES="google-devices/${{ inputs.codename }}/dts/*.dtb"
-          MAKE_ARGS="O=out_gs ARCH=arm64 CC=clang LD=ld.lld AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip LLVM=1"
-          CLANG_TRIPLE=aarch64-linux-gnu-
-          CLANG_VERSION=r416183b
-          SOURCE_DATE_EPOCH=$(date -d "Tue Jul 8 09:17:32 UTC 2025" +%s)
-          KBUILD_BUILD_USER=build-user
-          KBUILD_BUILD_HOST=build-host
-          EXT_MODULES=""
-          EOF
-
-      # ------------------------------------------------------------------
-      # Build with Kleaf
-      # ------------------------------------------------------------------
-      - name: Build Kernel with Kleaf
+      - name: Apply patches
         run: |
           set -euo pipefail
+          cd "$CONFIG"
+
+          curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
+
+      - name: Build with build.sh
+        run: |
+          set -euo pipefail
+          cd "$CONFIG"
 
           export SOURCE_DATE_EPOCH=$(date -d "Tue Jul 8 09:17:32 UTC 2025" +%s)
-          export KBUILD_BUILD_USER="kleaf"
-          export KBUILD_BUILD_HOST="build-host"
+          export KBUILD_BUILD_USER="bluspark"
+          export KBUILD_BUILD_HOST="github-actions"
 
-          cd build-kernel-kleaf
+          # Use your defconfig
+          cp ../blu_spark_defconfig common/arch/arm64/configs/
 
-          echo "Bazel version:"
-          bazel version
+          LTO=thin BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh
 
-          echo "Using Kleaf configs..."
-          echo "  - ants.bazelrc"
-          echo "  - android_ci.bazelrc"
-
-          # === CLEAN .bazelrc files: remove :: and self-imports ===
-          echo "Cleaning .bazelrc files..."
-          sed -i '/--bazelrc=.*ants\.bazelrc/d' ants.bazelrc
-          sed -i '/--bazelrc=.*android_ci\.bazelrc/d' android_ci.bazelrc
-          sed -i 's/ *::.*$//' ants.bazelrc
-          sed -i 's/ *::.*$//' android_ci.bazelrc
-          # =======================================================
-
-          # === BUILD COMMAND ===
-          bazel build //common:kernel \
-            --config=fast \
-            --compilation_mode=fastbuild \
-            --jobs=$(nproc)
-
-      # ------------------------------------------------------------------
-      # Copy outputs to AnyKernel3
-      # ------------------------------------------------------------------
-      - name: Copy Image.lz4
+      - name: Copy to AnyKernel3
         run: |
-          [ -f bazel-bin/Image.lz4 ] || { echo "Image.lz4 not found!"; exit 1; }
-          cp bazel-bin/Image.lz4 AnyKernel3/Image.lz4
+          set -euo pipefail
+          cd "$CONFIG"
 
-      - name: Copy DTBs
+          cp out/android14-6.1/dist/Image.lz4 ../AnyKernel3/Image.lz4
+
+          CODENAME="${{ inputs.codename }}"
+          cat out/android14-6.1/google-devices/$CODENAME/dts/*.dtb > ../AnyKernel3/dtb
+
+      - name: Package ZIP
         run: |
-          DTB_DIR=""
-          case "${{ inputs.codename }}" in
-            gs201)     DTB_DIR="bazel-bin/google-devices/gs201/dts" ;;
-            zuma)      DTB_DIR="bazel-bin/google-devices/zuma/dts" ;;
-            zumapro)   DTB_DIR="bazel-bin/google-devices/zumapro/dts" ;;
-            *)         echo "Unknown codename: ${{ inputs.codename }}"; exit 1 ;;
-          esac
-
-          if ls "$DTB_DIR"/*.dtb >/dev/null 2>&1; then
-            cat "$DTB_DIR"/*.dtb > AnyKernel3/dtb
-          else
-            echo "No .dtb files found in $DTB_DIR"
-            exit 1
-          fi
-
-      # ------------------------------------------------------------------
-      # Create ZIP
-      # ------------------------------------------------------------------
-      - name: Create ZIP
-        id: zip
-        run: |
+          set -euo pipefail
           cd AnyKernel3
-          ZIP_NAME="KowSU-${{ env.KSUVER }}-${{ inputs.codename }}_A16_Bluspark-${{ env.LATEST_BLUSPARK_TAG }}_SUSFS-${{ inputs.release_tag }}.zip"
-          zip -r9 "../$ZIP_NAME" ./*
-          echo "ZIP created: $ZIP_NAME"
-          echo "zip_path=../$ZIP_NAME" >> "$GITHUB_OUTPUT"
+          KSUVER=$(curl -s https://api.github.com/repos/tiann/KernelSU/releases/latest | grep tag_name | cut -d '"' -f 4 | sed 's/v//')
+          ZIP_NAME="BluSpark-KSU-${{ inputs.codename }}-$(date +%Y%m%d)-KSU${KSUVER}.zip"
+          zip -r9 "../$ZIP_NAME" * -x "*.git*"
+          echo "ZIP_PATH=../$ZIP_NAME" >> $GITHUB_ENV
 
-      - name: Upload artifact
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: kernel-${{ inputs.codename }}-kowsu
-          path: "*.zip"
+          name: BluSpark-Kernel-${{ inputs.codename }}
+          path: ${{ env.ZIP_PATH }}
