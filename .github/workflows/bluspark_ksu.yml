@@ -241,7 +241,7 @@ jobs:
           cd "$CONFIG"
           [ -f "$OUT_DIR/arch/arm64/boot/Image.lz4" ] || exit 1
           cp "$OUT_DIR/arch/arm64/boot/Image.lz4" ../AnyKernel3/Image.lz4
-          cat $OUT_DIR/dts/*.dtb    > ../AnyKernel3/dtb ;;
+          cat $OUT_DIR/dts/*.dtb    > ../AnyKernel3/dtb 
            
 
       - name: Create ZIP
