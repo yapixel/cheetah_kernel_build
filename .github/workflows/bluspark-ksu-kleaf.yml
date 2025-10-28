@@ -88,7 +88,7 @@ jobs:
           curl -L -o "$NDK_ZIP" "$NDK_URL"
           sudo unzip -q "$NDK_ZIP" -d /opt/
           CLANG_SRC="$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64"
-          CLANG_DST="$HOME/android/clang"
+          CLANG_DST="~/android/clang"
           mkdir - p "$CLANG_DST"
           cp -r "$CLANG_SRC"/* "$CLANG_DST/"
           echo "$CLANG_DST/bin" >> "$GITHUB_PATH"
