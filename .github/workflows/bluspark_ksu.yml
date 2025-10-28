@@ -267,5 +267,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: kernel-${{ inputs.codename }}-bluspark-kowsu
+          name: kernel-${{ inputs.codename }}-ksu
           path: "*.zip"
