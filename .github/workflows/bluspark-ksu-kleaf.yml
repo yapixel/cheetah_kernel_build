@@ -130,15 +130,8 @@ jobs:
           cd "$CONFIG"
           curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s 37ef0d27067d3d7e7bf07a80547a1949864789c4
 
-      - name: Apply SUSFS patches
-        run: |
-          cd "$CONFIG"
-          PATCH="../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch"
-          [ -f "$PATCH" ] || { echo "SUSFS patch missing: $PATCH"; exit 1; }
-          cp "$PATCH" .
-          cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
-          cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
-          patch -p1 -F 3 < "$(basename "$PATCH")" || echo "SUSFS patch applied with fuzz"
+      
+      
 
       - name: KernelSU version
         id: ksuver
