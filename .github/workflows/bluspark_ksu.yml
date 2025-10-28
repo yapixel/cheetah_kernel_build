@@ -31,13 +31,27 @@ jobs:
      #     sudo apt update
      #     sudo apt install -y gcc-aarch64-linux-gnu
 
-      - name: Setup NDK
+      - name: Setup NDK in ~/android/toolchains
         uses: nttld/setup-ndk@v1
-        id: setup-ndk
+        id: ndk
         with:
          ndk-version: r25c
-         add-to-path: true
-         local-cache: false
+         add-to-path: false
+
+      - name: Install NDK to Expected Path
+        env:
+         NDK_PATH: ${{ steps.ndk.outputs.ndk-path }}
+        run: |
+         mkdir -p ~/android/toolchains/aarch64-linux-android-4.9
+         cp -r "$NDK_PATH/toolchains/aarch64-linux-android-4.9"/*/prebuilt/linux-x86_64 ~/android/toolchains/aarch64-linux-android-4.9/
+    
+         COMPILER=~/android/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android-gcc
+         if [ ! -f "$COMPILER" ]; then
+         echo "Compiler not found!"
+         exit 1
+         fi
+         echo "NDK GCC 4.9 ready:"
+         $COMPILER --version
 
       
       
@@ -199,11 +213,11 @@ jobs:
           export KBUILD_BUILD_HOST="build-host"
           
           export ARCH=arm64
-          #export CROSS_COMPILE=${{ env.ANDROID_NDK_HOME }}/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android-
-          export PATH=${{ env.ANDROID_NDK_HOME }}/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
+          export PATH=~/android/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin:$PATH
 
           make blu_spark_defconfig -j$(nproc --all)
           make V=1 -j$(nproc --all)
+
           
       - name: Copy Images
         run: |
