@@ -61,20 +61,11 @@ jobs:
       - name: Install Bazelisk
         run: |
           set -euo pipefail
-
-          BAZELISK_VERSION="${{ env.BAZELISK_VERSION }}"
-          URL="https://github.com/bazelbuild/bazelisk/releases/download/v${BAZELISK_VERSION}/bazelisk-linux-amd64"
-
-          echo "Creating /usr/local/bin..."
           sudo mkdir -p /usr/local/bin
-
-          echo "Downloading Bazelisk v${BAZELISK_VERSION}..."
-          curl -fsSL "$URL" | sudo tee /usr/local/bin/bazel > /dev/null
-
-          echo "Setting executable permissions..."
+          curl -fsSL "https://github.com/bazelbuild/bazelisk/releases/download/v${{ env.BAZELISK_VERSION }}/bazelisk-linux-amd64" \
+            | sudo tee /usr/local/bin/bazel > /dev/null
           sudo chmod +x /usr/local/bin/bazel
-
-          echo "Bazel version:"
+          echo "/usr/local/bin" >> "$GITHUB_PATH"
           bazel version
 
       - name: Install NDK r25c + Clang
