@@ -31,64 +31,79 @@ jobs:
      #     sudo apt update
      #     sudo apt install -y gcc-aarch64-linux-gnu
 
-      - name: Manual Install NDK r25c + Clang Toolchain
+      - name: Manual Install NDK r25c + Clang Toolchain (Fixed)
         run: |
           set -euo pipefail
 
-          # --------------------------------------------------------------
-          # 1. Download the official r25c zip
-          # --------------------------------------------------------------
+          # ------------------------------------------------------------------
+          # 1. Download NDK r25c
+          # ------------------------------------------------------------------
           NDK_URL="https://dl.google.com/android/repository/android-ndk-r25c-linux.zip"
           NDK_ZIP="/tmp/android-ndk-r25c-linux.zip"
-          NDK_ROOT="/opt/android-ndk-r25c"
+          NDK_EXTRACT_DIR="/opt/android-ndk-r25c"
 
           echo "Downloading NDK r25c..."
           curl -L -o "$NDK_ZIP" "$NDK_URL"
 
-          # --------------------------------------------------------------
-          # 2. Extract – the zip already creates the correct folder
-          # --------------------------------------------------------------
-          echo "Extracting to $NDK_ROOT..."
-          sudo mkdir -p "$(dirname "$NDK_ROOT")"
+          # ------------------------------------------------------------------
+          # 2. Extract – the zip contains a folder named "android-ndk-r25c"
+          # ------------------------------------------------------------------
+          echo "Extracting to /opt/..."
           sudo unzip -q "$NDK_ZIP" -d /opt/
 
-          # No mv needed – the extracted folder is already named correctly
-          # (the zip contains a top-level directory called android-ndk-r25c)
+          # The extracted folder is: /opt/android-ndk-r25c
+          if [ ! -d "$NDK_EXTRACT_DIR" ]; then
+            echo "ERROR: Expected NDK directory not found: $NDK_EXTRACT_DIR"
+            echo "Contents of /opt/:"
+            ls -la /opt/
+            exit 1
+          fi
 
-          # --------------------------------------------------------------
-          # 3. Copy the Clang toolchain to the path your workflow expects
-          # --------------------------------------------------------------
-          CLANG_SRC="$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64"
+          # ------------------------------------------------------------------
+          # 3. Verify Clang source exists
+          # ------------------------------------------------------------------
+          CLANG_SRC="$NDK_EXTRACT_DIR/toolchains/llvm/prebuilt/linux-x86_64"
+          if [ ! -d "$CLANG_SRC" ]; then
+            echo "ERROR: Clang toolchain not found at $CLANG_SRC"
+            echo "Available toolchains:"
+            find "$NDK_EXTRACT_DIR/toolchains" -maxdepth 2 -type d || true
+            exit 1
+          fi
+
+          # ------------------------------------------------------------------
+          # 4. Copy to user-writable path
+          # ------------------------------------------------------------------
           CLANG_DST="$HOME/android/toolchains/aarch64-clang"
-
           mkdir -p "$CLANG_DST"
           cp -r "$CLANG_SRC" "$CLANG_DST/"
 
-          # --------------------------------------------------------------
-          # 4. Choose API level (21 = Android 5.0; change if your minSdk is higher)
-          # --------------------------------------------------------------
+          # ------------------------------------------------------------------
+          # 5. Pick API level (21 = Android 5.0; change if needed)
+          # ------------------------------------------------------------------
           CLANG_API=21
           COMPILER="$CLANG_DST/prebuilt/linux-x86_64/bin/aarch64-linux-android${CLANG_API}-clang"
 
           if [ ! -f "$COMPILER" ]; then
-            echo "ERROR: Clang not found at $COMPILER"
-            echo "Available clang binaries:"
-            ls -1 "$CLANG_DST/prebuilt/linux-x86_64/bin/" | grep clang || true
+            echo "ERROR: Clang binary not found: $COMPILER"
+            echo "Available binaries in bin/:"
+            ls -1 "$CLANG_DST/prebuilt/linux-x86_64/bin/" 2>/dev/null | grep -i clang || echo "None"
+            echo "Trying to find any aarch64 clang..."
+            find "$CLANG_DST" -name "aarch64*clang" | head -5 || true
             exit 1
           fi
 
           echo "NDK r25c + Clang ready (API $CLANG_API):"
           "$COMPILER" --version
 
-          # --------------------------------------------------------------
-          # 5. Export variables for the rest of the workflow
-          # --------------------------------------------------------------
-          echo "NDK_ROOT=$NDK_ROOT" >> $GITHUB_ENV
+          # ------------------------------------------------------------------
+          # 6. Export for build
+          # ------------------------------------------------------------------
+          echo "NDK_ROOT=$NDK_EXTRACT_DIR" >> $GITHUB_ENV
           echo "CLANG_ROOT=$CLANG_DST/prebuilt/linux-x86_64" >> $GITHUB_ENV
           echo "CLANG_API=$CLANG_API" >> $GITHUB_ENV
           echo "PATH=$CLANG_ROOT/bin:$PATH" >> $GITHUB_ENV
 
-          # Optional compatibility symlink (keeps old path working)
+          # Optional: keep old path for compatibility
           ln -sfn "$CLANG_DST" "$HOME/android/toolchains/aarch64-linux-android-4.9"
 
       
@@ -251,7 +266,9 @@ jobs:
           export KBUILD_BUILD_HOST="build-host"
           
           export ARCH=arm64
-          export PATH=~/android/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin:$PATH
+
+          # This tells the kernel to use Clang from PATH
+          export CROSS_COMPILE=aarch64-linux-android${{ env.CLANG_API}}-
 
           make blu_spark_defconfig -j$(nproc --all)
           make V=1 -j$(nproc --all)
