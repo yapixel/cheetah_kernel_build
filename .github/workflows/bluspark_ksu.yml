@@ -241,13 +241,8 @@ jobs:
           cd "$CONFIG"
           [ -f "$OUT_DIR/arch/arm64/boot/Image.lz4" ] || exit 1
           cp "$OUT_DIR/arch/arm64/boot/Image.lz4" ../AnyKernel3/Image.lz4
-
-          case "${{ inputs.codename }}" in
-            gs201)   cat $OUT_DIR/google-devices/gs201/dts/*.dtb   > ../AnyKernel3/dtb ;;
-            zuma)    cat $OUT_DIR/google-devices/zuma/dts/*.dtb    > ../AnyKernel3/dtb ;;
-            zumapro) cat $OUT_DIR/google-devices/zumapro/dts/*.dtb > ../AnyKernel3/dtb ;;
-            *) echo "Unknown codename"; exit 1 ;;
-          esac
+          cat $OUT_DIR/dts/*.dtb    > ../AnyKernel3/dtb ;;
+           
 
       - name: Create ZIP
         run: |
