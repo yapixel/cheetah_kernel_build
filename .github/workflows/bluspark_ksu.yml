@@ -260,7 +260,7 @@ jobs:
       - name: Create ZIP
         run: |
           cd AnyKernel3
-          ZIP="KowSU-${{ env.KSUVER }}-zuma_A16_Bluspark-${{ env.LATEST_BLUSPARK_TAG }}_SUSFS-${{ inputs.release_tag }}.zip"
+          ZIP="KSU-${{ env.KSUVER }}-zuma_A16_Bluspark-${{ env.LATEST_BLUSPARK_TAG }}_SUSFS-${{ inputs.release_tag }}.zip"
           zip -r9 "../$ZIP" ./*
           echo "ZIP: $ZIP"
 
