@@ -160,12 +160,21 @@ jobs:
           sed -i 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
           perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "Tue Jul 8 09:17:32 UTC 2025"/' init/Makefile
 
-      - name: Disable Stack Protector for Modules
+      - name: Disable stack protector globally (FIX)
         run: |
-         echo "Disabling stack protector to avoid __stack_chk_guard undefined..."
-         cd "$CONFIG"
-         echo "CONFIG_CC_STACKPROTECTOR=n" >> arch/arm64/configs/blu_spark_defconfig
-         echo "CONFIG_STACKPROTECTOR_REGULAR=n" >> arch/arm64/configs/blu_spark_defconfig
+          cd "$CONFIG"
+          DEFCONFIG="arch/arm64/configs/blu_spark_defconfig"
+
+          # Disable all forms of stack protection
+          echo "CONFIG_CC_STACKPROTECTOR=n" >> "$DEFCONFIG"
+          echo "CONFIG_CC_STACKPROTECTOR_REGULAR=n" >> "$DEFCONFIG"
+          echo "CONFIG_CC_STACKPROTECTOR_STRONG=n" >> "$DEFCONFIG"
+          echo "CONFIG_STACKPROTECTOR=n" >> "$DEFCONFIG"
+          echo "CONFIG_STACKPROTECTOR_PER_TASK=n" >> "$DEFCONFIG"
+
+          # Force Clang to NOT add -fstack-protector
+          echo "KBUILD_CFLAGS += -fno-stack-protector" >> "$DEFCONFIG"
+          echo "KBUILD_AFLAGS += -fno-stack-protector" >> "$DEFCONFIG"
         
 
       
