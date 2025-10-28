@@ -283,35 +283,41 @@ jobs:
           EXT_MODULES=""
           EOF
 
-      # ------------------------------------------------------------------
+      #       # ------------------------------------------------------------------
       # Build with Kleaf
       # ------------------------------------------------------------------
       - name: Build Kernel with Kleaf
         run: |
-         set -euo pipefail
+          set -euo pipefail
 
-         export SOURCE_DATE_EPOCH=$(date -d "Tue Jul 8 09:17:32 UTC 2025" +%s)
-         export KBUILD_BUILD_USER="kleaf"
-         export KBUILD_BUILD_HOST="build-host"
+          export SOURCE_DATE_EPOCH=$(date -d "Tue Jul 8 09:17:32 UTC 2025" +%s)
+          export KBUILD_BUILD_USER="kleaf"
+          export KBUILD_BUILD_HOST="build-host"
 
-         cd build-kernel-kleaf
+          cd build-kernel-kleaf
 
-         echo "Bazel version:"
-         bazel version
+          echo "Bazel version:"
+          bazel version
 
-         echo "Using Kleaf configs..."
-         echo "  - ants.bazelrc"
-         echo "  - android_ci.bazelrc"
+          echo "Using Kleaf configs..."
+          echo "  - ants.bazelrc"
+          echo "  - android_ci.bazelrc"
 
-         # Build command — NO comments after \
-         bazel build //common:kernel \
-         --config=fast \
-         --bazelrc=ants.bazelrc \
-         --bazelrc=android_ci.bazelrc \
-         --nobuild_python_zip \
-         --nouse_prebuilt_python \
-         --jobs=$(nproc) \
-         --local_ram_resources=HOST_RAM*0.7
+          # === CRITICAL: Strip :: comments from .bazelrc files ===
+          echo "Stripping :: comments from .bazelrc files..."
+          sed -i 's/ *::.*$//' ants.bazelrc
+          sed -i 's/ *::.*$//' android_ci.bazelrc || true
+          # =======================================================
+
+          # Build command — NO inline comments
+          bazel build //common:kernel \
+            --config=fast \
+            --bazelrc=ants.bazelrc \
+            --bazelrc=android_ci.bazelrc \
+            --nobuild_python_zip \
+            --nouse_prebuilt_python \
+            --jobs=$(nproc) \
+            --local_ram_resources=HOST_RAM*0.7
 
       # ------------------------------------------------------------------
       # Copy outputs to AnyKernel3
