@@ -185,7 +185,7 @@ jobs:
           sed -i 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
           perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "Tue Jul 8 09:17:32 UTC 2025"/' init/Makefile
 
-      - name: Build kernel (Clang)
+      - name: Build kernel (Clang + LLVM)
         run: |
           cd "$CONFIG"
 
@@ -197,17 +197,27 @@ jobs:
           make O="$OUT_DIR" \
                ARCH=arm64 \
                CC=clang \
-               CROSS_COMPILE=aarch64-linux-gnu- \
-               CLANG_TRIPLE=aarch64-linux-gnu- \
+               LD=ld.lld \
+               AR=llvm-ar \
+               NM=llvm-nm \
+               OBJCOPY=llvm-objcopy \
+               OBJDUMP=llvm-objdump \
+               STRIP=llvm-strip \
+               LLVM=1 \
                blu_spark_defconfig -j$(nproc)
 
           make O="$OUT_DIR" \
                ARCH=arm64 \
                CC=clang \
-               CROSS_COMPILE=aarch64-linux-gnu- \
-               CLANG_TRIPLE=aarch64-linux-gnu- \
+               LD=ld.lld \
+               AR=llvm-ar \
+               NM=llvm-nm \
+               OBJCOPY=llvm-objcopy \
+               OBJDUMP=llvm-objdump \
+               STRIP=llvm-strip \
+               LLVM=1 \
                V=1 -j$(nproc)
-
+               
       - name: Copy images
         run: |
           cd "$CONFIG"
