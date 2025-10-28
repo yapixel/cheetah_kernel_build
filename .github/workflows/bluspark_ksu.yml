@@ -77,14 +77,14 @@ jobs:
         run: |
           git clone https://github.com/TheWildJames/AnyKernel3.git -b sultan-zuma
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
-          git clone https://github.com/engstk/gs -b blu_spark-16
+          git clone https://github.com/engstk/gs -b blu_spark-16-susfs
           git clone https://github.com/yapixel/kernel_patches.git
           git clone https://github.com/KOWX712/files.git kowsu_patches
 
       - name: Add KernelSU
         run: |
           cd "$CONFIG"
-          curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
+          curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s 37ef0d27067d3d7e7bf07a80547a1949864789c4
          
 
       - name: Apply SUSFS patches
