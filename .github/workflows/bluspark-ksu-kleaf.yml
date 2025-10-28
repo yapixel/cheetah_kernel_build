@@ -191,29 +191,27 @@ jobs:
           workspace(name = "blu_spark_kleaf")
           EOF
 
-      - name: Download and extract Kleaf
+      - name: Download and setup Kleaf
         run: |
           set -euo pipefail
 
-          echo "Downloading Kleaf from Android kernel/build..."
-          curl -L "https://android.googlesource.com/kernel/build/+archive/refs/heads/main/kleaf.tar.gz" -o kleaf.tar.gz
+          KLEAF_DIR="build-kernel-kleaf"
+          mkdir -p "$KLEAF_DIR"
 
-          echo "Extracting..."
-          tar --strip-components=1 -xzf kleaf.tar.gz -C .
+          echo "Downloading Kleaf..."
+          curl -fsSL "https://android.googlesource.com/kernel/build/+archive/refs/heads/main/kleaf.tar.gz" \
+            | tar -xz -C "$KLEAF_DIR" --strip-components=1
 
-          # Debug: Show what was extracted
-          echo "Contents after extraction:"
-          ls -la
+          # Verify extraction
+          if [ ! -f "$KLEAF_DIR/kernel_build.bzl" ]; then
+            echo "Error: Kleaf extraction failed!"
+            ls -la "$KLEAF_DIR"
+            exit 1
+          fi
 
-          # Create expected directory and move
-          mkdir -p build-kernel-kleaf
-          mv kleaf/* build-kernel-kleaf/ 2>/dev/null || true
-          mv * build-kernel-kleaf/ 2>/dev/null || true  # Fallback: move all
-
-          # Final check
-          [ -f "build-kernel-kleaf/impl/kleaf_constants.sh" ] || { echo "Kleaf files missing!"; exit 1; }
-
-          echo "Kleaf ready in build-kernel-kleaf/"
+          echo "Kleaf extracted successfully into $KLEAF_DIR"
+          echo "Contents of $KLEAF_DIR:"
+          ls -la "$KLEAF_DIR" | head -20
 
       - name: Create BUILD.bazel
         run: |
