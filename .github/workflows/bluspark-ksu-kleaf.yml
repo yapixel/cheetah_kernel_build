@@ -10,7 +10,7 @@ on:
 
 env:
   CONFIG: gs
-  OUT_DIR: out_gs
+  OUT_DIR: out/android14-6.1
   ANYKERNEL_DIR: AnyKernel3
 
 jobs:
@@ -21,17 +21,27 @@ jobs:
       actions: write
 
     steps:
+      # ------------------------------------------------------------------
+      # 1. Checkout repository
+      # ------------------------------------------------------------------
       - name: Checkout
         uses: actions/checkout@v4
 
+      # ------------------------------------------------------------------
+      # 2. Install system dependencies
+      # ------------------------------------------------------------------
       - name: Install dependencies
         run: |
           set -euo pipefail
-          sudo apt update
-          sudo apt install -y git curl wget unzip bc bison flex libssl-dev libelf-dev \
+          sudo apt update -y
+          sudo apt install -y \
+            git curl wget unzip bc bison flex libssl-dev libelf-dev \
             python3 python3-pip build-essential clang lld llvm \
             gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu lz4
 
+      # ------------------------------------------------------------------
+      # 3. Setup AOSP build tools (avbtool, mkbootimg, repo)
+      # ------------------------------------------------------------------
       - name: Setup Build Environment
         run: |
           set -euo pipefail
@@ -49,35 +59,56 @@ jobs:
           echo "PATH=$GITHUB_WORKSPACE/kernel-build-tools/linux-x86/bin:$PATH" >> $GITHUB_ENV
 
           mkdir -p ./git-repo
-          curl https://storage.googleapis.com/git-repo-downloads/repo > ./git-repo/repo
+          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo > ./git-repo/repo
           chmod a+rx ./git-repo/repo
           echo "REPO=$GITHUB_WORKSPACE/git-repo/repo" >> $GITHUB_ENV
 
+      # ------------------------------------------------------------------
+      # 4. Initialize and sync kernel source (Kleaf v2+)
+      # ------------------------------------------------------------------
       - name: Initialize and Sync Kernel Source
         run: |
           set -euo pipefail
           mkdir -p "$CONFIG"
           cd "$CONFIG"
 
-          # Use a real GKI branch (adjust as needed)
-          $REPO init --depth=1 -u https://android.googlesource.com/kernel/manifest -b common-android14-6.1
-          $REPO sync -c -j$(nproc) --no-tags
+          $REPO init --depth=1 \
+            -u https://android.googlesource.com/kernel/manifest \
+            -b common-android14-6.1 \
+            --repo-rev=v2.16
 
-          # Verify build.sh exists
-          if [ ! -f "build/build.sh" ]; then
-            echo "ERROR: build.sh not found!"
-            ls -la build/
+          $REPO sync -c -j$(nproc) --no-tags --fail-fast
+
+          # Verify build_test.sh exists (Kleaf v2+)
+          if [ ! -f "build_test.sh" ]; then
+            echo "ERROR: build_test.sh not found!"
+            ls -la
             exit 1
           fi
+          echo "build_test.sh found!"
 
-      - name: Apply patches
+      # ------------------------------------------------------------------
+      # 5. Apply KernelSU + copy defconfig
+      # ------------------------------------------------------------------
+      - name: Apply patches and defconfig
         run: |
           set -euo pipefail
           cd "$CONFIG"
 
+          # Apply KernelSU
           curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
 
-      - name: Build with build.sh
+          # Copy your defconfig
+          if [ ! -f "../blu_spark_defconfig" ]; then
+            echo "ERROR: blu_spark_defconfig not found!"
+            exit 1
+          fi
+          cp ../blu_spark_defconfig common/arch/arm64/configs/
+
+      # ------------------------------------------------------------------
+      # 6. Build with build_test.sh (Kleaf v2+)
+      # ------------------------------------------------------------------
+      - name: Build with build_test.sh
         run: |
           set -euo pipefail
           cd "$CONFIG"
@@ -86,32 +117,89 @@ jobs:
           export KBUILD_BUILD_USER="bluspark"
           export KBUILD_BUILD_HOST="github-actions"
 
-          # Use your defconfig
-          cp ../blu_spark_defconfig common/arch/arm64/configs/
+          # Build using official GKI config
+          LTO=thin BUILD_CONFIG=common/build.config.gki.aarch64 build_test.sh
 
-          LTO=thin BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh
+          # Verify output
+          if [ ! -f "$OUT_DIR/dist/Image.lz4" ]; then
+            echo "ERROR: Image.lz4 not found!"
+            find "$OUT_DIR" -name "Image*" || true
+            exit 1
+          fi
+          echo "Build successful: $OUT_DIR/dist/Image.lz4"
 
-      - name: Copy to AnyKernel3
+      # ------------------------------------------------------------------
+      # 7. Copy Image.lz4 + DTBs to AnyKernel3
+      # ------------------------------------------------------------------
+      - name: Populate AnyKernel3
         run: |
           set -euo pipefail
           cd "$CONFIG"
 
-          cp out/android14-6.1/dist/Image.lz4 ../AnyKernel3/Image.lz4
+          # Copy kernel image
+          cp "$OUT_DIR/dist/Image.lz4" "../$ANYKERNEL_DIR/Image.lz4"
 
+          # Copy and concatenate DTBs
           CODENAME="${{ inputs.codename }}"
-          cat out/android14-6.1/google-devices/$CODENAME/dts/*.dtb > ../AnyKernel3/dtb
+          DTB_DIR="$OUT_DIR/google-devices/$CODENAME/dts"
+          if [ -d "$DTB_DIR" ]; then
+            cat "$DTB_DIR"/*.dtb > "../$ANYKERNEL_DIR/dtb"
+            echo "DTBs copied from $DTB_DIR"
+          else
+            echo "WARNING: DTB directory not found: $DTB_DIR"
+            find "$OUT_DIR" -name "*.dtb" | head -10 || true
+          fi
 
+          # Optional: copy modules
+          if [ -d "$OUT_DIR/modules" ]; then
+            mkdir -p "../$ANYKERNEL_DIR/modules"
+            cp -r "$OUT_DIR/modules/"* "../$ANYKERNEL_DIR/modules/" || true
+          fi
+
+      # ------------------------------------------------------------------
+      # 8. Get KernelSU version
+      # ------------------------------------------------------------------
+      - name: Get KernelSU Version
+        id: ksu
+        run: |
+          set -euo pipefail
+          KSUVER=$(curl -s https://api.github.com/repos/tiann/KernelSU/releases/latest \
+                   | grep tag_name | cut -d '"' -f 4 | sed 's/v//')
+          echo "KSUVER=$KSUVER" >> $GITHUB_ENV
+          echo "version=$KSUVER" >> $GITHUB_OUTPUT
+
+      # ------------------------------------------------------------------
+      # 9. Package AnyKernel3 ZIP
+      # ------------------------------------------------------------------
       - name: Package ZIP
         run: |
           set -euo pipefail
-          cd AnyKernel3
-          KSUVER=$(curl -s https://api.github.com/repos/tiann/KernelSU/releases/latest | grep tag_name | cut -d '"' -f 4 | sed 's/v//')
-          ZIP_NAME="BluSpark-KSU-${{ inputs.codename }}-$(date +%Y%m%d)-KSU${KSUVER}.zip"
-          zip -r9 "../$ZIP_NAME" * -x "*.git*"
+          cd "$ANYKERNEL_DIR"
+
+          ZIP_NAME="BluSpark-KSU-${{ inputs.codename }}-r$(date +%Y%m%d)-KSU${{ steps.ksu.outputs.version }}.zip"
+          zip -r9 "../$ZIP_NAME" . -x "*.git*" "*.zip"
+
+          echo "ZIP created: $ZIP_NAME"
           echo "ZIP_PATH=../$ZIP_NAME" >> $GITHUB_ENV
 
-      - name: Upload
+      # ------------------------------------------------------------------
+      # 10. Upload artifact
+      # ------------------------------------------------------------------
+      - name: Upload Kernel ZIP
         uses: actions/upload-artifact@v4
         with:
           name: BluSpark-Kernel-${{ inputs.codename }}
           path: ${{ env.ZIP_PATH }}
+          retention-days: 7
+
+      # ------------------------------------------------------------------
+      # 11. Build summary
+      # ------------------------------------------------------------------
+      - name: Build Summary
+        if: always()
+        run: |
+          echo "# BluSpark Kernel Build" >> $GITHUB_STEP_SUMMARY
+          echo "- **Device**: ${{ inputs.codename }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **KernelSU**: v${{ steps.ksu.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Output**: \`$OUT_DIR/dist/Image.lz4\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **ZIP**: \`${{ env.ZIP_PATH }}\`" >> $GITHUB_STEP_SUMMARY
