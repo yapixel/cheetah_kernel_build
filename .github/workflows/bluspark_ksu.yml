@@ -75,7 +75,7 @@ jobs:
 
       - name: Clone repos
         run: |
-          git clone https://github.com/TheWildJames/AnyKernel3.git -b sultan-zuma
+          git clone https://github.com/TheWildJames/AnyKernel3.git -b gki-2.0
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
           git clone https://github.com/engstk/gs -b blu_spark-16-susfs
           git clone https://github.com/yapixel/kernel_patches.git
