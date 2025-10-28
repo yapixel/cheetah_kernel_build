@@ -174,10 +174,29 @@ jobs:
           workspace(name = "blu_spark_kleaf")
           EOF
 
-      - name: Download Kleaf
+      - name: Download and extract Kleaf
         run: |
-          curl -L https://android.googlesource.com/kernel/build/+archive/refs/heads/main/kleaf.tar.gz | tar xz
-          mv build-kernel-kleaf kleaf
+          set -euo pipefail
+
+          echo "Downloading Kleaf from Android kernel/build..."
+          curl -L "https://android.googlesource.com/kernel/build/+archive/refs/heads/main/kleaf.tar.gz" -o kleaf.tar.gz
+
+          echo "Extracting..."
+          tar --strip-components=1 -xzf kleaf.tar.gz -C .
+
+          # Debug: Show what was extracted
+          echo "Contents after extraction:"
+          ls -la
+
+          # Create expected directory and move
+          mkdir -p build-kernel-kleaf
+          mv kleaf/* build-kernel-kleaf/ 2>/dev/null || true
+          mv * build-kernel-kleaf/ 2>/dev/null || true  # Fallback: move all
+
+          # Final check
+          [ -f "build-kernel-kleaf/impl/kleaf_constants.sh" ] || { echo "Kleaf files missing!"; exit 1; }
+
+          echo "Kleaf ready in build-kernel-kleaf/"
 
       - name: Create BUILD.bazel
         run: |
