@@ -1,4 +1,4 @@
-name: Bluspark KowSU
+name: Bluspark KSU
 permissions:
   contents: write
   actions: write
@@ -23,7 +23,7 @@ on:
         type: string
 
 jobs:
-  build-kernel-bluspark-kowsu-susfs:
+  build-kernel-bluspark-ksu-susfs:
     runs-on: ubuntu-latest
     env:
       CONFIG: gs
@@ -84,8 +84,8 @@ jobs:
       - name: Add KernelSU
         run: |
           cd "$CONFIG"
-          curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/main/kernel/setup.sh" | bash -s main
-          [ -d KernelSU ] || exit 1
+          curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
+         
 
       - name: Apply SUSFS patches
         run: |
@@ -95,11 +95,6 @@ jobs:
           cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
           patch -p1 -F 3 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
 
-          cd KernelSU
-          cp ../../kowsu_patches/KowSU/revert_commit_conflict_with_susfs.patch .
-          patch -p1 --fuzz=3 < revert_commit_conflict_with_susfs.patch || exit 1
-          cp ../../kowsu_patches/KowSU/enable_susfs_for_kowsu.patch .
-          patch -p1 < enable_susfs_for_kowsu.patch || exit 1
 
       - name: KernelSU version
         run: |
