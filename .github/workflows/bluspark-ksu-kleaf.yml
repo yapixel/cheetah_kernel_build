@@ -283,7 +283,7 @@ jobs:
           EXT_MODULES=""
           EOF
 
-      #       # ------------------------------------------------------------------
+      # ------------------------------------------------------------------
       # Build with Kleaf
       # ------------------------------------------------------------------
       - name: Build Kernel with Kleaf
@@ -303,13 +303,15 @@ jobs:
           echo "  - ants.bazelrc"
           echo "  - android_ci.bazelrc"
 
-          # === CRITICAL: Strip :: comments from .bazelrc files ===
-          echo "Stripping :: comments from .bazelrc files..."
+          # === CLEAN .bazelrc files: remove :: and self-imports ===
+          echo "Cleaning .bazelrc files..."
+          sed -i '/--bazelrc=.*ants\.bazelrc/d' ants.bazelrc
+          sed -i '/--bazelrc=.*android_ci\.bazelrc/d' android_ci.bazelrc
           sed -i 's/ *::.*$//' ants.bazelrc
-          sed -i 's/ *::.*$//' android_ci.bazelrc || true
+          sed -i 's/ *::.*$//' android_ci.bazelrc
           # =======================================================
 
-          # Build command — NO inline comments
+          # === BUILD COMMAND ===
           bazel build //common:kernel \
             --config=fast \
             --bazelrc=ants.bazelrc \
