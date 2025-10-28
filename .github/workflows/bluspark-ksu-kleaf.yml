@@ -299,17 +299,11 @@ jobs:
          echo "Bazel version:"
          bazel version
 
-         echo "Checking for ants.bazelrc..."
-         if [ ! -f ants.bazelrc ]; then
-         echo "ants.bazelrc not found!"
-         ls -la
-         exit 1
-         fi
+         echo "Using Kleaf configs..."
+         echo "  - ants.bazelrc"
+         echo "  - android_ci.bazelrc"
 
-         echo "Contents of ants.bazelrc (first 10 lines):"
-         head -10 ants.bazelrc
-
-         echo "Building kernel with Kleaf..."
+         # Build command — NO comments after \
          bazel build //common:kernel \
          --config=fast \
          --bazelrc=ants.bazelrc \
