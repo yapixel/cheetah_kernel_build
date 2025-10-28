@@ -35,6 +35,9 @@ jobs:
         run: |
           set -euo pipefail
 
+          # ------------------------------------------------------------------
+          # 1. Download & extract NDK r25c
+          # ------------------------------------------------------------------
           NDK_URL="https://dl.google.com/android/repository/android-ndk-r25c-linux.zip"
           NDK_ZIP="/tmp/android-ndk-r25c-linux.zip"
           NDK_ROOT="/opt/android-ndk-r25c"
@@ -45,47 +48,50 @@ jobs:
           echo "Extracting to /opt/..."
           sudo unzip -q "$NDK_ZIP" -d /opt/
 
+          # ------------------------------------------------------------------
+          # 2. Verify NDK root
+          # ------------------------------------------------------------------
           if [ ! -d "$NDK_ROOT" ]; then
             echo "ERROR: NDK not extracted to $NDK_ROOT"
             ls -la /opt/
             exit 1
           fi
 
+          # ------------------------------------------------------------------
+          # 3. Copy Clang toolchain (contents only)
+          # ------------------------------------------------------------------
           CLANG_SRC="$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64"
-          if [ ! -d "$CLANG_SRC" ]; then
-            echo "ERROR: Clang source not found: $CLANG_SRC"
-            find "$NDK_ROOT/toolchains" -type d
-            exit 1
-          fi
-
-          # FIXED: Copy the *contents* of prebuilt, not the folder itself
           CLANG_DST="$HOME/android/toolchains/aarch64-clang"
+
           mkdir -p "$CLANG_DST"
           cp -r "$CLANG_SRC"/* "$CLANG_DST/"
 
-          # Use API 21 (or change to 30/32/33 if needed)
+          # ------------------------------------------------------------------
+          # 4. Pick API level (21 = Android 5.0; change if needed)
+          # ------------------------------------------------------------------
           CLANG_API=21
           COMPILER="$CLANG_DST/bin/aarch64-linux-android${CLANG_API}-clang"
 
           if [ ! -f "$COMPILER" ]; then
-            echo "ERROR: Clang not found: $COMPILER"
+            echo "ERROR: Clang binary not found: $COMPILER"
             echo "Available clang binaries:"
-            ls -1 "$CLANG_DST/bin/" 2>/dev/null | grep clang || echo "None"
-            find "$CLANG_DST" -name "aarch64*clang" | head -5
+            ls -1 "$CLANG_DST/bin/" | grep clang || true
             exit 1
           fi
 
           echo "NDK r25c + Clang ready (API $CLANG_API):"
           "$COMPILER" --version
 
-          echo "NDK_ROOT=$NDK_ROOT" >> $GITHUB_ENV
-          echo "CLANG_ROOT=$CLANG_DST" >> $GITHUB_ENV
-          echo "CLANG_API=$CLANG_API" >> $GITHUB_ENV
-          echo "PATH=$CLANG_ROOT/bin:$PATH" >> $GITHUB_ENV
+          # ------------------------------------------------------------------
+          # 5. Export variables *after* they are defined
+          # ------------------------------------------------------------------
+          echo "NDK_ROOT=$NDK_ROOT" >> "$GITHUB_ENV"
+          echo "CLANG_ROOT=$CLANG_DST" >> "$GITHUB_ENV"
+          echo "CLANG_API=$CLANG_API" >> "$GITHUB_ENV"
+          echo "PATH=$CLANG_DST/bin:\$PATH" >> "$GITHUB_ENV"
 
-          # Keep old path for compatibility
+          # Optional: keep old path for scripts that hard-code it
           ln -sfn "$CLANG_DST" "$HOME/android/toolchains/aarch64-linux-android-4.9"
-
       
       
       - name: Set CONFIG Environment Variable
