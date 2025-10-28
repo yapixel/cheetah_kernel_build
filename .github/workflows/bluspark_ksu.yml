@@ -21,274 +21,215 @@ on:
       release_tag:
         required: true
         type: string
-  
+
 jobs:
   build-kernel-bluspark-kowsu-susfs:
     runs-on: ubuntu-latest
+    env:
+      CONFIG: gs
+      OUT_DIR: out_gs
+
     steps:
       - name: Installing dependencies
         run: |
           sudo apt update
-          sudo apt install -y jq gh
+          sudo apt install -y jq gh curl zip unzip git
 
-      - name: Manual Install NDK r25c + Clang Toolchain (FINAL)
+      - name: Install NDK r25c + Clang (FIXED)
         run: |
           set -euo pipefail
 
-          # ------------------------------------------------------------------
-          # 1. Download & extract NDK r25c
-          # ------------------------------------------------------------------
           NDK_URL="https://dl.google.com/android/repository/android-ndk-r25c-linux.zip"
           NDK_ZIP="/tmp/android-ndk-r25c-linux.zip"
           NDK_ROOT="/opt/android-ndk-r25c"
 
-          echo "Downloading NDK r25c..."
           curl -L -o "$NDK_ZIP" "$NDK_URL"
-
-          echo "Extracting to /opt/..."
           sudo unzip -q "$NDK_ZIP" -d /opt/
 
-          # ------------------------------------------------------------------
-          # 2. Verify NDK root
-          # ------------------------------------------------------------------
-          if [ ! -d "$NDK_ROOT" ]; then
-            echo "ERROR: NDK not extracted to $NDK_ROOT"
-            ls -la /opt/
-            exit 1
-          fi
-
-          # ------------------------------------------------------------------
-          # 3. Copy Clang toolchain (contents only)
-          # ------------------------------------------------------------------
           CLANG_SRC="$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64"
-          CLANG_DST="$HOME/android/toolchains/aarch64-clang"
-
+          CLANG_DST="$HOME/android/toolchains/clang"
           mkdir -p "$CLANG_DST"
-          cp -r "$CLANG_SRC"/* "$CLANG_DST/"
+          cp -r "$CLANG_SRC/"* "$CLANG_DST/"
 
-          # ------------------------------------------------------------------
-          # 4. Pick API level (21 = Android 5.0; change if needed)
-          # ------------------------------------------------------------------
-          CLANG_API=21
-          COMPILER="$CLANG_DST/bin/aarch64-linux-android${CLANG_API}-clang"
+          # Safe PATH extension
+          echo "$CLANG_DST/bin" >> "$GITHUB_PATH"
 
-          if [ ! -f "$COMPILER" ]; then
-            echo "ERROR: Clang binary not found: $COMPILER"
-            echo "Available clang binaries:"
-            ls -1 "$CLANG_DST/bin/" | grep clang || true
-            exit 1
-          fi
-
-          echo "NDK r25c + Clang ready (API $CLANG_API):"
-          "$COMPILER" --version
-
-          # ------------------------------------------------------------------
-          # 5. Export variables *after* they are defined
-          # ------------------------------------------------------------------
           echo "NDK_ROOT=$NDK_ROOT" >> "$GITHUB_ENV"
           echo "CLANG_ROOT=$CLANG_DST" >> "$GITHUB_ENV"
-          echo "CLANG_API=$CLANG_API" >> "$GITHUB_ENV"
-          echo "PATH=$CLANG_DST/bin:$PATH" >> "$GITHUB_ENV"
+          echo "CLANG_API=21" >> "$GITHUB_ENV"
 
-          # Optional: keep old path for scripts that hard-code it
-          ln -sfn "$CLANG_DST" "$HOME/android/toolchains/aarch64-linux-android-4.9"
-      
-      
-      - name: Set CONFIG Environment Variable
+          clang --version
+
+      - name: Set CONFIG vars
         run: |
-          CONFIG="gs"
-          echo "CONFIG=$CONFIG" >> $GITHUB_ENV
-          echo "CONFIG set to: $CONFIG"
+          echo "CONFIG=$CONFIG" >> "$GITHUB_ENV"
+          echo "OUT_DIR=$OUT_DIR" >> "$GITHUB_ENV"
 
       - name: Get Latest Bluspark Tag
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          LATEST_BLUSPARK_TAG=$(gh api repos/engstk/gs/tags --jq '.[0].name')
-          if [ -z "$LATEST_BLUSPARK_TAG" ]; then
-            echo "Error: Could not fetch latest Bluspark tag"
-            exit 1
-          fi
-          echo "LATEST_BLUSPARK_TAG=$LATEST_BLUSPARK_TAG" >> $GITHUB_ENV
-          echo "Latest Bluspark tag: $LATEST_BLUSPARK_TAG"
+          TAG=$(gh api repos/engstk/gs/tags --jq '.[0].name')
+          [ -n "$TAG" ] || { echo "Failed to fetch tag"; exit 1; }
+          echo "LATEST_BLUSPARK_TAG=$TAG" >> "$GITHUB_ENV"
 
-      - name: Clone AnyKernel3 and Other Dependencies
+      - name: Clone repos
         run: |
-          echo "Cloning AnyKernel3 and other dependencies..."
-          ANYKERNEL_BRANCH="sultan-zuma"
-          SUSFS_BRANCH="gki-android14-6.1"
-          echo "Using branch for AnyKernel3: $ANYKERNEL_BRANCH"
-          echo "Using branch for SUSFS: $SUSFS_BRANCH"
-          git clone https://github.com/TheWildJames/AnyKernel3.git -b "$ANYKERNEL_BRANCH"
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
+          git clone https://github.com/TheWildJames/AnyKernel3.git -b sultan-zuma
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
           git clone https://github.com/engstk/gs -b blu_spark-16
-          git clone https://github.com/yapixel/kernel_patches.git 
+          git clone https://github.com/yapixel/kernel_patches.git
           git clone https://github.com/KOWX712/files.git kowsu_patches
 
       - name: Add KernelSU
         run: |
-          echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
-          echo "Adding KernelSU..."
           curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/main/kernel/setup.sh" | bash -s main
-          if [ ! -d "KernelSU" ]; then
-            echo "Error: KernelSU directory not found after setup"
-            exit 1
-          fi
-          echo "KernelSU directory contents:"
-          ls -la KernelSU
+          [ -d KernelSU ] || exit 1
 
-      - name: Apply SUSFS Patches
+      - name: Apply SUSFS patches
         run: |
-          echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
-          echo "Applying SUSFS patches..."
-          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch ./
-          cp ../susfs4ksu/kernel_patches/fs/* ./fs/
-          cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
+          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch .
+          cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
+          cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
           patch -p1 -F 3 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
-          cd ./KernelSU
-          echo "Revert commit conflict with susfs"
-          cp ../../kowsu_patches/KowSU/revert_commit_conflict_with_susfs.patch .
-          patch -p1 --fuzz=3 < revert_commit_conflict_with_susfs.patch || { echo "Failed to apply revert_commit_conflict_with_susfs.patch"; exit 1; }
-          echo "Apply KSU integration patches"
-          cp ../../kowsu_patches/KowSU/enable_susfs_for_kowsu.patch ./
-          patch -p1 < enable_susfs_for_kowsu.patch 
 
-      - name: Getting KernelSU Version
+          cd KernelSU
+          cp ../../kowsu_patches/KowSU/revert_commit_conflict_with_susfs.patch .
+          patch -p1 --fuzz=3 < revert_commit_conflict_with_susfs.patch || exit 1
+          cp ../../kowsu_patches/KowSU/enable_susfs_for_kowsu.patch .
+          patch -p1 < enable_susfs_for_kowsu.patch || exit 1
+
+      - name: KernelSU version
         run: |
           cd "$CONFIG/KernelSU/kernel"
-          BASE_VERSION=10200
-          COMMIT_COUNT=$(/usr/bin/git rev-list --count HEAD)
-          KSU_VERSION=$(expr $COMMIT_COUNT "+" $BASE_VERSION)
-          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
+          BASE=10200
+          CNT=$(git rev-list --count HEAD)
+          echo "KSUVER=$((CNT + BASE))" >> "$GITHUB_ENV"
 
-      - name: Apply Hide Stuff Patches
+      - name: Hide-stuff patch
         run: |
-          echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
-          cp ../kernel_patches/69_hide_stuff.patch ./
-          patch -p1 -F 3 < 69_hide_stuff.patch || { echo "Failed to apply 69_hide_stuff.patch"; exit 1; }
+          cp ../kernel_patches/69_hide_stuff.patch .
+          patch -p1 -F 3 < 69_hide_stuff.patch || exit 1
 
-      - name: Add SUSFS Configuration Settings
+      # ------------------------------------------------------------------
+      #  CONFIG – ONE echo PER LINE (NO cat << EOF)
+      # ------------------------------------------------------------------
+      - name: Add SUSFS & other CONFIGs
         run: |
-          echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
-          echo "CONFIG_KERNEL_LZ4=y" >> arch/arm64/configs/blu_spark_defconfig
-          echo "Adding KernelSU and SUSFS configurations..."
-          echo "CONFIG_KSU=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_KSU_KPROBES_HOOK=n" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_KSU_SUSFS=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_TMPFS_XATTR=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_TMPFS_POSIX_ACL=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_IP_NF_TARGET_TTL=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_TCP_CONG_BBR=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_NET_SCH_FQ=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_TCP_CONG_BIC=n" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_TCP_CONG_WESTWOOD=n" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_TCP_CONG_HTCP=n" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_BPF_STREAM_PARSER=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_NETFILTER_XT_SET=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_IP_SET=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_IP_SET_MAX=65534" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_IP_SET_BITMAP_IP=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_IP_SET_BITMAP_IPMAC=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_IP_SET_BITMAP_PORT=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_IP_SET_HASH_IP=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_IP_SET_HASH_IPMARK=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_IP_SET_HASH_IPPORT=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_IP_SET_HASH_IPPORTIP=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_IP_SET_HASH_IPPORTNET=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_IP_SET_HASH_IPMAC=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_IP_SET_HASH_MAC=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_IP_SET_HASH_NETPORTNET=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_IP_SET_HASH_NET=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_IP_SET_HASH_NETNET=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_IP_SET_HASH_NETPORT=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_IP_SET_HASH_NETIFACE=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_IP_SET_LIST_SET=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_IP6_NF_NAT=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_IP6_NF_TARGET_MASQUERADE=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_LZ4_COMPRESS=y" >> ./arch/arm64/configs/blu_spark_defconfig
-          echo "CONFIG_LZ4HC_COMPRESS=y" >> ./arch/arm64/configs/blu_spark_defconfig
+          DEFCONFIG="arch/arm64/configs/blu_spark_defconfig"
 
-      - name: Run sed and perl Commands
-        run: |
-          echo "Changing to configuration directory: $CONFIG..."
-          cd "$CONFIG"
-          echo "Running sed commands..."
-          sed -i 's/CONFIG_LOCALVERSION=".*"/CONFIG_LOCALVERSION="-android14-11-blu_spark-16"/' ./arch/arm64/configs/blu_spark_defconfig
-          sed -i 's/${LOCALVERSION+set}/set/' ./scripts/setlocalversion
-          perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "Tue Jul 8 09:17:32 UTC 2025"/' ./init/Makefile
-          echo "Kernel version suffix set to -android14-11-blu_spark-16 without dirty state '+'"
-          echo "Build timestamp set to Tue Jul 8 09:17:32 UTC 2025"
+          echo "CONFIG_KERNEL_LZ4=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_KPROBES_HOOK=n" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> "$DEFCONFIG"
+          echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> "$DEFCONFIG"
+          echo "CONFIG_TMPFS_XATTR=y" >> "$DEFCONFIG"
+          echo "CONFIG_TMPFS_POSIX_ACL=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_NF_TARGET_TTL=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP6_NF_TARGET_HL=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP6_NF_MATCH_HL=y" >> "$DEFCONFIG"
+          echo "CONFIG_TCP_CONG_ADVANCED=y" >> "$DEFCONFIG"
+          echo "CONFIG_TCP_CONG_BBR=y" >> "$DEFCONFIG"
+          echo "CONFIG_NET_SCH_FQ=y" >> "$DEFCONFIG"
+          echo "CONFIG_TCP_CONG_BIC=n" >> "$DEFCONFIG"
+          echo "CONFIG_TCP_CONG_WESTWOOD=n" >> "$DEFCONFIG"
+          echo "CONFIG_TCP_CONG_HTCP=n" >> "$DEFCONFIG"
+          echo "CONFIG_BPF_STREAM_PARSER=y" >> "$DEFCONFIG"
+          echo "CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y" >> "$DEFCONFIG"
+          echo "CONFIG_NETFILTER_XT_SET=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_MAX=65534" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_BITMAP_IP=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_BITMAP_IPMAC=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_BITMAP_PORT=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_HASH_IP=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_HASH_IPMARK=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_HASH_IPPORT=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_HASH_IPPORTIP=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_HASH_IPPORTNET=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_HASH_IPMAC=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_HASH_MAC=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_HASH_NETPORTNET=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_HASH_NET=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_HASH_NETNET=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_HASH_NETPORT=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_HASH_NETIFACE=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_LIST_SET=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP6_NF_NAT=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP6_NF_TARGET_MASQUERADE=y" >> "$DEFCONFIG"
+          echo "CONFIG_LZ4_COMPRESS=y" >> "$DEFCONFIG"
+          echo "CONFIG_LZ4HC_COMPRESS=y" >> "$DEFCONFIG"
 
-      - name: Build the Kernel
+      - name: sed / perl tweaks
         run: |
-          echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
-          echo "Building the kernel..."
+          sed -i 's/CONFIG_LOCALVERSION=".*"/CONFIG_LOCALVERSION="-android14-11-blu_spark-16"/' arch/arm64/configs/blu_spark_defconfig
+          sed -i 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
+          perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "Tue Jul 8 09:17:32 UTC 2025"/' init/Makefile
+
+      - name: Build kernel (Clang)
+        run: |
+          cd "$CONFIG"
+
           export SOURCE_DATE_EPOCH=$(date -d "Tue Jul 8 09:17:32 UTC 2025" +%s)
-          export KBUILD_BUILD_USER="build-user"
-          export KBUILD_BUILD_HOST="build-host"
-          
+          export KBUILD_BUILD_USER=build-user
+          export KBUILD_BUILD_HOST=build-host
           export ARCH=arm64
 
-          export CROSS_COMPILE=aarch64-linux-android${{ env.CLANG_API}}-
+          make O="$OUT_DIR" \
+               ARCH=arm64 \
+               CC=clang \
+               CROSS_COMPILE=aarch64-linux-gnu- \
+               CLANG_TRIPLE=aarch64-linux-gnu- \
+               blu_spark_defconfig -j$(nproc)
 
-          make blu_spark_defconfig -j$(nproc --all)
-          make V=1 -j$(nproc --all)
+          make O="$OUT_DIR" \
+               ARCH=arm64 \
+               CC=clang \
+               CROSS_COMPILE=aarch64-linux-gnu- \
+               CLANG_TRIPLE=aarch64-linux-gnu- \
+               V=1 -j$(nproc)
 
-          
-      - name: Copy Images
+      - name: Copy images
         run: |
-          echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
-          echo "Copying Image.lz4 and concatenating DTB files..."
-          if [ ! -f "./out/arch/arm64/boot/Image.lz4" ]; then
-            echo "Error: Image.lz4 not found in out/arch/arm64/boot/"
-            ls -la out/arch/arm64/boot/ || echo "Boot directory not found"
-            exit 1
-          fi
-          cp ./out/arch/arm64/boot/Image.lz4 ../AnyKernel3/Image.lz4
-          if [ "${{ inputs.codename }}" == "gs201" ]; then
-            cat ./out/google-devices/gs201/dts/*.dtb > ../AnyKernel3/dtb
-          elif [ "${{ inputs.codename }}" == "zuma" ]; then
-            cat ./out/google-devices/zuma/dts/*.dtb > ../AnyKernel3/dtb
-          elif [ "${{ inputs.codename }}" == "zumapro" ]; then
-            cat ./out/google-devices/zumapro/dts/*.dtb > ../AnyKernel3/dtb
-          fi
+          [ -f "$OUT_DIR/arch/arm64/boot/Image.lz4" ] || exit 1
+          cp "$OUT_DIR/arch/arm64/boot/Image.lz4" ../AnyKernel3/Image.lz4
 
-      - name: Create ZIP Files for Different Formats
+          case "${{ inputs.codename }}" in
+            gs201)   cat $OUT_DIR/google-devices/gs201/dts/*.dtb   > ../AnyKernel3/dtb ;;
+            zuma)    cat $OUT_DIR/google-devices/zuma/dts/*.dtb    > ../AnyKernel3/dtb ;;
+            zumapro) cat $OUT_DIR/google-devices/zumapro/dts/*.dtb > ../AnyKernel3/dtb ;;
+            *) echo "Unknown codename"; exit 1 ;;
+          esac
+
+      - name: Create ZIP
         run: |
-          echo "Navigating to AnyKernel3 directory..."
-          cd ./AnyKernel3
-          ZIP_NAME="KowSU-${{ env.KSUVER }}-zuma_A16_Bluspark-${{ env.LATEST_BLUSPARK_TAG }}_SUSFS-${{ inputs.release_tag }}.zip"
-          echo "Creating zip file $ZIP_NAME..."
-          zip -r "../$ZIP_NAME" ./*
+          cd AnyKernel3
+          ZIP="KowSU-${{ env.KSUVER }}-zuma_A16_Bluspark-${{ env.LATEST_BLUSPARK_TAG }}_SUSFS-${{ inputs.release_tag }}.zip"
+          zip -r9 "../$ZIP" ./*
+          echo "ZIP: $ZIP"
 
-      - name: Upload Build Artifacts
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: kernel-${{ inputs.codename }}-kowsu
-          path: |
-            *.zip
+          path: "*.zip"
