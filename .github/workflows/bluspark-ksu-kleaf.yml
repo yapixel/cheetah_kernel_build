@@ -299,10 +299,17 @@ jobs:
          echo "Bazel version:"
          bazel version
 
-         echo "Available configs:"
-         grep "build:fast" ants.bazelrc || echo "fast not found!"
+         echo "Checking for ants.bazelrc..."
+         if [ ! -f ants.bazelrc ]; then
+         echo "ants.bazelrc not found!"
+         ls -la
+         exit 1
+         fi
 
-         echo "Building kernel..."
+         echo "Contents of ants.bazelrc (first 10 lines):"
+         head -10 ants.bazelrc
+
+         echo "Building kernel with Kleaf..."
          bazel build //common:kernel \
          --config=fast \
          --bazelrc=ants.bazelrc \
