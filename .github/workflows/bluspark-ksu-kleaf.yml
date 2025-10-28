@@ -37,7 +37,8 @@ jobs:
           sudo apt install -y \
             git curl wget unzip bc bison flex libssl-dev libelf-dev \
             python3 python3-pip build-essential clang lld llvm \
-            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu lz4
+            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu lz4 \
+            openjdk-11-jdk  # Bazel requires JDK
 
       # ------------------------------------------------------------------
       # 3. Setup AOSP build tools (avbtool, mkbootimg, repo)
@@ -79,13 +80,13 @@ jobs:
 
           $REPO sync -c -j$(nproc) --no-tags --fail-fast
 
-          # Verify build_test.sh exists (Kleaf v2+)
-          if [ ! -f "build_test.sh" ]; then
-            echo "ERROR: build_test.sh not found!"
-            ls -la
+          # Verify Bazel exists
+          if [ ! -f "tools/bazel" ]; then
+            echo "ERROR: tools/bazel not found!"
+            ls -la tools/
             exit 1
           fi
-          echo "build_test.sh found!"
+          echo "Bazel found!"
 
       # ------------------------------------------------------------------
       # 5. Apply KernelSU + copy defconfig
@@ -106,9 +107,9 @@ jobs:
           cp ../blu_spark_defconfig common/arch/arm64/configs/
 
       # ------------------------------------------------------------------
-      # 6. Build with build_test.sh (Kleaf v2+)
+      # 6. Build with Bazel (Kleaf v2+ direct)
       # ------------------------------------------------------------------
-      - name: Build with build_test.sh
+      - name: Build with Bazel
         run: |
           set -euo pipefail
           cd "$CONFIG"
@@ -117,8 +118,13 @@ jobs:
           export KBUILD_BUILD_USER="bluspark"
           export KBUILD_BUILD_HOST="github-actions"
 
-          # Build using official GKI config
-          LTO=thin BUILD_CONFIG=common/build.config.gki.aarch64 build_test.sh
+          # Direct Bazel build (Kleaf v2+)
+          tools/bazel build \
+            --config=fast \
+            --lto=thin \
+            --jobs=$(nproc) \
+            --local_ram_resources=HOST_RAM*0.7 \
+            //common:kernel_aarch64_dist
 
           # Verify output
           if [ ! -f "$OUT_DIR/dist/Image.lz4" ]; then
