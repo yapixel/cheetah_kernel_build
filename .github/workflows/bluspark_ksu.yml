@@ -87,13 +87,13 @@ jobs:
           curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s 37ef0d27067d3d7e7bf07a80547a1949864789c4
          
 
-      - name: Apply SUSFS patches
-        run: |
-          cd "$CONFIG"
-          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch .
-          cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
-          cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
-          patch -p1 -F 3 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
+#      - name: Apply SUSFS patches
+#        run: |
+#          cd "$CONFIG"
+#          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch .
+#          cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
+#          cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
+#          patch -p1 -F 3 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
 
 
       - name: KernelSU version
@@ -112,30 +112,10 @@ jobs:
       # ------------------------------------------------------------------
       #  CONFIG – ONE echo PER LINE (NO cat << EOF)
       # ------------------------------------------------------------------
-      - name: Add SUSFS & other CONFIGs
+      - name: Add other CONFIGs
         run: |
           cd "$CONFIG"
           DEFCONFIG="arch/arm64/configs/blu_spark_defconfig"
-
-          echo "CONFIG_KERNEL_LZ4=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_KPROBES_HOOK=n" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> "$DEFCONFIG"
-          echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> "$DEFCONFIG"
           echo "CONFIG_TMPFS_XATTR=y" >> "$DEFCONFIG"
           echo "CONFIG_TMPFS_POSIX_ACL=y" >> "$DEFCONFIG"
           echo "CONFIG_IP_NF_TARGET_TTL=y" >> "$DEFCONFIG"
