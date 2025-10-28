@@ -100,17 +100,7 @@ jobs:
           echo "CONFIG=$CONFIG" >> $GITHUB_ENV
           echo "CONFIG set to: $CONFIG"
 
-      - name: Get Latest Bluspark Tag
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          LATEST_BLUSPARK_TAG=$(gh api repos/engstk/gs/tags --jq '.[0].name')
-          if [ -z "$LATEST_BLUSPARK_TAG" ]; then
-            echo "Error: Could not fetch latest Bluspark tag"
-            exit 1
-          fi
-          echo "LATEST_BLUSPARK_TAG=$LATEST_BLUSPARK_TAG" >> $GITHUB_ENV
-          echo "Latest Bluspark tag: $LATEST_BLUSPARK_TAG"
+     
 
       - name: Clone AnyKernel3 and Other Dependencies
         run: |
