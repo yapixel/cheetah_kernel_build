@@ -267,7 +267,6 @@ jobs:
           
           export ARCH=arm64
 
-          # This tells the kernel to use Clang from PATH
           export CROSS_COMPILE=aarch64-linux-android${{ env.CLANG_API}}-
 
           make blu_spark_defconfig -j$(nproc --all)
