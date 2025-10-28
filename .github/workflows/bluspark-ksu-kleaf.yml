@@ -196,7 +196,7 @@ jobs:
           cat > WORKSPACE <<'EOF'
           workspace(name = "blu_spark_kleaf")
           EOF
-
+          
       - name: Download and setup Kleaf
         run: |
           set -euo pipefail
@@ -211,13 +211,18 @@ jobs:
           # Verify extraction
           if [ ! -f "$KLEAF_DIR/kernel_build.bzl" ]; then
             echo "Error: Kleaf extraction failed!"
-            ls -la "$KLEAF_DIR"
+            ls -la "$KLEAF_DIR" || true
             exit 1
           fi
 
           echo "Kleaf extracted successfully into $KLEAF_DIR"
-          echo "Contents of $KLEAF_DIR:"
-          ls -la "$KLEAF_DIR" | head -20
+          echo "Contents of $KLEAF_DIR (first 20 entries):"
+
+          # --- FIXED: Safe listing without pipefail triggering ---
+          set +o pipefail  # Temporarily disable pipefail
+          ls -la "$KLEAF_DIR" | head -20 || true
+          set -o pipefail  # Re-enable pipefail
+          # ----------------------------------------------------
 
       - name: Create BUILD.bazel
         run: |
