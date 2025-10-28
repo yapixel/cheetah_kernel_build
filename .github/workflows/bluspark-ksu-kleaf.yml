@@ -60,21 +60,24 @@ jobs:
 
       - name: Install Bazelisk
         run: |
-          set -euo pipefail
+         set -euo pipefail
 
-          BAZELISK_VERSION="${{ env.BAZELISK_VERSION }}"
-          URL="https://github.com/bazelbuild/bazelisk/releases/download/v${BAZELISK_VERSION}/bazelisk-linux-amd64"
-          TARGET="/usr/local/bin/bazel"
+         BAZELISK_VERSION="1.21.0"
+         URL="https://github.com/bazelbuild/bazelisk/releases/download/v${BAZELISK_VERSION}/bazelisk-linux-amd64"
+         TARGET="/usr/local/bin/bazel"
 
-          echo "Creating /usr/local/bin and downloading Bazelisk..."
-          sudo mkdir -p "$(dirname "$TARGET")"
-          curl -fsSL "$URL" | sudo tee "$TARGET" > /dev/null
+         echo "Creating directory /usr/local/bin..."
+         sudo mkdir -p /usr/local/bin
+  
+         echo "Downloading Bazelisk from $URL..."
+         curl -fsSL "$URL" -o "$TARGET.tmp"
 
-          echo "Setting executable bit..."
-          sudo chmod 755 "$TARGET"
+         echo "Installing to $TARGET..."
+         sudo mv "$TARGET.tmp" "$TARGET"
+         sudo chmod 755 "$TARGET"
 
-          echo "Bazel version:"
-          bazel version
+         echo "Bazel version:"
+         bazel version
 
       - name: Install NDK r25c + Clang
         run: |
@@ -86,7 +89,7 @@ jobs:
           sudo unzip -q "$NDK_ZIP" -d /opt/
           CLANG_SRC="$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64"
           CLANG_DST="$HOME/android/clang"
-          mkdir -p "$CLANG_DST"
+          mkdir - p "$CLANG_DST"
           cp -r "$CLANG_SRC"/* "$CLANG_DST/"
           echo "$CLANG_DST/bin" >> "$GITHUB_PATH"
           echo "NDK_ROOT=$NDK_ROOT" >> "$GITHUB_ENV"
