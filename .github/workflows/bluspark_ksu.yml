@@ -219,7 +219,23 @@ jobs:
                STRIP=llvm-strip \
                LLVM=1 \
                V=1 -j$(nproc)
-               
+
+      - name: Compress to Image.lz4
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y liblz4-tool
+          cd "$CONFIG"
+
+          if [ -f "$OUT_DIR/arch/arm64/boot/Image.gz" ]; then
+            gunzip -c "$OUT_DIR/arch/arm64/boot/Image.gz" | lz4 -12 -B4 --content-size > "$OUT_DIR/arch/arm64/boot/Image.lz4"
+          else
+            lz4 -12 -B4 --content-size "$OUT_DIR/arch/arm64/boot/Image" "$OUT_DIR/arch/arm64/boot/Image.lz4"
+          fi
+
+          echo "Image.lz4 ready:"
+          ls -lh "$OUT_DIR/arch/arm64/boot/Image.lz4"
+
+      
       - name: Copy images
         run: |
           cd "$CONFIG"
