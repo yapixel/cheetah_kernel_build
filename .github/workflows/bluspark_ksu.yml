@@ -26,10 +26,10 @@ jobs:
   build-kernel-bluspark-kowsu-susfs:
     runs-on: ubuntu-latest
     steps:
-     # - name: Installing dependencies
-     #   run: |
-     #     sudo apt update
-     #     sudo apt install -y gcc-aarch64-linux-gnu
+      - name: Installing dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y jq
 
       - name: Manual Install NDK r25c + Clang Toolchain (FINAL)
         run: |
