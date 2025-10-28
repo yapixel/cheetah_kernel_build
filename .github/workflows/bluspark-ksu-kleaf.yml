@@ -286,14 +286,31 @@ jobs:
       # ------------------------------------------------------------------
       # Build with Kleaf
       # ------------------------------------------------------------------
-      - name: Build kernel with Kleaf
+      - name: Build Kernel with Kleaf
         run: |
-          export SOURCE_DATE_EPOCH=$(date -d "Tue Jul 8 09:17:32 UTC 2025" +%s)
-          bazel build //:blu_spark_gs \
-            --config=fast \
-            --jobs=$(nproc) \
-            --local_ram_resources=HOST_RAM*0.8 \
-            --disk_cache=~/.bazel-cache
+         set -euo pipefail
+
+         export SOURCE_DATE_EPOCH=$(date -d "Tue Jul 8 09:17:32 UTC 2025" +%s)
+         export KBUILD_BUILD_USER="kleaf"
+         export KBUILD_BUILD_HOST="build-host"
+
+         cd build-kernel-kleaf
+
+         echo "Bazel version:"
+         bazel version
+
+         echo "Available configs:"
+         grep "build:fast" ants.bazelrc || echo "fast not found!"
+
+         echo "Building kernel..."
+         bazel build //common:kernel \
+         --config=fast \
+         --bazelrc=ants.bazelrc \
+         --bazelrc=android_ci.bazelrc \
+         --nobuild_python_zip \
+         --nouse_prebuilt_python \
+         --jobs=$(nproc) \
+         --local_ram_resources=HOST_RAM*0.7
 
       # ------------------------------------------------------------------
       # Copy outputs to AnyKernel3
