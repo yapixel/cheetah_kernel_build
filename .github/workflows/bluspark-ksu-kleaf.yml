@@ -81,20 +81,24 @@ jobs:
 
       - name: Install NDK r25c + Clang
         run: |
-          set -euo pipefail
-          NDK_URL="https://dl.google.com/android/repository/android-ndk-r25c-linux.zip"
-          NDK_ZIP="/tmp/android-ndk-r25c-linux.zip"
-          NDK_ROOT="/opt/android-ndk-r25c"
-          curl -L -o "$NDK_ZIP" "$NDK_URL"
-          sudo unzip -q "$NDK_ZIP" -d /opt/
-          CLANG_SRC="$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64"
-          CLANG_DST="~/android/clang"
-          mkdir - p "$CLANG_DST"
-          cp -r "$CLANG_SRC"/* "$CLANG_DST/"
-          echo "$CLANG_DST/bin" >> "$GITHUB_PATH"
-          echo "NDK_ROOT=$NDK_ROOT" >> "$GITHUB_ENV"
-          echo "CLANG_ROOT=$CLANG_DST" >> "$GITHUB_ENV"
-          clang --version
+         set -euo pipefail
+
+         # === URLs & Paths ===
+         NDK_URL="https://dl.google.com/android/repository/android-ndk-r25c-linux.zip"
+         NDK_ZIP="/tmp/android-ndk-r25c-linux.zip"
+         NDK_ROOT="/opt/android-ndk-r25c"
+         CLANG_SRC="$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64"
+         CLANG_DST="$HOME/android/clang"  # Use $HOME, not ~
+
+         # === Download NDK ===
+         echo "Downloading NDK r25c..."
+         curl -L -o "$NDK_ZIP" "$NDK_URL"
+
+         # === Extract NDK ===
+         echo "Extracting NDK to /opt..."
+         sudo unzip -q "$NDK_ZIP" -d /opt/
+
+         # === Setup
 
       # ------------------------------------------------------------------
       # Clone Kernel & Patches
