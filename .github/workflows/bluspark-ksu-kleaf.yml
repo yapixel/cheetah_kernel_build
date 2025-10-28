@@ -314,12 +314,8 @@ jobs:
           # === BUILD COMMAND ===
           bazel build //common:kernel \
             --config=fast \
-            --bazelrc=ants.bazelrc \
-            --bazelrc=android_ci.bazelrc \
-            --nobuild_python_zip \
-            --nouse_prebuilt_python \
-            --jobs=$(nproc) \
-            --local_ram_resources=HOST_RAM*0.7
+            --compilation_mode=fastbuild \
+            --jobs=$(nproc)
 
       # ------------------------------------------------------------------
       # Copy outputs to AnyKernel3
