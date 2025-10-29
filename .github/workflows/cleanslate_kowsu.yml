@@ -98,7 +98,7 @@ jobs:
       - name: Add other CONFIGs
         run: |
           cd "$CONFIG"
-          DEFCONFIG="arch/arm64/configs/zuma_defconfig"
+          DEFCONFIG="arch/arm64/configs/gki_defconfig"
           echo "CONFIG_TMPFS_XATTR=y" >> "$DEFCONFIG"
           echo "CONFIG_TMPFS_POSIX_ACL=y" >> "$DEFCONFIG"
           # … (all the other echo lines you already have) …
@@ -116,11 +116,7 @@ jobs:
           perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "Tue Jul 8 09:17:32 UTC 2025"/' init/Makefile
 
 
-      - name: Remove incompatible sweep2sleep driver (GKI incompatible)
-        run: |
-         cd "$CONFIG/"
-         rm -rf drivers/misc/inputfilter
-         echo "Removed sweep2sleep.c – it uses non-existent UCI interface"
+      
          
       # ------------------------------------------------------------------
       #  BUILD – THIS IS THE ONLY PART THAT CHANGED
@@ -134,7 +130,7 @@ jobs:
           export KBUILD_VERBOSE=1
 
           # ---- CRITICAL ----
-          make O=$OUT_DIR ARCH=$ARCH ${{ inputs.codename }}_defconfig
+          make O=$OUT_DIR ARCH=$ARCH gki_defconfig
           make O=$OUT_DIR ARCH=$ARCH -j$(nproc) V=1
 
       # ------------------------------------------------------------------
