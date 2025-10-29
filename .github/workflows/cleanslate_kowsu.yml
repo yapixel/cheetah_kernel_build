@@ -166,7 +166,7 @@ jobs:
       - name: Disable stack protector globally (CRITICAL FIX – no cat)
         run: |
           cd "$CONFIG"
-          DEFCONFIG="arch/arm64/configs/blu_spark_defconfig"
+          DEFCONFIG="arch/arm64/configs/gki_defconfig"
 
           # ---- Kconfig options -------------------------------------------------
           echo "CONFIG_CC_STACKPROTECTOR=n"               >> "$DEFCONFIG"
