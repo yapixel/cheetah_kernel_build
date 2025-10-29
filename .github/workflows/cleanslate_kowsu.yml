@@ -130,7 +130,7 @@ jobs:
           export KBUILD_VERBOSE=1
 
           # ---- CRITICAL ----
-          make O=$OUT_DIR ARCH=$ARCH gki_defconfig
+          make O=$OUT_DIR ARCH=$ARCH gki_defconfig all
           make O=$OUT_DIR ARCH=$ARCH -j$(nproc) V=1
 
       # ------------------------------------------------------------------
