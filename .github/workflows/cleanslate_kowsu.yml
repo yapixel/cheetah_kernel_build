@@ -159,7 +159,7 @@ jobs:
           if [ "${{ inputs.codename }}" == "zumapro" ]; then
             export KCFLAGS="-march=armv8.6-a -O3 --param=min-pagesize=0"
           fi
-          make defconfig -j$(nproc --all)
+          make $DEFCONFIG -j$(nproc --all)
           make V=1 -j$(nproc --all) 
 
       - name: Copy Images
