@@ -1,5 +1,4 @@
-name: Cleanslate A16 GKI Kernel – tbalden correct tree
-
+name: Cleanslate KowSU
 permissions:
   contents: write
   actions: write
@@ -23,205 +22,233 @@ on:
         required: true
         type: string
 
-env:
-  KERNEL_CORE_REPO: https://github.com/tbalden/google_common_aosp_simple.git
-  KERNEL_CORE_BRANCH: aosp_cleanslate_a16_unified
-  TBALDREN_DRIVERS_REPO: https://github.com/tbalden/google_common_kernel_drivers_simple.git
-  TBALDREN_DRIVERS_BRANCH: cleanslate_unified_a16
-  KERNEL_DIR: kernel
-  OUT_DIR: out
-  GKI_DEFCONFIG: gki_defconfig
-
 jobs:
-  build:
+  build-kernel-cleanslate-kowsu-susfs:
     runs-on: ubuntu-latest
+    env:
+      CONFIG: google_common_aosp_simple
+      OUT_DIR: out_gs
+
     steps:
-
-      # --------------------------------------------------
-      # 1. Install tools
-      # --------------------------------------------------
-      - name: Install dependencies
+      - name: Installing dependencies
         run: |
-          sudo apt update -y
-          sudo apt install -y git curl zip unzip bc bison flex libssl-dev \
-            libelf-dev libncurses5-dev lz4 xz-utils cpio build-essential \
-            device-tree-compiler gcc-aarch64-linux-gnu python3 python3-pip \
-            liblz4-tool
-          pip3 install pyelftools
+          sudo apt update
+          sudo apt install -y jq gh curl zip unzip git
 
-      - name: Install NDK r25c + Clang
+      - name: Install NDK r25c + Clang (FIXED)
         run: |
-          curl -L -o /tmp/ndk.zip https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
-          sudo unzip -q /tmp/ndk.zip -d /opt/
-          echo "/opt/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
+          set -euo pipefail
 
-      # --------------------------------------------------
-      # 2. Setup full tbalden tree (correct structure)
-      # --------------------------------------------------
+          NDK_URL="https://dl.google.com/android/repository/android-ndk-r25c-linux.zip"
+          NDK_ZIP="/tmp/android-ndk-r25c-linux.zip"
+          NDK_ROOT="/opt/android-ndk-r25c"
+
+          curl -L -o "$NDK_ZIP" "$NDK_URL"
+          sudo unzip -q "$NDK_ZIP" -d /opt/
+
+          CLANG_SRC="$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64"
+          CLANG_DST="$HOME/android/toolchains/clang"
+          mkdir -p "$CLANG_DST"
+          cp -r "$CLANG_SRC/"* "$CLANG_DST/"
+
+          # Safe PATH extension
+          echo "$CLANG_DST/bin" >> "$GITHUB_PATH"
+
+          echo "NDK_ROOT=$NDK_ROOT" >> "$GITHUB_ENV"
+          echo "CLANG_ROOT=$CLANG_DST" >> "$GITHUB_ENV"
+          echo "CLANG_API=21" >> "$GITHUB_ENV"
+
+          clang --version
+
+      - name: Set CONFIG vars
+        run: |
+          echo "CONFIG=$CONFIG" >> "$GITHUB_ENV"
+          echo "OUT_DIR=$OUT_DIR" >> "$GITHUB_ENV"
+
+
+      - name: Clone repos
+        run: |
+          git clone https://github.com/TheWildJames/AnyKernel3.git -b gki-2.0
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
+          git clone https://github.com/tbalden/google_common_aosp_simple.git -b aosp_cleanslate_a16_unified
+          git clone https://github.com/tbalden/google_common_kernel_drivers_simple.git -b cleanslate_unified_a16 tbalden_all
+          git clone https://github.com/yapixel/kernel_patches.git
+          git clone https://github.com/KOWX712/files.git kowsu_patches
+
       - name: Setup tbalden tree
         run: |
-          # 1. Core kernel
-          git clone ${{ env.KERNEL_CORE_REPO }} -b ${{ env.KERNEL_CORE_BRANCH }} ${{ env.KERNEL_DIR }}
-          cd ${{ env.KERNEL_DIR }}
-
-          # 2. Clone drivers repo
-          git clone ${{ env.TBALDREN_DRIVERS_REPO }} -b ${{ env.TBALDREN_DRIVERS_BRANCH }} tbalden_all
-
-          
-
-          # 4. Copy **full** devices/google/ (all devices)
-          mkdir -p devices
-          cp -r tbalden_all/devices/google devices/
-
-          # 5. Copy google-modules
+          cd "$CONFIG"
+          mkdir -p google-devices
+          cp -r tbalden_all/devices/google/zuma google-devices/
           cp -r tbalden_all/google-modules google-modules
 
           rm -rf tbalden_all
 
-          echo "tbalden tree ready:"
-          echo "  - devices/google/${{ inputs.codename }}/"
-          echo "  - google-modules/"
-          echo "  - drivers/ (overlayed safely)"
 
-      # --------------------------------------------------
-      # 3. Locate device defconfig (correct path)
-      # --------------------------------------------------
-      - name: Locate device defconfig
-        id: defconfig
+      - name: Add KernelSU
         run: |
-          cd ${{ env.KERNEL_DIR }}
+          cd "$CONFIG"
+          curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s 37ef0d27067d3d7e7bf07a80547a1949864789c4
+         
 
-          CANDIDATES=(
-            "devices/google/${{ inputs.codename }}/${{ inputs.codename }}_defconfig"
-            "devices/google/${{ inputs.codename }}/${{ inputs.codename }}defconfig"
-            "devices/google/${{ inputs.codename }}/defconfig"
-          )
+#      - name: Apply SUSFS patches
+#        run: |
+#          cd "$CONFIG"
+#          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch .
+#          cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
+#          cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
+#          patch -p1 -F 3 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
 
-          for f in "${CANDIDATES[@]}"; do
-            if [ -f "$f" ]; then
-              echo "Found: $f"
-              echo "path=$f" >> $GITHUB_OUTPUT
-              exit 0
-            fi
-          done
 
-          echo "ERROR: defconfig not found for ${{ inputs.codename }}"
-          echo "Tried:"
-          for f in "${CANDIDATES[@]}"; do echo "  $f"; done
-          exit 1
-
-      # --------------------------------------------------
-      # 4. Clean out + merge GKI + device defconfig
-      # --------------------------------------------------
-      - name: Clean out + prepare defconfig
+      - name: KernelSU version
         run: |
-          cd ${{ env.KERNEL_DIR }}
+          cd "$CONFIG/KernelSU/kernel"
+          BASE=10200
+          CNT=$(git rev-list --count HEAD)
+          echo "KSUVER=$((CNT + BASE))" >> "$GITHUB_ENV"
 
-          # Fix: Clean output directory to avoid "source tree not clean"
-          make O=${{ env.OUT_DIR }} mrproper
-
-          # Copy GKI base config to out/
-          cp arch/arm64/configs/${{ env.GKI_DEFCONFIG }} ${{ env.OUT_DIR }}/.config
-
-          # Merge device-specific config
-          scripts/kconfig/merge_config.sh -O ${{ env.OUT_DIR }} \
-            ${{ env.OUT_DIR }}/.config ${{ steps.defconfig.outputs.path }}
-
-          # Cleanslate extras
-          cat <<'EOF' >> ${{ env.OUT_DIR }}/.config
-          CONFIG_LOCALVERSION="-cleanslate"
-          CONFIG_DEBUG_FS=y
-          CONFIG_MODULES=y
-          CONFIG_WIREGUARD=y
-          EOF
-
-          make O=${{ env.OUT_DIR }} olddefconfig
-
-      # --------------------------------------------------
-      # 5. Build kernel + DTBO
-      # --------------------------------------------------
-      - name: Build kernel
+      - name: Hide-stuff patch
         run: |
-          cd ${{ env.KERNEL_DIR }}
+          cd "$CONFIG"
+          cp ../kernel_patches/69_hide_stuff.patch .
+          patch -p1 -F 3 < 69_hide_stuff.patch || exit 1
+
+      # ------------------------------------------------------------------
+      #  CONFIG – ONE echo PER LINE (NO cat << EOF)
+      # ------------------------------------------------------------------
+      - name: Add other CONFIGs
+        run: |
+          cd "$CONFIG"
+          DEFCONFIG="arch/arm64/configs/gki_defconfig"
+          echo "CONFIG_TMPFS_XATTR=y" >> "$DEFCONFIG"
+          echo "CONFIG_TMPFS_POSIX_ACL=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_NF_TARGET_TTL=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP6_NF_TARGET_HL=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP6_NF_MATCH_HL=y" >> "$DEFCONFIG"
+          echo "CONFIG_TCP_CONG_ADVANCED=y" >> "$DEFCONFIG"
+          echo "CONFIG_TCP_CONG_BBR=y" >> "$DEFCONFIG"
+          echo "CONFIG_NET_SCH_FQ=y" >> "$DEFCONFIG"
+          echo "CONFIG_TCP_CONG_BIC=n" >> "$DEFCONFIG"
+          echo "CONFIG_TCP_CONG_WESTWOOD=n" >> "$DEFCONFIG"
+          echo "CONFIG_TCP_CONG_HTCP=n" >> "$DEFCONFIG"
+          echo "CONFIG_BPF_STREAM_PARSER=y" >> "$DEFCONFIG"
+          echo "CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y" >> "$DEFCONFIG"
+          echo "CONFIG_NETFILTER_XT_SET=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_MAX=65534" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_BITMAP_IP=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_BITMAP_IPMAC=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_BITMAP_PORT=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_HASH_IP=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_HASH_IPMARK=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_HASH_IPPORT=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_HASH_IPPORTIP=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_HASH_IPPORTNET=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_HASH_IPMAC=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_HASH_MAC=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_HASH_NETPORTNET=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_HASH_NET=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_HASH_NETNET=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_HASH_NETPORT=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_HASH_NETIFACE=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP_SET_LIST_SET=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP6_NF_NAT=y" >> "$DEFCONFIG"
+          echo "CONFIG_IP6_NF_TARGET_MASQUERADE=y" >> "$DEFCONFIG"
+          echo "CONFIG_LZ4_COMPRESS=y" >> "$DEFCONFIG"
+          echo "CONFIG_LZ4HC_COMPRESS=y" >> "$DEFCONFIG"
+
+      - name: sed / perl tweaks
+        run: |
+          cd "$CONFIG"
+          sed -i 's/CONFIG_LOCALVERSION=".*"/CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"/' arch/arm64/configs/gki_defconfig
+          sed -i 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
+          perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "Tue Jul 8 09:17:32 UTC 2025"/' init/Makefile
+
+      - name: Disable stack protector globally (CRITICAL FIX – no cat)
+        run: |
+          cd "$CONFIG"
+          DEFCONFIG="arch/arm64/configs/blu_spark_defconfig"
+
+          # ---- Kconfig options -------------------------------------------------
+          echo "CONFIG_CC_STACKPROTECTOR=n"               >> "$DEFCONFIG"
+          echo "CONFIG_CC_STACKPROTECTOR_REGULAR=n"       >> "$DEFCONFIG"
+          echo "CONFIG_CC_STACKPROTECTOR_STRONG=n"        >> "$DEFCONFIG"
+          echo "CONFIG_STACKPROTECTOR=n"                  >> "$DEFCONFIG"
+          echo "CONFIG_STACKPROTECTOR_PER_TASK=n"         >> "$DEFCONFIG"
+
+          # ---- Force Clang to drop the flag everywhere -----------------------
+          echo "KBUILD_CFLAGS += -fno-stack-protector"    >> "$DEFCONFIG"
+          echo "KBUILD_AFLAGS += -fno-stack-protector"    >> "$DEFCONFIG"
+          echo "KBUILD_CFLAGS_MODULE += -fno-stack-protector" >> "$DEFCONFIG"
+
+          # Strip any existing -fstack‑protector* that might be added later
+          echo "KBUILD_CFLAGS_MODULE := \$(filter-out -fstack-protector%, \$(KBUILD_CFLAGS_MODULE))" >> "$DEFCONFIG"
+          echo "KBUILD_CFLAGS_MODULE := \$(filter-out -fstack-protector-strong%, \$(KBUILD_CFLAGS_MODULE))" >> "$DEFCONFIG"
+
+          # ---- Remove any lingering flags from Makefile.modfinal ------------
+          sed -i '/-fstack-protector/d' scripts/Makefile.modfinal || true
+          sed -i '/stack-protector/d'   scripts/Makefile.modfinal || true
+        
+
+      
+      - name: Build kernel (Clang + LLVM)
+        run: |
+          cd "$CONFIG"
+
+          export SOURCE_DATE_EPOCH=$(date -d "Tue Jul 8 09:17:32 UTC 2025" +%s)
+          export KBUILD_BUILD_USER=build-user
+          export KBUILD_BUILD_HOST=build-host
           export ARCH=arm64
-          make O=${{ env.OUT_DIR }} -j$(nproc)
-          make O=${{ env.OUT_DIR }} dtbs -j$(nproc)
 
-      # --------------------------------------------------
-      # 6. Build vendor modules
-      # --------------------------------------------------
-      - name: Build vendor modules
+          make O="$OUT_DIR" \
+               ARCH=arm64 \
+               CC=clang \
+               LD=ld.lld \
+               AR=llvm-ar \
+               NM=llvm-nm \
+               OBJCOPY=llvm-objcopy \
+               OBJDUMP=llvm-objdump \
+               STRIP=llvm-strip \
+               LLVM=1 \
+               blu_spark_defconfig -j$(nproc)
+
+          make O="$OUT_DIR" \
+               ARCH=arm64 \
+               CC=clang \
+               LD=ld.lld \
+               AR=llvm-ar \
+               NM=llvm-nm \
+               OBJCOPY=llvm-objcopy \
+               OBJDUMP=llvm-objdump \
+               STRIP=llvm-strip \
+               LLVM=1 \
+               V=1 -j$(nproc)
+
+       - name: Copy Images
         run: |
-          cd ${{ env.KERNEL_DIR }}/google-modules
-          for d in */; do
-            [ -f "$d/Makefile" ] || continue
-            make -C ../ M=$(pwd)/$d O=../${{ env.OUT_DIR }} \
-              CC=clang LD=ld.lld LLVM=1 -j$(nproc) modules
-          done
+          echo "Changing to configuration directory: $CONFIG..."
+          cd "$CONFIG"
+          echo "Copying Image.lz4 and concatenating DTB files..."
+          cp ./out/arch/arm64/boot/Image.lz4 ../AnyKernel3/Image.lz4
+          if [ "${{ inputs.codename }}" == "gs201" ]; then
+            cat ./out/google-devices/gs201/dts/*.dtb > ../AnyKernel3/dtb
+          elif [ "${{ inputs.codename }}" == "zuma" ]; then
+            cat ./out/google-devices/zuma/dts/*.dtb > ../AnyKernel3/dtb
+          elif [ "${{ inputs.codename }}" == "zumapro" ]; then
+            cat ./out/google-devices/zumapro/dts/*.dtb > ../AnyKernel3/dtb
+          fi
 
-      # --------------------------------------------------
-      # 7. Package images
-      # --------------------------------------------------
-      - name: Package images
+      - name: Create ZIP Files for Different Formats
         run: |
-          cd ${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }}
+          echo "Navigating to AnyKernel3 directory..."
+          cd ./AnyKernel3
+          ZIP_NAME="KowSU-${{ env.KSUVER }}-zuma_A16_Cleanslate-4.7.0v2 _SUSFS-${{ inputs.release_tag }}.zip"
+          echo "Creating zip file $ZIP_NAME..."
+          zip -r "../$ZIP_NAME" ./*
 
-          # Image.lz4
-          lz4 -12 -B4 --content-size arch/arm64/boot/Image arch/arm64/boot/Image.lz4
-
-          # dtbo.img
-          cat arch/arm64/boot/dts/google/*.dtbo > dtbo.img 2>/dev/null || true
-
-          # vendor_boot.img
-          mkdir -p vendor_boot/modules
-          find ../google-modules -name "*.ko" -exec cp {} vendor_boot/modules/ \;
-          tar -cf vendor_boot.img -C vendor_boot .
-
-      # --------------------------------------------------
-      # 8. AnyKernel3 ZIP
-      # --------------------------------------------------
-      - name: Package AnyKernel3
-        run: |
-          git clone https://github.com/osm0sis/AnyKernel3.git
-          cp ${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }}/arch/arm64/boot/Image.lz4 AnyKernel3/
-          cp ${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }}/dtbo.img AnyKernel3/ || true
-          cp ${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }}/vendor_boot.img AnyKernel3/
-
-          cd AnyKernel3
-          sed -i "s/device.name1=.*/device.name1=${{ inputs.codename }}/" anykernel.sh
-          sed -i "s|block=.*|block=/dev/block/by-name/boot|" anykernel.sh
-
-          ZIP="Cleanslate-A16-${{ inputs.codename }}-${{ inputs.release_tag }}.zip"
-          zip -r9 "../$ZIP" . -x ".git*" "README.md"
-          echo "ZIP_NAME=$ZIP" >> $GITHUB_ENV
-
-      # --------------------------------------------------
-      # 9. Upload artifact
-      # --------------------------------------------------
-      - name: Upload artifact
+      - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: kernel-${{ inputs.codename }}-cleanslate
-          path: "*.zip"
-
-      # --------------------------------------------------
-      # 10. Create Release
-      # --------------------------------------------------
-      - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: ncipollo/release-action@v1
-        with:
-          artifacts: "*.zip"
-          tag: ${{ inputs.release_tag }}
-          name: Cleanslate A16 GKI ${{ inputs.codename }}
-          body: |
-            **tbalden Cleanslate A16 – 100% correct tree**
-
-            * `devices/google/${{ inputs.codename }}/${{ inputs.codename }}_defconfig`
-            * Full `devices/google/` (all devices)
-            * `google-modules/` + safe driver overlay
-            * GKI 2.0 – `Image.lz4`, `dtbo.img`, `vendor_boot.img`
-            * Android ${{ inputs.android_version }} | Kernel ${{ inputs.kernel_version }}
-            * Repo: ${{ inputs.repo }}
-
-            Flash via fastboot:
+          name: kernel-${{ inputs.codename }}-cleanslate-kowsu
+          path: |
+            *.zip
