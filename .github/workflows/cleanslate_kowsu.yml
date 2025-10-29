@@ -46,7 +46,7 @@ jobs:
         run: |
           git clone https://github.com/TheWildJames/AnyKernel3.git -b gki-2.0
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
-          git clone https://github.com/tbalden/google_common_aosp_simple.git -b aosp_cleanslate_a16_shusky
+          git clone https://github.com/tbalden/google_common_aosp_simple.git -b aosp_cleanslate_a16_unified
           git clone https://github.com/tbalden/google_common_kernel_drivers_simple.git -b cleanslate_unified_a16 tbalden_all
           git clone https://github.com/yapixel/kernel_patches.git
           git clone https://github.com/KOWX712/files.git kowsu_patches
