@@ -157,6 +157,8 @@ jobs:
       
       
       - name: Build the Kernel
+        env:
+          ARCH: arm64
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
