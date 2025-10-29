@@ -33,33 +33,9 @@ jobs:
       - name: Installing dependencies
         run: |
           sudo apt update
-          sudo apt install -y jq gh curl zip unzip git libelf-dev
+          sudo apt install -y jq gh curl zip unzip git libelf-dev gcc-aarch64-linux-gnu
 
-      - name: Install NDK r25c + Clang (FIXED)
-        run: |
-          set -euo pipefail
-
-          NDK_URL="https://dl.google.com/android/repository/android-ndk-r25c-linux.zip"
-          NDK_ZIP="/tmp/android-ndk-r25c-linux.zip"
-          NDK_ROOT="/opt/android-ndk-r25c"
-
-          curl -L -o "$NDK_ZIP" "$NDK_URL"
-          sudo unzip -q "$NDK_ZIP" -d /opt/
-
-          CLANG_SRC="$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64"
-          CLANG_DST="$HOME/android/toolchains/clang"
-          mkdir -p "$CLANG_DST"
-          cp -r "$CLANG_SRC/"* "$CLANG_DST/"
-
-          # Safe PATH extension
-          echo "$CLANG_DST/bin" >> "$GITHUB_PATH"
-
-          echo "NDK_ROOT=$NDK_ROOT" >> "$GITHUB_ENV"
-          echo "CLANG_ROOT=$CLANG_DST" >> "$GITHUB_ENV"
-          echo "CLANG_API=21" >> "$GITHUB_ENV"
-
-          clang --version
-
+      
       - name: Set CONFIG vars
         run: |
           echo "CONFIG=$CONFIG" >> "$GITHUB_ENV"
@@ -168,63 +144,23 @@ jobs:
           perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "Tue Jul 8 09:17:32 UTC 2025"/' init/Makefile
 
      
-      - name: Disable stack protector globally (CRITICAL FIX – no cat)
-        run: |
-          cd "$CONFIG"
-          DEFCONFIG="arch/arm64/configs/defconfig"
-
-          # ---- Kconfig options -------------------------------------------------
-          echo "CONFIG_CC_STACKPROTECTOR=n"               >> "$DEFCONFIG"
-          echo "CONFIG_CC_STACKPROTECTOR_REGULAR=n"       >> "$DEFCONFIG"
-          echo "CONFIG_CC_STACKPROTECTOR_STRONG=n"        >> "$DEFCONFIG"
-          echo "CONFIG_STACKPROTECTOR=n"                  >> "$DEFCONFIG"
-          echo "CONFIG_STACKPROTECTOR_PER_TASK=n"         >> "$DEFCONFIG"
-
-          # ---- Force Clang to drop the flag everywhere -----------------------
-          echo "KBUILD_CFLAGS += -fno-stack-protector"    >> "$DEFCONFIG"
-          echo "KBUILD_AFLAGS += -fno-stack-protector"    >> "$DEFCONFIG"
-          echo "KBUILD_CFLAGS_MODULE += -fno-stack-protector" >> "$DEFCONFIG"
-
-          # Strip any existing -fstack‑protector* that might be added later
-          echo "KBUILD_CFLAGS_MODULE := \$(filter-out -fstack-protector%, \$(KBUILD_CFLAGS_MODULE))" >> "$DEFCONFIG"
-          echo "KBUILD_CFLAGS_MODULE := \$(filter-out -fstack-protector-strong%, \$(KBUILD_CFLAGS_MODULE))" >> "$DEFCONFIG"
-
-          # ---- Remove any lingering flags from Makefile.modfinal ------------
-          sed -i '/-fstack-protector/d' scripts/Makefile.modfinal || true
-          sed -i '/stack-protector/d'   scripts/Makefile.modfinal || true
       
-      - name: Build kernel (Clang + LLVM)
+      
+      - name: Build the Kernel
         run: |
+          echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
-
+          echo "Building the kernel..."
+          # Set SOURCE_DATE_EPOCH for reproducible build timestamp
           export SOURCE_DATE_EPOCH=$(date -d "Tue Jul 8 09:17:32 UTC 2025" +%s)
-          export KBUILD_BUILD_USER=build-user
-          export KBUILD_BUILD_HOST=build-host
-          export ARCH=arm64
-
-          make O="$OUT_DIR" \
-               ARCH=arm64 \
-               CC=clang \
-               LD=ld.lld \
-               AR=llvm-ar \
-               NM=llvm-nm \
-               OBJCOPY=llvm-objcopy \
-               OBJDUMP=llvm-objdump \
-               STRIP=llvm-strip \
-               LLVM=1 \
-               defconfig -j$(nproc)
-
-          make O="$OUT_DIR" \
-               ARCH=arm64 \
-               CC=clang \
-               LD=ld.lld \
-               AR=llvm-ar \
-               NM=llvm-nm \
-               OBJCOPY=llvm-objcopy \
-               OBJDUMP=llvm-objdump \
-               STRIP=llvm-strip \
-               LLVM=1 \
-               V=1 -j$(nproc)
+          # Set build user and host
+          export KBUILD_BUILD_USER="build-user"
+          export KBUILD_BUILD_HOST="build-host"
+          if [ "${{ inputs.codename }}" == "zumapro" ]; then
+            export KCFLAGS="-march=armv8.6-a -O3 --param=min-pagesize=0"
+          fi
+          make defconfig -j$(nproc --all)
+          make V=1 -j$(nproc --all) 
 
       - name: Copy Images
         run: |
