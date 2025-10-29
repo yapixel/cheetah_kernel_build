@@ -154,7 +154,9 @@ jobs:
       
       - name: Build the Kernel
         env:
-          ARCH: arm64
+         ARCH: arm64
+         CROSS_COMPILE: aarch64-linux-gnu-
+      
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
