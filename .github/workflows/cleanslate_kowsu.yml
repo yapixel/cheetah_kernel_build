@@ -119,7 +119,7 @@ jobs:
       - name: Remove incompatible sweep2sleep driver (GKI incompatible)
         run: |
          cd "$CONFIG/"
-         rm -f drivers/misc/inputfilter/sweep2sleep.c
+         rm -rf drivers/misc/inputfilter
          echo "Removed sweep2sleep.c – it uses non-existent UCI interface"
          
       # ------------------------------------------------------------------
