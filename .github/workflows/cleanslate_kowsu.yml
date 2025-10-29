@@ -76,8 +76,8 @@ jobs:
           git clone https://github.com/KOWX712/files.git kowsu_patches
           
           cd google_common_aosp_simple
-          mkdir -p google-devices
-          cp -r ../tbalden_all/devices/google/zuma google-devices/
+          mkdir -p devices
+          cp -r ../tbalden_all/devices/google devices/
           cp -r ../tbalden_all/google-modules google-modules
           cd ../
           rm -rf tbalden_all
