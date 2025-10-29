@@ -69,14 +69,12 @@ jobs:
           # 2. Clone drivers repo
           git clone ${{ env.TBALDREN_DRIVERS_REPO }} -b ${{ env.TBALDREN_DRIVERS_BRANCH }} tbalden_all
 
-          # 3. Overlay open-source drivers (safe: no delete)
-          rsync -a --ignore-existing tbalden_all/drivers/ drivers/
-
-          # 4. Copy **full** devices/google/ (all devices)
+         
+          # 3. Copy **full** devices/google/ (all devices)
           mkdir -p devices
           cp -r tbalden_all/devices/google devices/
 
-          # 5. Copy google-modules
+          # 4. Copy google-modules
           cp -r tbalden_all/google-modules google-modules
 
           rm -rf tbalden_all
