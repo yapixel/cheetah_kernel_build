@@ -72,8 +72,8 @@ jobs:
           
 
           # 3. Full google-devices directory (all devices)
-          mkdir -p google-devices
-          cp -r tbalden_all/google-devices/* google-devices/
+          mkdir -p devices/google
+          cp -r tbalden_all/devices/google/* devices/google/
 
           # 4. google-modules (clean vendor drivers)
           cp -r tbalden_all/google-modules google-modules
