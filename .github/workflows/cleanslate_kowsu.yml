@@ -209,7 +209,7 @@ jobs:
                OBJDUMP=llvm-objdump \
                STRIP=llvm-strip \
                LLVM=1 \
-               blu_spark_defconfig -j$(nproc)
+               gki_defconfig -j$(nproc)
 
           make O="$OUT_DIR" \
                ARCH=arm64 \
