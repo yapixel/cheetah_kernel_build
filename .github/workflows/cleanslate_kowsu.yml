@@ -115,6 +115,13 @@ jobs:
           rm -f kernel_uname.patch
           perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "Tue Jul 8 09:17:32 UTC 2025"/' init/Makefile
 
+
+      - name: Remove incompatible sweep2sleep driver (GKI incompatible)
+        run: |
+         cd "$CONFIG/common"
+         rm -f drivers/misc/inputfilter/sweep2sleep.c
+         echo "Removed sweep2sleep.c – it uses non-existent UCI interface"
+         
       # ------------------------------------------------------------------
       #  BUILD – THIS IS THE ONLY PART THAT CHANGED
       # ------------------------------------------------------------------
