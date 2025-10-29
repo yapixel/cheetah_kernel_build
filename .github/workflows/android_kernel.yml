@@ -33,7 +33,7 @@ env:
   KERNEL_DIR: common
   CONFIG_FILE: arch/arm64/configs/gki_defconfig
   OUT_DIR: out
-  #RESET_COMMIT: 11c274d0441f287e4c37ec7a353cbc3cd169bff9
+  # RESET_COMMIT: 11c274d0441f287e4c37ec7a353cbc3cd169bff9  # Disabled - using latest
   BUILD_CLEAN: ${{ github.event.inputs.build_clean || 'always' }}
   RETRY: 3
   REPO_DEPTH: 1
@@ -145,10 +145,7 @@ jobs:
 
     - name: Clone kernel source
       run: |
-        
         git clone --depth=1 https://android.googlesource.com/kernel/common -b android14-6.1 ${{ env.KERNEL_DIR }}
-        
-        
 
     - name: Setup repositories
       run: |
@@ -166,7 +163,7 @@ jobs:
       working-directory: ${{ env.KERNEL_DIR }}
       run: |
         git clean -fdx || true
-        git reset --hard ${{ env.RESET_COMMIT }}
+        # Using latest commit from branch (reset commit disabled)
         rm -rf KernelSU-Next || true
 
     - name: Configure Pixel 8a
@@ -221,8 +218,25 @@ jobs:
         curl -LSs https://raw.githubusercontent.com/vc-teahouse/Baseband-guard/main/setup.sh | bash
         
         CONFIG="${{ env.CONFIG_FILE }}"
+        
+        # Enable CONFIG_BBG
         if ! grep -q "^CONFIG_BBG=y$" "$CONFIG"; then
           echo "CONFIG_BBG=y" >> "$CONFIG"
+        fi
+        
+        # Add baseband_guard to LSM list in security/Kconfig
+        KCONFIG="security/Kconfig"
+        if [ -f "$KCONFIG" ]; then
+          # Check if baseband_guard is already in the LSM default
+          if ! grep -A 10 "^config LSM$" "$KCONFIG" | grep -q "baseband_guard"; then
+            # Add baseband_guard to the LSM default list after landlock
+            sed -i '/^config LSM$/,/^help$/ {
+              /^[[:space:]]*default/ {
+                s/\<landlock\>/landlock,baseband_guard/
+              }
+            }' "$KCONFIG"
+            echo "Added baseband_guard to LSM default in security/Kconfig"
+          fi
         fi
 
     - name: Apply SUSFS patches
@@ -246,19 +260,64 @@ jobs:
         # Remove ABI exports that could block linking
         rm -f android/abi_gki_protected_exports_* || true
         
-        # Kernel configuration
+        # Core kernel configuration
         cat >> "$CONFIG" << EOF
         CONFIG_LOCALVERSION="${{ env.LOCALVERSION }}"
+        CONFIG_LOCALVERSION_AUTO=n
         CONFIG_KSU=y
+        CONFIG_KSU_KPROBES_HOOK=n
+        CONFIG_KSU_DEBUG=n
+        CONFIG_KSU_THRONE_TRACKER_ALWAYS_THREADED=y
+        CONFIG_KSU_ALLOWLIST_WORKAROUND=n
+        CONFIG_KSU_LSM_SECURITY_HOOKS=y
         CONFIG_KSU_SUSFS=y
         CONFIG_KSU_SUSFS_SUS_PATH=y
         CONFIG_KSU_SUSFS_SUS_MOUNT=y
+        CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y
+        CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y
+        CONFIG_KSU_SUSFS_SUS_KSTAT=y
+        CONFIG_KSU_SUSFS_TRY_UMOUNT=y
+        CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y
+        CONFIG_KSU_SUSFS_SPOOF_UNAME=y
+        CONFIG_KSU_SUSFS_ENABLE_LOG=y
+        CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
+        CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
+        CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
+        CONFIG_KSU_SUSFS_SUS_SU=n
+        CONFIG_TMPFS_XATTR=y
+        CONFIG_TMPFS_POSIX_ACL=y
+        CONFIG_TCP_CONG_ADVANCED=y
         CONFIG_TCP_CONG_BBR=y
+        CONFIG_TCP_CONG_CUBIC=y
         CONFIG_NET_SCH_FQ=y
+        CONFIG_TCP_CONG_BIC=n
+        CONFIG_TCP_CONG_WESTWOOD=n
+        CONFIG_TCP_CONG_HTCP=n
+        CONFIG_IP_NF_TARGET_TTL=y
+        CONFIG_IP6_NF_TARGET_HL=y
+        CONFIG_IP6_NF_MATCH_HL=y
         CONFIG_IP_SET=y
+        CONFIG_IP_SET_MAX=65534
+        CONFIG_IP_SET_BITMAP_IP=y
+        CONFIG_IP_SET_BITMAP_IPMAC=y
+        CONFIG_IP_SET_BITMAP_PORT=y
+        CONFIG_IP_SET_HASH_IP=y
+        CONFIG_IP_SET_HASH_IPPORT=y
+        CONFIG_IP_SET_HASH_IPPORTIP=y
+        CONFIG_IP_SET_HASH_IPPORTNET=y
+        CONFIG_IP_SET_HASH_NET=y
+        CONFIG_IP_SET_HASH_NETNET=y
+        CONFIG_IP_SET_HASH_NETPORT=y
+        CONFIG_IP_SET_HASH_NETIFACE=y
         CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y
         CONFIG_CCACHE=y
         EOF
+        
+        # Update LSM order to include baseband_guard
+        # Remove any existing CONFIG_LSM line
+        sed -i '/^CONFIG_LSM=/d' "$CONFIG"
+        # Add the complete LSM list with baseband_guard
+        echo 'CONFIG_LSM="landlock,baseband_guard,lockdown,yama,loadpin,safesetid,integrity,selinux,smack,tomoyo,apparmor,bpf"' >> "$CONFIG"
 
     - name: Prepare build
       working-directory: ${{ env.KERNEL_DIR }}
