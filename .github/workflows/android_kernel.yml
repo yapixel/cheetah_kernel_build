@@ -33,7 +33,7 @@ env:
   KERNEL_DIR: common
   CONFIG_FILE: arch/arm64/configs/gki_defconfig
   OUT_DIR: out
-  RESET_COMMIT: 11c274d0441f287e4c37ec7a353cbc3cd169bff9
+  #RESET_COMMIT: 11c274d0441f287e4c37ec7a353cbc3cd169bff9
   BUILD_CLEAN: ${{ github.event.inputs.build_clean || 'always' }}
   RETRY: 3
   REPO_DEPTH: 1
@@ -145,15 +145,10 @@ jobs:
 
     - name: Clone kernel source
       run: |
-        # Clone with sufficient depth to reach the reset commit
-        git clone --depth=500 https://android.googlesource.com/kernel/common -b android14-6.1 ${{ env.KERNEL_DIR }}
         
-        # If the commit still isn't found, unshallow the repository
-        cd ${{ env.KERNEL_DIR }}
-        if ! git cat-file -e ${{ env.RESET_COMMIT }} 2>/dev/null; then
-          echo "Commit not found in shallow clone, fetching full history..."
-          git fetch --unshallow || git fetch --depth=2000
-        fi
+        git clone --depth=1 https://android.googlesource.com/kernel/common -b android14-6.1 ${{ env.KERNEL_DIR }}
+        
+        
 
     - name: Setup repositories
       run: |
