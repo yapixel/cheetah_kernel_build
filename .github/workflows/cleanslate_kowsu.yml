@@ -57,7 +57,10 @@ jobs:
           cp -r ../tbalden_all/google-modules google-modules
           cd ../
           rm -rf tbalden_all
-          
+
+          cd kernel_patches
+          cp zuma_defconfig ../google_common_aosp_simple/arch/arm64/configs/
+          cd ../
 
 
       - name: Add KernelSU
