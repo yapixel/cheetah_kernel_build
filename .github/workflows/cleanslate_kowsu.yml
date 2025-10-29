@@ -198,7 +198,30 @@ jobs:
           perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "Tue Jul 8 09:17:32 UTC 2025"/' init/Makefile
 
      
+      - name: Disable stack protector globally (CRITICAL FIX – no cat)
+        run: |
+          cd "$CONFIG"
+          DEFCONFIG="arch/arm64/configs/blu_spark_defconfig"
 
+          # ---- Kconfig options -------------------------------------------------
+          echo "CONFIG_CC_STACKPROTECTOR=n"               >> "$DEFCONFIG"
+          echo "CONFIG_CC_STACKPROTECTOR_REGULAR=n"       >> "$DEFCONFIG"
+          echo "CONFIG_CC_STACKPROTECTOR_STRONG=n"        >> "$DEFCONFIG"
+          echo "CONFIG_STACKPROTECTOR=n"                  >> "$DEFCONFIG"
+          echo "CONFIG_STACKPROTECTOR_PER_TASK=n"         >> "$DEFCONFIG"
+
+          # ---- Force Clang to drop the flag everywhere -----------------------
+          echo "KBUILD_CFLAGS += -fno-stack-protector"    >> "$DEFCONFIG"
+          echo "KBUILD_AFLAGS += -fno-stack-protector"    >> "$DEFCONFIG"
+          echo "KBUILD_CFLAGS_MODULE += -fno-stack-protector" >> "$DEFCONFIG"
+
+          # Strip any existing -fstack‑protector* that might be added later
+          echo "KBUILD_CFLAGS_MODULE := \$(filter-out -fstack-protector%, \$(KBUILD_CFLAGS_MODULE))" >> "$DEFCONFIG"
+          echo "KBUILD_CFLAGS_MODULE := \$(filter-out -fstack-protector-strong%, \$(KBUILD_CFLAGS_MODULE))" >> "$DEFCONFIG"
+
+          # ---- Remove any lingering flags from Makefile.modfinal ------------
+          sed -i '/-fstack-protector/d' scripts/Makefile.modfinal || true
+          sed -i '/stack-protector/d'   scripts/Makefile.modfinal || true
       
       - name: Build kernel (Clang + LLVM)
         run: |
