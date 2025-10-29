@@ -1,5 +1,5 @@
 
-name: Cleanslate A16 GKI Kernel (Husky) – full tbalden tree
+name: Cleanslate A16 GKI Kernel – tbalden correct tree
 
 permissions:
   contents: write
@@ -24,6 +24,7 @@ on:
         required: true
         type: string
 
+
 env:
   KERNEL_CORE_REPO: https://github.com/tbalden/google_common_aosp_simple.git
   KERNEL_CORE_BRANCH: aosp_cleanslate_a16_unified
@@ -32,7 +33,6 @@ env:
   KERNEL_DIR: kernel
   OUT_DIR: out
   GKI_DEFCONFIG: gki_defconfig
-  DEVICE_DEFCONFIG: google-devices/${{ inputs.codename }}/kernel/${{ inputs.codename }}_defconfig
 
 jobs:
   build:
@@ -40,11 +40,11 @@ jobs:
     steps:
 
       # --------------------------------------------------
-      # 1. Install everything we need
+      # 1. Install tools
       # --------------------------------------------------
       - name: Install dependencies
         run: |
-          sudo apt update
+          sudo apt update -y
           sudo apt install -y git curl zip unzip bc bison flex libssl-dev \
             libelf-dev libncurses5-dev lz4 xz-utils cpio build-essential \
             device-tree-compiler gcc-aarch64-linux-gnu python3 python3-pip \
@@ -58,58 +58,83 @@ jobs:
           echo "/opt/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
 
       # --------------------------------------------------
-      # 2. Build the full tbalden unified tree
+      # 2. Setup full tbalden tree (correct structure)
       # --------------------------------------------------
-      - name: Setup full tbalden tree
+      - name: Setup tbalden tree
         run: |
           # 1. Core kernel
           git clone ${{ env.KERNEL_CORE_REPO }} -b ${{ env.KERNEL_CORE_BRANCH }} ${{ env.KERNEL_DIR }}
           cd ${{ env.KERNEL_DIR }}
 
-          # 2. Clone the whole drivers repo (contains drivers/, google-devices/, google-modules/)
+          # 2. Clone drivers repo
           git clone ${{ env.TBALDREN_DRIVERS_REPO }} -b ${{ env.TBALDREN_DRIVERS_BRANCH }} tbalden_all
 
-          
+          # 3. Overlay open-source drivers (safe: no delete)
+          rsync -a --ignore-existing tbalden_all/drivers/ drivers/
 
-          # 3. Full google-devices directory (all devices)
-          mkdir -p devices/google
-          cp -r tbalden_all/devices/google/* devices/google/
+          # 4. Copy **full** devices/google/ (all devices)
+          mkdir -p devices
+          cp -r tbalden_all/devices/google devices/
 
-          # 4. google-modules (clean vendor drivers)
+          # 5. Copy google-modules
           cp -r tbalden_all/google-modules google-modules
 
-          # Cleanup temporary clone
           rm -rf tbalden_all
 
-          echo "Full tbalden tree ready (drivers overlaid safely)"
+          echo "tbalden tree ready:"
+          echo "  - devices/google/${{ inputs.codename }}/"
+          echo "  - google-modules/"
+          echo "  - drivers/ (overlayed safely)"
 
       # --------------------------------------------------
-      # 3. Merge GKI + device-specific defconfig
+      # 3. Locate device defconfig (correct path)
+      # --------------------------------------------------
+      - name: Locate device defconfig
+        id: defconfig
+        run: |
+          cd ${{ env.KERNEL_DIR }}
+
+          # tbalden uses: devices/google/<codename>/<codename>_defconfig or <codename>defconfig
+          CANDIDATES=(
+            "devices/google/${{ inputs.codename }}/${{ inputs.codename }}_defconfig"
+            "devices/google/${{ inputs.codename }}/${{ inputs.codename }}defconfig"
+            "devices/google/${{ inputs.codename }}/defconfig"
+          )
+
+          for f in "${CANDIDATES[@]}"; do
+            if [ -f "$f" ]; then
+              echo "Found: $f"
+              echo "path=$f" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          done
+
+          echo "ERROR: defconfig not found for ${{ inputs.codename }}"
+          echo "Tried:"
+          for f in "${CANDIDATES[@]}"; do echo "  $f"; done
+          exit 1
+
+      # --------------------------------------------------
+      # 4. Merge GKI + device defconfig
       # --------------------------------------------------
       - name: Prepare defconfig
         run: |
           cd ${{ env.KERNEL_DIR }}
-
-          if [ ! -f "${{ env.DEVICE_DEFCONFIG }}" ]; then
-            echo "ERROR: ${{ env.DEVICE_DEFCONFIG }} not found!"
-            exit 1
-          fi
-
           cp arch/arm64/configs/${{ env.GKI_DEFCONFIG }} .config
-          scripts/kconfig/merge_config.sh .config ${{ env.DEVICE_DEFCONFIG }}
+          scripts/kconfig/merge_config.sh .config ${{ steps.defconfig.outputs.path }}
 
           # Cleanslate extras
-          {
-            echo 'CONFIG_LOCALVERSION="-cleanslate"'
-            echo 'CONFIG_DEBUG_FS=y'
-            echo 'CONFIG_MODULES=y'
-            echo 'CONFIG_WIREGUARD=y'
-          } >> .config
+          cat <<'EOF' >> .config
+          CONFIG_LOCALVERSION="-cleanslate"
+          CONFIG_DEBUG_FS=y
+          CONFIG_MODULES=y
+          CONFIG_WIREGUARD=y
+          EOF
 
           make O=${{ env.OUT_DIR }} olddefconfig
 
       # --------------------------------------------------
-      # 4. Build kernel + DTBO
+      # 5. Build kernel + DTBO
       # --------------------------------------------------
       - name: Build kernel
         run: |
@@ -119,7 +144,7 @@ jobs:
           make O=${{ env.OUT_DIR }} dtbs -j$(nproc)
 
       # --------------------------------------------------
-      # 5. Build vendor modules
+      # 6. Build vendor modules
       # --------------------------------------------------
       - name: Build vendor modules
         run: |
@@ -131,7 +156,7 @@ jobs:
           done
 
       # --------------------------------------------------
-      # 6. Package GKI images
+      # 7. Package images
       # --------------------------------------------------
       - name: Package images
         run: |
@@ -140,22 +165,22 @@ jobs:
           # Image.lz4
           lz4 -12 -B4 --content-size arch/arm64/boot/Image arch/arm64/boot/Image.lz4
 
-          # dtbo.img (all device overlays)
-          cat arch/arm64/boot/dts/google/*.dtbo > dtbo.img
+          # dtbo.img
+          cat arch/arm64/boot/dts/google/*.dtbo > dtbo.img 2>/dev/null || true
 
-          # vendor_boot.img (modules only)
+          # vendor_boot.img
           mkdir -p vendor_boot/modules
           find ../google-modules -name "*.ko" -exec cp {} vendor_boot/modules/ \;
           tar -cf vendor_boot.img -C vendor_boot .
 
       # --------------------------------------------------
-      # 7. AnyKernel3 ZIP
+      # 8. AnyKernel3 ZIP
       # --------------------------------------------------
       - name: Package AnyKernel3
         run: |
           git clone https://github.com/osm0sis/AnyKernel3.git
           cp ${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }}/arch/arm64/boot/Image.lz4 AnyKernel3/
-          cp ${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }}/dtbo.img AnyKernel3/
+          cp ${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }}/dtbo.img AnyKernel3/ || true
           cp ${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }}/vendor_boot.img AnyKernel3/
 
           cd AnyKernel3
@@ -166,29 +191,20 @@ jobs:
           zip -r9 "../$ZIP" . -x ".git*" "README.md"
           echo "ZIP_NAME=$ZIP" >> $GITHUB_ENV
 
-      # --------------------------------------------------
-      # 8. Upload artifact
-      # --------------------------------------------------
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: kernel-${{ inputs.codename }}-cleanslate
           path: "*.zip"
 
-      # --------------------------------------------------
-      # 9. Create GitHub Release (on tag)
-      # --------------------------------------------------
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: ncipollo/release-action@v1
         with:
           artifacts: "*.zip"
           tag: ${{ inputs.release_tag }}
-          name: Cleanslate A16 GKI ${{ inputs.codename }} ${{ inputs.release_tag }}
+          name: Cleanslate A16 GKI ${{ inputs.codename }}
           body: |
-            **tbalden Cleanslate A16 Kernel – 100% tbalden source**
+            **tbalden Cleanslate A16 – 100% correct tree**
 
-            * Full `google-devices/` (all devices)
-            * `google-modules/` + open-source drivers (overlay **without delete**)
-            * GKI 2.0 – `Image.lz4`, `dtbo.img`, `vendor_boot.img`
-            * Flash via fastboot:
+            * `devices/google
