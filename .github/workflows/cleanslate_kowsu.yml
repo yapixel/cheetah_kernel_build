@@ -30,7 +30,7 @@ jobs:
       - name: Installing dependencies
         run: |
           sudo apt update
-          sudo apt install -y gcc-aarch64-linux-gnu
+          sudo apt install -y gcc-aarch64-linux-gnu libelf-dev
 
       - name: Set CONFIG Environment Variable
         run: |
