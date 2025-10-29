@@ -202,7 +202,7 @@ jobs:
 
 
 
-     - name: Run sed and perl Commands
+      - name: Run sed and perl Commands
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
