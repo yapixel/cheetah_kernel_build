@@ -143,14 +143,13 @@ jobs:
           echo "CONFIG_LZ4_COMPRESS=y" >> "$DEFCONFIG"
           echo "CONFIG_LZ4HC_COMPRESS=y" >> "$DEFCONFIG"
 
-      - name: sed / perl tweaks
+      - name: Apply kernel_uname.patch (replaces all sed hacks)
         run: |
-          cd "$CONFIG"
-          #sed -i 's/CONFIG_LOCALVERSION=".*"/CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"/' arch/arm64/configs/zuma_defconfig
-          sed -i 's/CONFIG_LOCALVERSION=".*"/CONFIG_LOCALVERSION="-android14-11-cleanslate"/' arch/arm64/configs/zuma_defconfig
-          sed -i 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
-          perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "Tue Jul 8 09:17:32 UTC 2025"/' init/Makefile
-
+         cd "$CONFIG"
+         cp ../kernel_patches/sultan/kernel_uname.patch ./
+         patch -p1 --forward --fuzz=3 < kernel_uname.patch || true
+         rm -f kernel_uname.patch
+         perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "Tue Jul 8 09:17:32 UTC 2025"/' init/Makefile
      
       
       
