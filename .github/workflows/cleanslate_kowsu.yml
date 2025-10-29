@@ -124,6 +124,7 @@ jobs:
           export SOURCE_DATE_EPOCH=$(date -d "Tue Jul 8 09:17:32 UTC 2025" +%s)
           export KBUILD_BUILD_USER="build-user"
           export KBUILD_BUILD_HOST="build-host"
+          export KBUILD_VERBOSE=1
 
           # ---- CRITICAL ----
           make O=$OUT_DIR ARCH=$ARCH ${{ inputs.codename }}_defconfig
