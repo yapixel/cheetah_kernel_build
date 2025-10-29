@@ -26,6 +26,8 @@ jobs:
   build-kernel-cleanslate-kowsu-susfs:
     runs-on: ubuntu-latest
     env:
+      ARCH: arm64
+      CROSS_COMPILE: aarch64-linux-gnu-
       CONFIG: google_common_aosp_simple
       OUT_DIR: out_gs
 
