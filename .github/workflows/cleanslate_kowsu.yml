@@ -90,6 +90,7 @@ jobs:
           git clone https://github.com/yapixel/kernel_patches.git 
           git clone https://github.com/KOWX712/files.git kowsu_patches
           
+          cp kernel_patches/zuma_defconfig google_common_aosp_simple/arch/arm64/configs/
       - name: Add KernelSU
         run: |
           echo "Changing to configuration directory: $CONFIG..."
@@ -162,63 +163,63 @@ jobs:
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
-          echo "CONFIG_KSU=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_KPROBES_HOOK=n" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_TMPFS_XATTR=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_TMPFS_POSIX_ACL=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_NF_TARGET_TTL=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_TCP_CONG_BBR=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_NET_SCH_FQ=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_TCP_CONG_BIC=n" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_TCP_CONG_WESTWOOD=n" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_TCP_CONG_HTCP=n" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_BPF_STREAM_PARSER=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_NETFILTER_XT_SET=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_MAX=65534" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_BITMAP_IP=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_BITMAP_IPMAC=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_BITMAP_PORT=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_HASH_IP=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_HASH_IPMARK=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_HASH_IPPORT=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_HASH_IPPORTIP=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_HASH_IPPORTNET=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_HASH_IPMAC=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_HASH_MAC=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_HASH_NETPORTNET=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_HASH_NET=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_HASH_NETNET=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_HASH_NETPORT=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_HASH_NETIFACE=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP_SET_LIST_SET=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP6_NF_NAT=y" >> ./arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP6_NF_TARGET_MASQUERADE=y" >> ./arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_KSU_KPROBES_HOOK=n" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_KSU_SUSFS=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_TMPFS_XATTR=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_TMPFS_POSIX_ACL=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_IP_NF_TARGET_TTL=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_TCP_CONG_BBR=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_NET_SCH_FQ=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_TCP_CONG_BIC=n" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_TCP_CONG_WESTWOOD=n" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_TCP_CONG_HTCP=n" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_BPF_STREAM_PARSER=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_NETFILTER_XT_SET=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_IP_SET=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_IP_SET_MAX=65534" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_IP_SET_BITMAP_IP=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_IP_SET_BITMAP_IPMAC=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_IP_SET_BITMAP_PORT=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_IP_SET_HASH_IP=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_IP_SET_HASH_IPMARK=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_IP_SET_HASH_IPPORT=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_IP_SET_HASH_IPPORTIP=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_IP_SET_HASH_IPPORTNET=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_IP_SET_HASH_IPMAC=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_IP_SET_HASH_MAC=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_IP_SET_HASH_NETPORTNET=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_IP_SET_HASH_NET=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_IP_SET_HASH_NETNET=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_IP_SET_HASH_NETPORT=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_IP_SET_HASH_NETIFACE=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_IP_SET_LIST_SET=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_IP6_NF_NAT=y" >> ./arch/arm64/configs/zuma_defconfig
+          echo "CONFIG_IP6_NF_TARGET_MASQUERADE=y" >> ./arch/arm64/configs/zuma_defconfig
 
       - name: Disable stack protector globally (CRITICAL FIX – no cat)
         run: |
           cd "$CONFIG"
-          DEFCONFIG="arch/arm64/configs/gki_defconfig"
+          DEFCONFIG="arch/arm64/configs/zuma_defconfig"
 
           # ---- Kconfig options -------------------------------------------------
           echo "CONFIG_CC_STACKPROTECTOR=n"               >> "$DEFCONFIG"
@@ -247,7 +248,7 @@ jobs:
           cd "$CONFIG"
           echo "Running sed commands..."
           # Replace the entire CONFIG_LOCALVERSION line with the provided local_version
-          sed -i 's/CONFIG_LOCALVERSION="-Sultan"/CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"/' ./arch/arm64/configs/gki_defconfig
+          sed -i 's/CONFIG_LOCALVERSION="-Sultan"/CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"/' ./arch/arm64/configs/zuma_defconfig
           # Prevent setlocalversion from appending '+' for dirty state
           sed -i 's/${LOCALVERSION+set}/set/' ./scripts/setlocalversion
           # Set build timestamp
@@ -274,7 +275,7 @@ jobs:
                OBJDUMP=llvm-objdump \
                STRIP=llvm-strip \
                LLVM=1 \
-               gki_defconfig -j$(nproc)
+               zuma_defconfig -j$(nproc)
 
           make O="$OUT_DIR" \
                ARCH=arm64 \
