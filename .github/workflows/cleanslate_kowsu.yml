@@ -74,15 +74,14 @@ jobs:
           git clone https://github.com/tbalden/google_common_kernel_drivers_simple.git -b cleanslate_unified_a16 tbalden_all
           git clone https://github.com/yapixel/kernel_patches.git
           git clone https://github.com/KOWX712/files.git kowsu_patches
-
-      - name: Setup tbalden tree
-        run: |
-          cd "$CONFIG"
+          
+          cd google_common_aosp_simple
           mkdir -p google-devices
-          cp -r tbalden_all/devices/google/zuma google-devices/
-          cp -r tbalden_all/google-modules google-modules
-
+          cp -r ../tbalden_all/devices/google/zuma google-devices/
+          cp -r ../tbalden_all/google-modules google-modules
+          cd ../
           rm -rf tbalden_all
+          
 
 
       - name: Add KernelSU
