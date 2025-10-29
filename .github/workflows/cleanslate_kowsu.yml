@@ -224,7 +224,7 @@ jobs:
                LLVM=1 \
                V=1 -j$(nproc)
 
-       - name: Copy Images
+      - name: Copy Images
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
