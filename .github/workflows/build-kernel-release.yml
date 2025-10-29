@@ -50,17 +50,17 @@ jobs:
           # Set the new tag as output
           echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
 
-  build-kernel-cleanslate-kowsu:
-    uses: ./.github/workflows/cleanslate_kowsu.yml 
-    secrets: inherit
-    needs: generate-tag
-    if: ${{ inputs.make_release || inputs.dry_run }}
-    with:
-      codename: "zuma"
-      repo: "google_common_aosp_simple"
-      android_version: "android14"
-      kernel_version: "6.1"
-      release_tag: ${{ needs.generate-tag.outputs.new_tag }}
+#  build-kernel-cleanslate-kowsu:
+#    uses: ./.github/workflows/cleanslate_kowsu.yml 
+#    secrets: inherit
+#    needs: generate-tag
+#    if: ${{ inputs.make_release || inputs.dry_run }}
+#    with:
+#      codename: "zuma"
+#      repo: "google_common_aosp_simple"
+#      android_version: "android14"
+#      kernel_version: "6.1"
+#      release_tag: ${{ needs.generate-tag.outputs.new_tag }}
 
   build-kernel-bluspark-ksu:
     uses: ./.github/workflows/bluspark_ksu.yml
