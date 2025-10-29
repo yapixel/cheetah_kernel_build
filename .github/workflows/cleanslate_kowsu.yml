@@ -91,13 +91,23 @@ jobs:
           cp ../kernel_patches/69_hide_stuff.patch .
           patch -p1 -F 3 < 69_hide_stuff.patch || exit 1
 
+      - name: Copy device-specific defconfig
+        run: |
+          cd "$CONFIG"
+          SRC="devices/google/${{ inputs.codename }}/${{ inputs.codename }}_defconfig"
+          TARGET="arch/arm64/configs/${{ inputs.codename }}_defconfig"
+          mkdir -p "$(dirname "$TARGET")"
+          cp "$SRC" "$TARGET"
+          echo "Copied $SRC → $TARGET"
+
+      
       # ------------------------------------------------------------------
       #  CONFIG – ONE echo PER LINE (NO cat << EOF)
       # ------------------------------------------------------------------
       - name: Add other CONFIGs
         run: |
           cd "$CONFIG"
-          DEFCONFIG="arch/arm64/configs/defconfig"
+          DEFCONFIG="arch/arm64/configs/zuma_defconfig"
           echo "CONFIG_TMPFS_XATTR=y" >> "$DEFCONFIG"
           echo "CONFIG_TMPFS_POSIX_ACL=y" >> "$DEFCONFIG"
           echo "CONFIG_IP_NF_TARGET_TTL=y" >> "$DEFCONFIG"
@@ -138,8 +148,8 @@ jobs:
       - name: sed / perl tweaks
         run: |
           cd "$CONFIG"
-          #sed -i 's/CONFIG_LOCALVERSION=".*"/CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"/' arch/arm64/configs/defconfig
-          sed -i 's/CONFIG_LOCALVERSION=".*"/CONFIG_LOCALVERSION="-android14-11-cleanslate"/' arch/arm64/configs/defconfig
+          #sed -i 's/CONFIG_LOCALVERSION=".*"/CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"/' arch/arm64/configs/zuma_defconfig
+          sed -i 's/CONFIG_LOCALVERSION=".*"/CONFIG_LOCALVERSION="-android14-11-cleanslate"/' arch/arm64/configs/zuma_defconfig
           sed -i 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
           perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "Tue Jul 8 09:17:32 UTC 2025"/' init/Makefile
 
