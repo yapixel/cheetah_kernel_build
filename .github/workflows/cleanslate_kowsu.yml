@@ -231,7 +231,7 @@ jobs:
           echo "Kernel version suffix set to -android14-11-g66e758f7d0c0-ab13748739 without dirty state '+'"
           echo "Build timestamp set to Tue Jul 8 09:17:32 UTC 2025"
           
-     - name: Build kernel (Clang + LLVM)
+      - name: Build kernel (Clang + LLVM)
         run: |
           cd "$CONFIG"
 
