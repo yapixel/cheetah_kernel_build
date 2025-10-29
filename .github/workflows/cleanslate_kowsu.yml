@@ -1,0 +1,200 @@
+name: Cleanslate A16 Kernel (Husky)
+
+permissions:
+  contents: write
+  actions: write
+
+on:
+  workflow_call:
+    inputs:
+      codename:
+        required: true
+        type: string
+      repo:
+        required: true
+        type: string
+      android_version:
+        required: true
+        type: string
+      kernel_version:
+        required: true
+        type: string
+      release_tag:
+        required: true
+        type: string
+
+env:
+  KERNEL_CORE_REPO: https://github.com/tbalden/google_common_aosp_simple.git
+  KERNEL_CORE_BRANCH: aosp_cleanslate_a16_unified
+  DRIVERS_REPO: https://github.com/tbalden/google_common_kernel_drivers_simple.git
+  DRIVERS_BRANCH: cleanslate_unified_a16
+  ANYKERNEL_REPO: https://github.com/osm0sis/AnyKernel3.git
+  ANYKERNEL_BRANCH: master
+  CONFIG: kernel_core
+  OUT_DIR: out
+
+jobs:
+  build-cleanslate:
+    runs-on: ubuntu-latest
+    steps:
+      # --------------------------------------------------------------
+      # 1. Install basic tools
+      # --------------------------------------------------------------
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y jq gh curl zip unzip git bc bison flex \
+            libssl-dev libelf-dev libncurses5-dev libncursesw5-dev \
+            lz4 xz-utils cpio build-essential device-tree-compiler \
+            gcc-aarch64-linux-gnu
+
+      # --------------------------------------------------------------
+      # 2. Install NDK r25c + Clang (same as Bluspark)
+      # --------------------------------------------------------------
+      - name: Install NDK r25c + Clang
+        run: |
+          set -euo pipefail
+          NDK_URL="https://dl.google.com/android/repository/android-ndk-r25c-linux.zip"
+          NDK_ZIP="/tmp/android-ndk-r25c-linux.zip"
+          NDK_ROOT="/opt/android-ndk-r25c"
+          curl -L -o "$NDK_ZIP" "$NDK_URL"
+          sudo unzip -q "$NDK_ZIP" -d /opt/
+          CLANG_SRC="$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64"
+          CLANG_DST="$HOME/clang"
+          mkdir -p "$CLANG_DST"
+          cp -r "$CLANG_SRC/"* "$CLANG_DST/"
+          echo "$CLANG_DST/bin" >> "$GITHUB_PATH"
+          echo "CLANG_ROOT=$CLANG_DST" >> "$GITHUB_ENV"
+          clang --version
+
+      # --------------------------------------------------------------
+      # 3. Clone kernel core + drivers + AnyKernel3
+      # --------------------------------------------------------------
+      - name: Clone repositories
+        run: |
+          git clone ${{ env.KERNEL_CORE_REPO }} -b ${{ env.KERNEL_CORE_BRANCH }} ${{ env.CONFIG }}
+          git clone ${{ env.DRIVERS_REPO }} -b ${{ env.DRIVERS_BRANCH }} drivers
+          git clone ${{ env.ANYKERNEL_REPO }} -b ${{ env.ANYKERNEL_BRANCH }} AnyKernel3
+
+      # --------------------------------------------------------------
+      # 4. Overlay drivers (tbalden way)
+      # --------------------------------------------------------------
+      - name: Overlay drivers
+        run: |
+          cd ${{ env.CONFIG }}
+          rsync -a --delete ../drivers/ drivers/
+
+      # --------------------------------------------------------------
+      # 5. Fetch official Husky defconfig (A16)
+      # --------------------------------------------------------------
+      - name: Get Husky defconfig
+        run: |
+          cd ${{ env.CONFIG }}
+          wget -O arch/arm64/configs/husky_defconfig \
+            https://android.googlesource.com/kernel/gs/+refs/heads/android-gs-husky-6.1-android16-2025-06/kernel/configs/husky_defconfig
+
+      # --------------------------------------------------------------
+      # 6. Optional: Add Cleanslate extras (debug, modules, etc.)
+      # --------------------------------------------------------------
+      - name: Add Cleanslate config tweaks
+        run: |
+          cd ${{ env.CONFIG }}
+          cat <<'EOF' >> arch/arm64/configs/husky_defconfig
+          CONFIG_DEBUG_FS=y
+          CONFIG_MODULES=y
+          CONFIG_LOCALVERSION_AUTO=y
+          CONFIG_LOCALVERSION="-cleanslate"
+          EOF
+
+      # --------------------------------------------------------------
+      # 7. Build kernel (Clang + LLVM)
+      # --------------------------------------------------------------
+      - name: Build kernel
+        env:
+          SOURCE_DATE_EPOCH: $(date -d "Tue Jul 8 09:17:32 UTC 2025" +%s)
+          KBUILD_BUILD_USER: github
+          KBUILD_BUILD_HOST: actions
+        run: |
+          cd ${{ env.CONFIG }}
+          export ARCH=arm64
+          make O="${{ env.OUT_DIR }}" husky_defconfig
+          make O="${{ env.OUT_DIR }}" \
+               CC=clang \
+               LD=ld.lld \
+               AR=llvm-ar \
+               NM=llvm-nm \
+               OBJCOPY=llvm-objcopy \
+               OBJDUMP=llvm-objdump \
+               STRIP=llvm-strip \
+               LLVM=1 \
+               V=1 -j$(nproc)
+
+      # --------------------------------------------------------------
+      # 8. Compress Image → Image.lz4 (same as Bluspark)
+      # --------------------------------------------------------------
+      - name: Compress Image.lz4
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y liblz4-tool
+          cd ${{ env.CONFIG }}
+          if [ -f "${{ env.OUT_DIR }}/arch/arm64/boot/Image.gz" ]; then
+            gunzip -c "${{ env.OUT_DIR }}/arch/arm64/boot/Image.gz" | lz4 -12 -B4 --content-size > "${{ env.OUT_DIR }}/arch/arm64/boot/Image.lz4"
+          else
+            lz4 -12 -B4 --content-size "${{ env.OUT_DIR }}/arch/arm64/boot/Image" "${{ env.OUT_DIR }}/arch/arm64/boot/Image.lz4"
+          fi
+
+      # --------------------------------------------------------------
+      # 9. Copy Image.lz4 + dtbo.img to AnyKernel3
+      # --------------------------------------------------------------
+      - name: Copy images to AnyKernel3
+        run: |
+          cd ${{ env.CONFIG }}
+          cp "${{ env.OUT_DIR }}/arch/arm64/boot/Image.lz4" ../AnyKernel3/Image.lz4
+          # dtbo is optional – use prebuilt from factory if needed
+          if [ -f "${{ env.OUT_DIR }}/arch/arm64/boot/dtbo.img" ]; then
+            cp "${{ env.OUT_DIR }}/arch/arm64/boot/dtbo.img" ../AnyKernel3/dtbo.img
+          fi
+
+      # --------------------------------------------------------------
+      # 10. Customize AnyKernel3 for Husky
+      # --------------------------------------------------------------
+      - name: Configure AnyKernel3
+        run: |
+          cd AnyKernel3
+          sed -i 's/^device.name1=.*/device.name1=husky/' anykernel.sh
+          sed -i 's/^block=.*/block=\/dev\/block\/by-name\/boot/' anykernel.sh
+          echo "do.devicecheck=1" >> anykernel.sh
+          echo "do.modules=0" >> anykernel.sh
+          echo "do.system=0" >> anykernel.sh
+          echo "do.cleanup=1" >> anykernel.sh
+
+      # --------------------------------------------------------------
+      # 11. Create flashable ZIP
+      # --------------------------------------------------------------
+      - name: Create ZIP
+        run: |
+          cd AnyKernel3
+          ZIP_NAME="Cleanslate-A16-${{ inputs.codename }}-${{ inputs.release_tag }}.zip"
+          zip -r9 "../$ZIP_NAME" . -x ".git*" "README.md" "*placeholder"
+          echo "ZIP_NAME=$ZIP_NAME" >> "$GITHUB_ENV"
+
+      # --------------------------------------------------------------
+      # 12. Upload artifact
+      # --------------------------------------------------------------
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-${{ inputs.codename }}-cleanslate
+          path: "*.zip"
+
+      # --------------------------------------------------------------
+      # 13. Create GitHub Release (only on tag)
+      # --------------------------------------------------------------
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "*.zip"
+          tag: ${{ inputs.release_tag }}
+          name: Cleanslate A16 ${{ inputs.codename }} ${{ inputs.release_tag }}
+          token: ${{ secrets.GITHUB_TOKEN }}
