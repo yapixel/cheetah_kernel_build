@@ -91,14 +91,11 @@ jobs:
           cp ../kernel_patches/69_hide_stuff.patch .
           patch -p1 -F 3 < 69_hide_stuff.patch || exit 1
 
-      - name: Copy device-specific defconfig
+      - name: Copy zuma_defconfig to correct location
         run: |
-          cd "$CONFIG"
-          SRC="devices/google/${{ inputs.codename }}/${{ inputs.codename }}_defconfig"
-          TARGET="arch/arm64/configs/${{ inputs.codename }}_defconfig"
-          mkdir -p "$(dirname "$TARGET")"
-          cp "$SRC" "$TARGET"
-          echo "Copied $SRC → $TARGET"
+         echo "Moving zuma_defconfig to arch/arm64/configs/"
+         cp ${{ inputs.repo }}/zuma_defconfig ${{ inputs.repo }}/arch/arm64/configs/zuma_defconfig
+         echo "zuma_defconfig placed correctly"
 
       
       # ------------------------------------------------------------------
