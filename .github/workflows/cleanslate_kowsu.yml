@@ -33,7 +33,7 @@ jobs:
       - name: Installing dependencies
         run: |
           sudo apt update
-          sudo apt install -y jq gh curl zip unzip git
+          sudo apt install -y jq gh curl zip unzip git libelf-dev
 
       - name: Install NDK r25c + Clang (FIXED)
         run: |
