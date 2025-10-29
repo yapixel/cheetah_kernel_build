@@ -51,7 +51,7 @@ jobs:
           echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
 
   build-kernel-cleanslate-kowsu:
-    uses: ./.github/workflows/cleanslate_kowsu.yml
+    uses: ./.github/workflows/cleanslate_kowsu.yml 
     secrets: inherit
     needs: generate-tag
     if: ${{ inputs.make_release || inputs.dry_run }}
@@ -78,7 +78,7 @@ jobs:
 
 
   build-kernel-zuma-kowsu:
-    uses: ./.github/workflows/sultan_kowsu.yml
+    uses: ./.github/workflows/sultan_kowsu.yml 
     secrets: inherit
     needs: generate-tag
     if: ${{ inputs.make_release || inputs.dry_run }}
