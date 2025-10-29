@@ -94,11 +94,7 @@ jobs:
           cp ../kernel_patches/69_hide_stuff.patch .
           patch -p1 -F 3 < 69_hide_stuff.patch || exit 1
 
-      - name: Copy zuma_defconfig to correct location
-        run: |
-         echo "Moving zuma_defconfig to arch/arm64/configs/"
-         cp ${{ inputs.repo }}/zuma_defconfig ${{ inputs.repo }}/arch/arm64/configs/zuma_defconfig
-         echo "zuma_defconfig placed correctly"
+      
 
       
       # ------------------------------------------------------------------
