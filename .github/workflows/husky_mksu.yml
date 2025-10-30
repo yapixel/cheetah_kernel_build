@@ -103,7 +103,7 @@ jobs:
 
         echo "Downloading Clang 17.0.2 (${CLANG_REV}) ..."
         wget -q \
-          "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/${CLANG_REV}.tar.gz" \
+          "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android14-release/clang-r487747c.tar.gz" \
           -O "${CLANG_TAR}"
 
         tar -xzf "${CLANG_TAR}"
