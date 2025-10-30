@@ -41,7 +41,7 @@ env:
   USE_CCACHE: 1
   CCACHE_DIR: ${{ github.workspace }}/.ccache
   LLVM_CACHE_PATH: ${{ github.workspace }}/.cache/llvm
-  CLANG_REV: clang-r522817
+  CLANG_REV: clang-r487747c
 
   # Reproducible identity
   KBUILD_BUILD_USER: build-user
