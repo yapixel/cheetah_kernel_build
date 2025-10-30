@@ -225,12 +225,12 @@ jobs:
         cp ../../kowsu_patches/KowSU/fix_core_hook_kowsu.patch ./
         patch -p1 --fuzz=3 < fix_core_hook_kowsu.patch
 
-    - name: Apply KSU Hook Patches
-      working-directory: ${{ env.KERNEL_DIR }}
-      run: |
-          echo "Applying manual hook patches..."
-          cp ../kernel_patches/syscall_hook/min_scope_syscall_hooks_v1.5.patch ./
-          patch -p1 --forward < min_scope_syscall_hooks_v1.5.patch  
+ #   - name: Apply KSU Hook Patches
+ #     working-directory: ${{ env.KERNEL_DIR }}
+ #     run: |
+ #         echo "Applying manual hook patches..."
+ #         cp ../kernel_patches/syscall_hook/min_scope_syscall_hooks_v1.5.patch ./
+ #         patch -p1 --forward < min_scope_syscall_hooks_v1.5.patch  
 
     - name: Configure kernel
       working-directory: ${{ env.KERNEL_DIR }}
@@ -248,6 +248,7 @@ jobs:
         CONFIG_KSU_LSM_SECURITY_HOOKS=y
         CONFIG_KSU_SUSFS=y
         CONFIG_KSU_SUSFS_SUS_PATH=y
+        CONFIG_KSU_SUSFS_SUS_MAP=y
         CONFIG_KSU_SUSFS_SUS_MOUNT=y
         CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y
         CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y
