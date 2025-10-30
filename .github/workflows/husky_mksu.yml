@@ -233,7 +233,7 @@ jobs:
         CONFIG_KSU_DEBUG=n
         CONFIG_KSU_THRONE_TRACKER_ALWAYS_THREADED=y
         CONFIG_KSU_ALLOWLIST_WORKAROUND=n
-        CONFIG_KSU_LSM_SECURITY_HOOKS=y
+        CONFIG_KSU_LSM_SECURITY_HOOKS=n
         CONFIG_KSU_SUSFS=y
         CONFIG_KSU_SUSFS_SUS_PATH=y
         CONFIG_KSU_SUSFS_SUS_MOUNT=y
@@ -298,14 +298,13 @@ jobs:
         echo "KBUILD_BUILD_USER=${{ env.KBUILD_BUILD_USER }}" >> $GITHUB_ENV
         echo "KBUILD_BUILD_HOST=${{ env.KBUILD_BUILD_HOST }}" >> $GITHUB_ENV
 
-    - name: Build kernel (with retry)
+    - name: Build kernel
       working-directory: ${{ env.KERNEL_DIR }}
       env:
         KBUILD_BUILD_USER: ${{ env.KBUILD_BUILD_USER }}
         KBUILD_BUILD_HOST: ${{ env.KBUILD_BUILD_HOST }}
       run: |
-        for i in $(seq 1 ${{ env.RETRY }}); do
-          echo "Build attempt $i of ${{ env.RETRY }}..."
+
           make -j${{ env.THREADS }} \
             LLVM_IAS=1 LLVM=1 ARCH=arm64 \
             CLANG_TRIPLE=aarch64-linux-gnu- \
@@ -317,10 +316,9 @@ jobs:
             PGO=true \
             BOLT=true \
             MIGO=false \
-            gki_defconfig all && break
-          echo "Build failed, retrying in 10s..."
-          sleep 10
-        done
+            gki_defconfig all 
+          
+        
 
     - name: Check build output
       run: |
