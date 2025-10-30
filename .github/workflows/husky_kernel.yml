@@ -20,7 +20,7 @@ env:
   BUILD: dev
   PIXEL8A: ${{ github.event.inputs.pixel8a || 'y' }}
   LTO_TYPE: ${{ github.event.inputs.lto_type || 'thin' }}
-  ZIP_PREFIX: AK3-A14-6.1.134-KSUN
+  ZIP_PREFIX: AK3-A14-6.1.134-KowSU
   KERNEL_DIR: common
   CONFIG_FILE: arch/arm64/configs/gki_defconfig
   OUT_DIR: out
@@ -28,13 +28,13 @@ env:
   BUILD_CLEAN: ${{ github.event.inputs.build_clean || 'always' }}
   RETRY: 3
   REPO_DEPTH: 1
-  KSUN_BRANCH: next-susfs
+  KSU_BRANCH: master
   ANYKERNEL_DIR: AnyKernel3-p8a
   ANYKERNEL_BRANCH: gki-2.0
-  SUSFS_REPO: https://gitlab.com/pershoot/susfs4ksu.git
-  SUSFS_BRANCH: gki-android14-6.1-dev
-  PATCHES_REPO: https://github.com/infectedmushi/kernel_patches
-  PATCHES_BRANCH: main
+  SUSFS_REPO: https://gitlab.com/simonpunk/susfs4ksu.git
+  SUSFS_BRANCH: gki-android14-6.1
+  PATCHES_REPO: https://github.com/yapixel/kernel_patches
+  PATCHES_BRANCH: dev
   BUILDS_DIR: builds/6.1.134
 
   # Compiler
@@ -191,30 +191,10 @@ jobs:
           none) echo "CONFIG_LTO_NONE=y" >> "$CONFIG" ;;
         esac
 
-    - name: Install KernelSU-Next
+    - name: Install KowSU
       working-directory: ${{ env.KERNEL_DIR }}
       run: |
-        curl -LSs https://raw.githubusercontent.com/pershoot/KernelSU-Next/refs/heads/${{ env.KSUN_BRANCH }}/kernel/setup.sh | bash -s ${{ env.KSUN_BRANCH }}
-
-    - name: Add Baseband-guard (BBG)
-      working-directory: ${{ env.KERNEL_DIR }}
-      run: |
-        curl -LSs https://raw.githubusercontent.com/vc-teahouse/Baseband-guard/main/setup.sh | bash
-        CONFIG="${{ env.CONFIG_FILE }}"
-        if ! grep -q "^CONFIG_BBG=y$" "$CONFIG"; then
-          echo "CONFIG_BBG=y" >> "$CONFIG"
-        fi
-        KCONFIG="security/Kconfig"
-        if [ -f "$KCONFIG" ]; then
-          if ! grep -A 10 "^config LSM$" "$KCONFIG" | grep -q "baseband_guard"; then
-            sed -i '/^config LSM$/,/^help$/ {
-              /^[[:space:]]*default/ {
-                s/\<landlock\>/landlock,baseband_guard/
-              }
-            }' "$KCONFIG"
-            echo "Added baseband_guard to LSM default"
-          fi
-        fi
+        curl -LSs https://raw.githubusercontent.com/KOWX712/KernelSU/refs/heads/${{ env.KSUN_BRANCH }}/kernel/setup.sh | bash -s ${{ env.KSUN_BRANCH }}
 
     - name: Apply SUSFS patches
       working-directory: ${{ env.KERNEL_DIR }}
@@ -224,8 +204,26 @@ jobs:
         mkdir -p fs include/linux
         cp -rfv ../susfs4ksu/kernel_patches/fs/* ./fs/ || true
         cp -rfv ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/ || true
-        patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch
-        patch -p1 < 60_scope-minimized_manual_hooks.patch
+        patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch ||true
+
+        cd ./KernelSU
+        echo "Revert commitbconflict with susfs"
+        cp ../../kowsu_patches/KowSU/revert_commit_conflict_with_susfs.patch .
+        patch -p1 --fuzz=3 < revert_commit_conflict_with_susfs.patch
+          
+        echo "Apply KSU integration patches"   
+        cp ../../kowsu_patches/KowSU/enable_susfs_for_kowsu.patch ./
+        patch -p1 < enable_susfs_for_kowsu.patch
+
+        cp ../../kowsu_patches/KowSU/fix_core_hook_kowsu.patch ./
+        patch -p1 --fuzz=3 < fix_core_hook_kowsu.patch
+
+    - name: Apply KSU Hook Patches
+      working-directory: ${{ env.KERNEL_DIR }}
+      run: |
+          echo "Applying manual hook patches..."
+          cp ../kernel_patches/syscall_hook/min_scope_syscall_hooks_v1.5.patch ./
+          patch -p1 --forward < min_scope_syscall_hooks_v1.5.patch  
 
     - name: Configure kernel
       working-directory: ${{ env.KERNEL_DIR }}
