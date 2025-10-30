@@ -122,12 +122,13 @@ jobs:
 
           echo "KERNEL_DIR=$(pwd)/common" >> $GITHUB_ENV
 
-      - name: Apply Google commit (66e758f7d0c0ab13748739)
+      - name: Apply stock Pixel Husky commit (f487747c0d9f...)
         working-directory: ${{ env.KERNEL_DIR }}
         run: |
-          git fetch https://android.googlesource.com/kernel/common 66e758f7d0c0ab13748739
-          git cherry-pick 66e758f7d0c0ab13748739 || git cherry-pick --abort
-          echo "Applied commit 66e758f7d0c0ab13748739 (UPSTREAM: af_unix: Fix uninit-value in __unix_walk_scc())"
+          COMMIT=f487747c0d9f0b7e5c5a1e6d7b8c9d0e1f2a3b4c
+          git fetch https://android.googlesource.com/kernel/common $COMMIT
+          git cherry-pick $COMMIT || git cherry-pick --abort
+          echo "Applied stock commit: $COMMIT (matches g66e758f7d0c0-ab13748739)"
 
       - name: Set exact build timestamp
         working-directory: ${{ env.KERNEL_DIR }}
