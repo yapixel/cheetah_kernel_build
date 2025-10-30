@@ -4,29 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       android_version:
-        description: 'Android major version (e.g. 14)'
-        required: true
         default: '14'
       kernel_version:
-        description: 'Kernel base version (e.g. 6.1)'
-        required: true
         default: '6.1'
       os_patch_level:
-        description: 'OS patch level (YYYY-MM)'
-        required: true
         default: '2025-05'
-      pixel8a:
-        description: 'Enable Pixel 8a configuration (y/n)'
-        required: false
-        default: 'y'
-      lto_type:
-        description: 'LTO type (full/thin/none)'
-        required: false
-        default: 'thin'
-      build_clean:
-        description: 'Build clean mode (always/auto/never)'
-        required: false
-        default: 'always'
 
 env:
   PIXEL8A: ${{ github.event.inputs.pixel8a || 'y' }}
