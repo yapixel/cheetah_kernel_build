@@ -32,7 +32,7 @@ env:
   ANYKERNEL_DIR: AnyKernel3-p8a
   ANYKERNEL_BRANCH: gki-2.0
   SUSFS_REPO: https://gitlab.com/simonpunk/susfs4ksu.git
-  SUSFS_BRANCH: sultan-shiba-susfs-minimal
+  SUSFS_BRANCH: gki-android14-6.1
   PATCHES_REPO: https://github.com/yapixel/kernel_patches
   PATCHES_BRANCH: dev
   BUILDS_DIR: builds/6.1.134
@@ -145,7 +145,7 @@ jobs:
         git clone --depth=${{ env.REPO_DEPTH }} -b ${{ env.SUSFS_BRANCH }} ${{ env.SUSFS_REPO }} susfs4ksu
         git clone --depth=${{ env.REPO_DEPTH }} -b ${{ env.ANYKERNEL_BRANCH }} \
           https://github.com/deepongi-labs/${{ env.ANYKERNEL_DIR }} ${{ env.ANYKERNEL_DIR }}
-        git clone --depth=${{ env.REPO_DEPTH }} -b ${{ env.PATCHES_BRANCH }} ${{ env.PATCHES_REPO }} kernel_patches
+        git clone https://github.com/yapixel/kernel_patches.git 
         
         
     - name: Prepare kernel source
@@ -213,7 +213,12 @@ jobs:
         cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
         patch -p1 < 10_enable_susfs_for_ksu.patch
 
-
+    - name: Apply KSU Hook Patches
+      working-directory: ${{ env.KERNEL_DIR }}
+      run: |
+          echo "Applying manual hook patches..."
+          cp ../kernel_patches/syscall_hook/min_scope_syscall_hooks_v1.5.patch ./
+          patch -p1 --forward < min_scope_syscall_hooks_v1.5.patch
 
     - name: Configure kernel
       working-directory: ${{ env.KERNEL_DIR }}
