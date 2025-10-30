@@ -60,16 +60,21 @@ jobs:
     runs-on: ubuntu-22.04
     
     steps:
-    - name: Maximize build space
-      uses: easimon/maximize-build-space@master
-      with:
-        root-reserve-mb: 8192
-        swap-size-mb: 1024
-        remove-dotnet: 'true'
-        remove-android: 'true'
-        remove-haskell: 'true'
-        remove-codeql: 'true'
-        remove-docker-images: 'true'
+    - name: Check Initial Disk Space
+      run: |
+          echo "===== Initial Total Disk Space in GB ====="
+          df -BG
+          
+    - name: Download Apache Arrow's util_free_space.sh
+      run: |
+          curl -L -o util_free_space.sh https://raw.githubusercontent.com/apache/arrow/main/ci/scripts/util_free_space.sh
+          chmod +x util_free_space.sh
+          ./util_free_space.sh
+          
+    - name: Check Disk Space After Cleanup
+      run: |
+          echo "===== Total Disk Space After Cleanup in GB ====="
+          df -BG
 
     - name: Checkout repository
       uses: actions/checkout@v4
