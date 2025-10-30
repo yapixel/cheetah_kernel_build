@@ -122,11 +122,12 @@ jobs:
 
           echo "KERNEL_DIR=$(pwd)/common" >> $GITHUB_ENV
 
-      - name: Apply Google-internal commit (g66e758f7d0c0)
+      - name: Apply Google commit (66e758f7d0c0ab13748739)
         working-directory: ${{ env.KERNEL_DIR }}
         run: |
-          git fetch https://android.googlesource.com/kernel/common g66e758f7d0c0
-          git cherry-pick g66e758f7d0c0 || git cherry-pick --abort
+          git fetch https://android.googlesource.com/kernel/common 66e758f7d0c0ab13748739
+          git cherry-pick 66e758f7d0c0ab13748739 || git cherry-pick --abort
+          echo "Applied commit 66e758f7d0c0ab13748739 (UPSTREAM: af_unix: Fix uninit-value in __unix_walk_scc())"
 
       - name: Set exact build timestamp
         working-directory: ${{ env.KERNEL_DIR }}
