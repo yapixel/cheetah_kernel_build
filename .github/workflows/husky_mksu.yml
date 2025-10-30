@@ -78,7 +78,7 @@ jobs:
           build-essential bc bison flex libssl-dev libelf-dev \
           libncurses-dev zip ccache curl git wget cpio python3 \
           python3-pip device-tree-compiler kmod dwarves pahole
-        sudo apt purge clang
+        sudo apt purge llvm clang
 
     - name: Set up ccache
       uses: hendrikmuhs/ccache-action@v1.2
@@ -114,6 +114,7 @@ jobs:
         echo "$HOME/clang/bin" >> $GITHUB_PATH
         which clang 
         clang --version | head -n1
+        /home/runner/clang/bin/clang --version | head -n1
 
     - name: Download ARM64 toolchain
       run: |
