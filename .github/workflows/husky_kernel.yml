@@ -212,8 +212,8 @@ jobs:
         patch -p1 --fuzz=3 < revert_commit_conflict_with_susfs.patch
 
         # Manual hook stubs + remove kprobe
-        cd ../
-        cp ../kernel_patches/kowsu/add_manual_hook_stubs.patch ./
+        
+        cp ../../kernel_patches/kowsu/add_manual_hook_stubs.patch ./
         patch -p1 --fuzz=3 < add_manual_hook_stubs.patch 
         
         
