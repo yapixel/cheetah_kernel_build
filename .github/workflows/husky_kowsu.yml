@@ -1,4 +1,4 @@
-name: Build Google Pixel Husky Kernel with KowSU
+name: Build Husky Kernel with KowSU
 on:
   workflow_dispatch:
     inputs:
