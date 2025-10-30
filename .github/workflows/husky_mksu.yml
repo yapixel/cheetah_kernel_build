@@ -111,7 +111,7 @@ jobs:
 
         echo "CLANG_PATH=$HOME/clang/bin" >> $GITHUB_ENV
         echo "$HOME/clang/bin" >> $GITHUB_PATH
-
+        which clang 
         clang --version | head -n1
 
     - name: Download ARM64 toolchain
