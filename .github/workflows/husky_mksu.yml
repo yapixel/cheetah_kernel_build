@@ -313,11 +313,7 @@ jobs:
             CROSS_COMPILE_COMPAT="${{ env.ARM32_TOOLCHAIN }}" \
             CROSS_COMPILE="${{ env.ARM64_TOOLCHAIN }}" \
             CC="ccache clang" LD=ld.lld HOSTLD=ld.lld \
-            O="${{ env.OUT_DIR }}" \
-            LTO=thin \
-            PGO=true \
-            BOLT=true \
-            MIGO=false \
+            O="${{ env.OUT_DIR }}" 
             gki_defconfig all 
           
         
