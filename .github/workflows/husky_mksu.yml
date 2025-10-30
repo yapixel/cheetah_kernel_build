@@ -192,7 +192,7 @@ jobs:
           none) echo "CONFIG_LTO_NONE=y" >> "$CONFIG" ;;
         esac
 
-    - name: Install KowSU
+    - name: Install KSU variants 
       working-directory: ${{ env.KERNEL_DIR }}
       run: |
         curl -LSs https://raw.githubusercontent.com/5ec1cff/KernelSU/refs/heads/${{ env.KSU_BRANCH }}/kernel/setup.sh | bash -s ${{ env.KSU_BRANCH }}
