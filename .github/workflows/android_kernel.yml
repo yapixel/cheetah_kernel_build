@@ -29,14 +29,11 @@ on:
         default: 'always'
 
 env:
-  # Build configuration
   PIXEL8A: ${{ github.event.inputs.pixel8a || 'y' }}
   LTO_TYPE: ${{ github.event.inputs.lto_type || 'thin' }}
   ZIP_PREFIX: AK3-A14-6.1.134-KSUN
   OUT_DIR: out
   BUILD_CLEAN: ${{ github.event.inputs.build_clean || 'always' }}
-  RETRY: 3
-  REPO_DEPTH: 1
   KSUN_BRANCH: next-susfs
   ANYKERNEL_DIR: AnyKernel3-p8a
   ANYKERNEL_BRANCH: gki-2.0
@@ -46,13 +43,6 @@ env:
   PATCHES_BRANCH: main
   BUILDS_DIR: builds/6.1.134
   LOCALVERSION: -deepongi
-
-  # Compiler configuration
-  USE_CCACHE: 1
-  CCACHE_DIR: ${{ github.workspace }}/.ccache
-  LLVM_CACHE_PATH: ${{ github.workspace }}/.cache/llvm
-
-  # GitHub-specific
   GIT_SHORT_SHA: ${{ github.event.pull_request.head.sha && github.event.pull_request.head.sha || github.sha }}
 
 jobs:
@@ -94,13 +84,37 @@ jobs:
           key: kernel-build-${{ env.LTO_TYPE }}
           max-size: 5G
 
-      - name: Install repo tool
-        env:
-          REPO: ${{ runner.temp }}/repo
+      - name: Setup Build Environment
         run: |
-          curl -s https://storage.googleapis.com/git-repo-downloads/repo > "$REPO"
-          chmod +x "$REPO"
-          echo "$REPO" >> $GITHUB_PATH
+          AOSP_MIRROR=https://android.googlesource.com
+          BRANCH=main-kernel-2025
+
+          git clone $AOSP_MIRROR/kernel/prebuilts/build-tools -b $BRANCH --depth 1 kernel-build-tools &
+          git clone $AOSP_MIRROR/platform/system/tools/mkbootimg -b $BRANCH --depth 1 mkbootimg &
+          wait
+
+          echo "AVBTOOL=$GITHUB_WORKSPACE/kernel-build-tools/linux-x86/bin/avbtool" >> $GITHUB_ENV
+          echo "MKBOOTIMG=$GITHUB_WORKSPACE/mkbootimg/mkbootimg.py" >> $GITHUB_ENV
+          echo "UNPACK_BOOTIMG=$GITHUB_WORKSPACE/mkbootimg/unpack_bootimg.py" >> $GITHUB_ENV
+          echo "BOOT_SIGN_KEY_PATH=$GITHUB_WORKSPACE/kernel-build-tools/linux-x86/share/avb/testkey_rsa2048.pem" >> $GITHUB_ENV
+          echo "PATH=$GITHUB_WORKSPACE/kernel-build-tools/linux-x86/bin:$PATH" >> $GITHUB_ENV
+
+          mkdir -p ./git-repo
+          curl -s https://storage.googleapis.com/git-repo-downloads/repo > ./git-repo/repo
+          chmod a+rx ./git-repo/repo
+          echo "REPO=$GITHUB_WORKSPACE/git-repo/repo" >> $GITHUB_ENV
+          echo "$GITHUB_WORKSPACE/git-repo" >> $GITHUB_PATH
+
+      - name: Set boot sign key
+        env:
+          BOOT_SIGN_KEY: ${{ secrets.BOOT_SIGN_KEY }}
+        run: |
+          if [ -n "$BOOT_SIGN_KEY" ]; then
+            echo "$BOOT_SIGN_KEY" > ./kernel-build-tools/linux-x86/share/avb/testkey_rsa2048.pem
+            echo "Custom boot signing key applied."
+          else
+            echo "No custom BOOT_SIGN_KEY secret found. Using default test key."
+          fi
 
       - name: Initialize and Sync Kernel Source (repo manifest)
         run: |
@@ -110,7 +124,7 @@ jobs:
           mkdir -p kernel
           cd kernel
 
-          repo init \
+          $REPO init \
             --depth=1 \
             -u https://android.googlesource.com/kernel/manifest \
             -b common-${FORMATTED_BRANCH} \
@@ -118,13 +132,12 @@ jobs:
 
           REMOTE_BRANCH=$(git ls-remote https://android.googlesource.com/kernel/common ${FORMATTED_BRANCH} || true)
           DEFAULT_MANIFEST=.repo/manifests/default.xml
-
           if echo "$REMOTE_BRANCH" | grep -q deprecated; then
-            echo "Warning: Branch ${FORMATTED_BRANCH} is deprecated – using deprecated/${FORMATTED_BRANCH}"
+            echo "Warning: Branch ${FORMATTED_BRANCH} is deprecated → using deprecated/${FORMATTED_BRANCH}"
             sed -i "s/\"${FORMATTED_BRANCH}\"/\"deprecated\/${FORMATTED_BRANCH}\"/g" "$DEFAULT_MANIFEST"
           fi
 
-          repo sync -c -j$(nproc --all) --no-tags --fail-fast
+          $REPO sync -c -j$(nproc --all) --no-tags --fail-fast
 
           echo "KERNEL_DIR=$(pwd)/common" >> $GITHUB_ENV
 
@@ -155,10 +168,10 @@ jobs:
 
       - name: Setup repositories
         run: |
-          git clone --depth=${{ env.REPO_DEPTH }} -b ${{ env.SUSFS_BRANCH }} ${{ env.SUSFS_REPO }} susfs4ksu
-          git clone --depth=${{ env.REPO_DEPTH }} -b ${{ env.ANYKERNEL_BRANCH }} \
+          git clone --depth=1 -b ${{ env.SUSFS_BRANCH }} ${{ env.SUSFS_REPO }} susfs4ksu
+          git clone --depth=1 -b ${{ env.ANYKERNEL_BRANCH }} \
             https://github.com/deepongi-labs/${{ env.ANYKERNEL_DIR }} ${{ env.ANYKERNEL_DIR }}
-          git clone --depth=${{ env.REPO_DEPTH }} -b ${{ env.PATCHES_BRANCH }} ${{ env.PATCHES_REPO }} kernel_patches
+          git clone --depth=1 -b ${{ env.PATCHES_BRANCH }} ${{ env.PATCHES_REPO }} kernel_patches
 
       - name: Prepare kernel source
         working-directory: ${{ env.KERNEL_DIR }}
