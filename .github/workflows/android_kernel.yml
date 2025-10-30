@@ -42,7 +42,6 @@ env:
   PATCHES_REPO: https://github.com/infectedmushi/kernel_patches
   PATCHES_BRANCH: main
   BUILDS_DIR: builds/6.1.134
-  LOCALVERSION: -deepongi
   GIT_SHORT_SHA: ${{ github.event.pull_request.head.sha && github.event.pull_request.head.sha || github.sha }}
 
 jobs:
@@ -140,6 +139,12 @@ jobs:
           $REPO sync -c -j$(nproc --all) --no-tags --fail-fast
 
           echo "KERNEL_DIR=$(pwd)/common" >> $GITHUB_ENV
+
+      - name: Apply Google-internal commit (g66e758f7d0c0)
+        working-directory: ${{ env.KERNEL_DIR }}
+        run: |
+          git fetch https://android.googlesource.com/kernel/common g66e758f7d0c0
+          git cherry-pick g66e758f7d0c0 || git cherry-pick --abort
 
       - name: Download and setup Clang
         run: |
@@ -258,7 +263,7 @@ jobs:
           rm -f android/abi_gki_protected_exports_* || true
 
           cat >> "$CONFIG" <<'EOF'
-          CONFIG_LOCALVERSION="${{ env.LOCALVERSION }}"
+          CONFIG_LOCALVERSION=""
           CONFIG_LOCALVERSION_AUTO=n
           CONFIG_KSU=y
           CONFIG_KSU_KPROBES_HOOK=n
@@ -390,6 +395,7 @@ jobs:
           Kernel Version: 6.1.134
           Patch Level: 2025-05
           Branch: ${{ inputs.android_version }}-${{ inputs.kernel_version }}-${{ inputs.os_patch_level }}
+          Google Commit: g66e758f7d0c0
           Build Number: ${{ env.BUILD_VER }}
           Build Date: $(date -u)
           Commit SHA: ${{ github.sha }}
@@ -440,5 +446,6 @@ jobs:
             - BBR TCP congestion control
             - IPSet support
             - Pixel 8a optimizations
+            - **Exact stock kernel string** (no -deepongi)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
