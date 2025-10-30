@@ -339,8 +339,8 @@ jobs:
         rm -rf .git
 
         # Dynamic KSU build version from git commit count
-        if [ -d "../${{ env.KERNEL_DIR }}/KernelSU-Next/.git" ]; then
-          cd "../${{ env.KERNEL_DIR }}/KernelSU-Next"
+        if [ -d "../${{ env.KERNEL_DIR }}/KernelSU/.git" ]; then
+          cd "../${{ env.KERNEL_DIR }}/KernelSU"
           BUILD_COUNT=$(git rev-list --count HEAD 2>/dev/null || echo "1998")
           BUILD_VER=$((10000 + BUILD_COUNT + 200))
         else
