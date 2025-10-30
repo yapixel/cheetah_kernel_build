@@ -97,30 +97,22 @@ jobs:
             echo "No custom BOOT_SIGN_KEY secret found. Using default test key."
           fi
 
-      - name: Initialize and Sync Kernel Source (repo manifest)
+      - name: Initialize and Sync Kernel Source
         run: |
+          mkdir -p "$CONFIG"
+          cd "$CONFIG"
+          
           FORMATTED_BRANCH="${{ inputs.android_version }}-${{ inputs.kernel_version }}-${{ inputs.os_patch_level }}"
-          echo "Syncing kernel manifest: common-${FORMATTED_BRANCH}"
-
-          mkdir -p kernel
-          cd kernel
-
-          $REPO init \
-            --depth=1 \
-            -u https://android.googlesource.com/kernel/manifest \
-            -b common-${FORMATTED_BRANCH} \
-            --repo-rev=v2.16
-
-          REMOTE_BRANCH=$(git ls-remote https://android.googlesource.com/kernel/common ${FORMATTED_BRANCH} || true)
-          DEFAULT_MANIFEST=.repo/manifests/default.xml
-          if echo "$REMOTE_BRANCH" | grep -q deprecated; then
-            echo "Warning: Branch ${FORMATTED_BRANCH} is deprecated → using deprecated/${FORMATTED_BRANCH}"
-            sed -i "s/\"${FORMATTED_BRANCH}\"/\"deprecated\/${FORMATTED_BRANCH}\"/g" "$DEFAULT_MANIFEST"
+          
+          $REPO init --depth=1 --u https://android.googlesource.com/kernel/manifest -b common-${FORMATTED_BRANCH} --repo-rev=v2.16
+          
+          REMOTE_BRANCH=$(git ls-remote https://android.googlesource.com/kernel/common ${FORMATTED_BRANCH})
+          DEFAULT_MANIFEST_PATH=.repo/manifests/default.xml
+          if grep -q deprecated <<< $REMOTE_BRANCH; then
+            sed -i "s/\"${FORMATTED_BRANCH}\"/\"deprecated\/${FORMATTED_BRANCH}\"/g" $DEFAULT_MANIFEST_PATH
           fi
-
-          $REPO sync -c -j$(nproc --all) --no-tags --fail-fast
-
-          echo "KERNEL_DIR=$(pwd)/common" >> $GITHUB_ENV
+          
+          $REPO --trace sync -c -j$(nproc --all) --no-tags --fail-fast
 
       - name: Apply Google-internal commit (g66e758f7d0c0)
         working-directory: ${{ env.KERNEL_DIR }}
