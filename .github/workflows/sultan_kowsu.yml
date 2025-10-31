@@ -31,15 +31,15 @@ jobs:
           sudo apt update
           sudo apt install -y ccache
 
-      - name: Download and extract GCC 14.2.0 toolchain
+      - name: Download and extract GCC 14.3.0 toolchain
         run: |
           echo "Downloading GCC 14.2.0 cross-compiler toolchain..."
-          wget https://www.kernel.org/pub/tools/crosstool/files/bin/x86_64/14.2.0/x86_64-gcc-14.2.0-nolibc-aarch64-linux.tar.gz -O gcc.tar.gz
+          wget https://www.kernel.org/pub/tools/crosstool/files/bin/x86_64/14.3.0/x86_64-gcc-14.3.0-nolibc-aarch64-linux.tar.gz -O gcc.tar.gz
           echo "Extracting .gz file..."
           gunzip gcc.tar.gz
           echo "Extracting .tar file..."
           tar -xf gcc.tar
-          echo "GCC 14.2.0 toolchain extracted successfully"
+          echo "GCC 14.3.0 toolchain extracted successfully"
 
       - name: Setup ccache
         run: |
