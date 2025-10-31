@@ -140,7 +140,6 @@ jobs:
         
     - name: Verify Clang Binary
       run: |
-       ls -l $HOME/clang/bin
        $HOME/clang/bin/clang --version | head -n1
     
     - name: Download ARM64 toolchain
