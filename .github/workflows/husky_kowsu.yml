@@ -249,11 +249,9 @@ jobs:
         cd ./KernelSU
         echo "Revert commitbconflict with susfs"
         cp ../../kowsu_patches/KowSU/revert_commit_conflict_with_susfs.patch .
-        patch -p1 --fuzz=3 < revert_commit_conflict_with_susfs.patch ||
+        patch -p1 --fuzz=3 < revert_commit_conflict_with_susfs.patch 
 
-        #homemade sucompat.c.patch test
-        cp ../../kernel_patches/kowsu/fix_sucompat.c.patch ./
-        patch -p1 --fuzz=3 < fix_sucompat.c.patch
+    
 
         echo "Apply KSU integration patches"   
         
