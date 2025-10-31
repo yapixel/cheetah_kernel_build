@@ -240,11 +240,10 @@ jobs:
     - name: Apply SUSFS patches
       working-directory: ${{ env.KERNEL_DIR }}
       run: |
-        cp -fv ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./
-        
-        mkdir -p fs include/linux
-        cp -rfv ../susfs4ksu/kernel_patches/fs/* ./fs/ || true
-        cp -rfv ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/ || true
+        # Copy SUSFS patches
+        cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch ./
+        cp ../susfs4ksu/kernel_patches/fs/* ./fs/
+        cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
         
         patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
        
