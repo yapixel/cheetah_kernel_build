@@ -116,6 +116,9 @@ jobs:
           dwarves \
           pahole
 
+    - name: Remove System Clang
+      run: sudo apt-get purge clang-14
+    
     - name: Set up ccache
       uses: hendrikmuhs/ccache-action@v1.2
       with:
