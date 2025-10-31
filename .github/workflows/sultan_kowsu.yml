@@ -33,7 +33,7 @@ jobs:
 
       - name: Download and extract GCC 14.3.0 toolchain
         run: |
-          echo "Downloading GCC 14.2.0 cross-compiler toolchain..."
+          echo "Downloading GCC 14.3.0 cross-compiler toolchain..."
           wget https://www.kernel.org/pub/tools/crosstool/files/bin/x86_64/14.3.0/x86_64-gcc-14.3.0-nolibc-aarch64-linux.tar.gz -O gcc.tar.gz
           echo "Extracting .gz file..."
           gunzip gcc.tar.gz
@@ -227,8 +227,8 @@ jobs:
           if [ "${{ inputs.codename }}" == "zumapro" ]; then
             export KCFLAGS="-march=armv8.6-a -O3 --param=min-pagesize=0"
           fi
-          make CROSS_COMPILE=$GITHUB_WORKSPACE/gcc-14.2.0-nolibc/aarch64-linux/bin/aarch64-linux- CC=$GITHUB_WORKSPACE/gcc-14.2.0-nolibc/aarch64-linux/bin/aarch64-linux-gcc ${{ inputs.codename }}_defconfig -j$(nproc --all)
-          make CROSS_COMPILE="ccache $GITHUB_WORKSPACE/gcc-14.2.0-nolibc/aarch64-linux/bin/aarch64-linux-" CC="ccache $GITHUB_WORKSPACE/gcc-14.2.0-nolibc/aarch64-linux/bin/aarch64-linux-gcc" V=1 -j$(nproc --all) 
+          make CROSS_COMPILE=$GITHUB_WORKSPACE/gcc-14.3.0-nolibc/aarch64-linux/bin/aarch64-linux- CC=$GITHUB_WORKSPACE/gcc-14.3.0-nolibc/aarch64-linux/bin/aarch64-linux-gcc ${{ inputs.codename }}_defconfig -j$(nproc --all)
+          make CROSS_COMPILE="ccache $GITHUB_WORKSPACE/gcc-14.3.0-nolibc/aarch64-linux/bin/aarch64-linux-" CC="ccache $GITHUB_WORKSPACE/gcc-14.3.0-nolibc/aarch64-linux/bin/aarch64-linux-gcc" V=1 -j$(nproc --all) 
 
       - name: Copy Images
         run: |
