@@ -137,7 +137,12 @@ jobs:
         
         echo "CLANG_PATH=$HOME/clang/bin" >> $GITHUB_ENV
         echo "$HOME/clang/bin" >> $GITHUB_PATH
-
+        
+    - name: Verify Clang Binary
+      run: |
+       ls -l $HOME/clang/bin
+       $HOME/clang/bin/clang --version | head n1
+    
     - name: Download ARM64 toolchain
       run: |
         mkdir -p $HOME/toolchains
