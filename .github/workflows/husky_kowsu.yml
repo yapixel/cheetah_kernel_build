@@ -39,7 +39,7 @@ env:
   BUILD_CLEAN: ${{ github.event.inputs.build_clean || 'always' }}
   RETRY: 3
   REPO_DEPTH: 1
-  KSUN_BRANCH: 12222
+  KSUN_BRANCH: master
   ANYKERNEL_DIR: AnyKernel3-p8a
   ANYKERNEL_BRANCH: gki-2.0
   SUSFS_REPO: https://gitlab.com/simonpunk/susfs4ksu.git
@@ -234,7 +234,7 @@ jobs:
     - name: Install KernelSU 
       working-directory: ${{ env.KERNEL_DIR }}
       run: |
-        curl -LSs https://raw.githubusercontent.com/yapixel/KernelSU/refs/heads/${{ env.KSUN_BRANCH }}/kernel/setup.sh | bash -s ${{ env.KSUN_BRANCH }}
+        curl -LSs https://raw.githubusercontent.com/KOWX712/KernelSU/refs/heads/${{ env.KSUN_BRANCH }}/kernel/setup.sh | bash -s ${{ env.KSUN_BRANCH }}
 
 
     - name: Apply SUSFS patches
