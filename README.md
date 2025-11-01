@@ -1,4 +1,4 @@
-# Wild Kernels for Android
+#  GKI and Sultan Kernels for Google Pixel 8 Husky
 
 ## Your warranty is no longer valid!
 
@@ -17,8 +17,7 @@ By flashing this kernel, **YOU** are choosing to make these modifications. If so
 # Kernels:
  
 [GKI](https://github.com/WildKernels/GKI_KernelSU_SUSFS)  
-[Sultan](https://github.com/WildKernels/Sultan_KernelSU_SUSFS)  
-[OnePlus](https://github.com/WildKernels/OnePlus_KernelSU_SUSFS)  
+[Sultan](https://github.com/WildKernels/Sultan_KernelSU_SUSFS)
 [Legacy Pixels](https://github.com/WildKernels/Pixel_KernelSU_SUSFS)  
 
 ---
