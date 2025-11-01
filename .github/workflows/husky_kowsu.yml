@@ -47,7 +47,7 @@ env:
   PATCHES_REPO: https://github.com/yapixel/kernel_patches
   PATCHES_BRANCH: dev
   BUILDS_DIR: builds/6.1.134
-  LOCALVERSION: -android14-11-g66e758f7d0c0-ab13748739
+  #LOCALVERSION: -android14-11-g66e758f7d0c0-ab13748739
   BUILD_DATE: Tue Jul 8 09:17:32 UTC 2025
   
   # Compiler configuration
