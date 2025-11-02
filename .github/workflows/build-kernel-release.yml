@@ -41,12 +41,12 @@ jobs:
           fetch-depth: 0
 
       # ----------------------------------------------------------
-      # Generate tag = YYMMDD (e.g. 250402)
+      # Generate tag = YYMMDDHH (e.g. 25110415)
       # ----------------------------------------------------------
-      - name: Generate YYMMDD Tag
+      - name: Generate YYMMDDHH Tag
         id: tag
         run: |
-          TAG=$(date '+%y%m%d')
+          TAG=$(date '+%y%m%d%H')
           echo "Generated tag: $TAG"
           echo "new_tag=$TAG" >> $GITHUB_OUTPUT
 
@@ -125,15 +125,19 @@ jobs:
           path: ./artifacts
           pattern: kernel-*
 
+      # ----------------------------------------------------------
+      # CREATE RELEASE BEFORE UPLOAD (FIXED)
+      # ----------------------------------------------------------
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           body: ${{ steps.define-release-notes.outputs.release_notes }}
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ steps.tag.outputs.new_tag }}   # FIXED: was github.ref_name
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       # ----------------------------------------------------------
       # Upload zip files
       # ----------------------------------------------------------
