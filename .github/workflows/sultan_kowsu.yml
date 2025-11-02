@@ -54,13 +54,14 @@ jobs:
           git clone https://github.com/yapixel/kernel_patches.git
           git clone https://github.com/kerneltoast/${{ inputs.repo }} "$CONFIG"
           git clone https://github.com/KOWX712/files.git kowsu_patches
+          
       - name: Add KernelSU
         run: |
-          in_kernel
+          cd $CONFIG
           curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/master/kernel/setup.sh" | bash -s master
       - name: Apply SUSFS & KowSU patches
         run: |
-          in_kernel
+          cd $CONFIG
           cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch .
           patch -p1 -F 3 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || exit 1
           cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
@@ -75,7 +76,7 @@ jobs:
           patch -p1 --fuzz=3 < sys.c_fix.patch || exit 1
       - name: Apply manual syscall hook
         run: |
-          in_kernel
+          cd $CONFIG
           cp ../kernel_patches/syscall_hook/min_scope_syscall_hooks_v1.5.patch .
           patch -p1 --forward < min_scope_syscall_hooks_v1.5.patch || exit 1
       - name: Compute KernelSU version
@@ -162,7 +163,7 @@ jobs:
           CROSS_COMPILE: ${{ github.workspace }}/${{ env.TOOLCHAIN_DIR }}/aarch64-linux/bin/aarch64-linux-
           CC: ${{ github.workspace }}/${{ env.TOOLCHAIN_DIR }}/aarch64-linux/bin/aarch64-linux-gcc
         run: |
-          in_kernel
+          cd $CONFIG
           export KBUILD_BUILD_USER="github-actions"
           export KBUILD_BUILD_HOST="runner"
           if [[ "${{ inputs.codename }}" == "zumapro" ]]; then
