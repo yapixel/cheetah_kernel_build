@@ -1,4 +1,114 @@
-- name: Add SUSFS Configuration Settings
+name: Sultan KowSU
+
+permissions:
+  contents: write
+  actions: write
+
+on:
+  workflow_call:
+    inputs:
+      codename:
+        required: true
+        type: string
+      repo:
+        required: true
+        type: string
+      android_version:
+        required: true
+        type: string
+      kernel_version:
+        required: true
+        type: string
+
+jobs:
+  build-kernel-sultan-kowsu-susfs:
+    runs-on: ubuntu-latest
+    env:
+      TOOLCHAIN_URL: >-
+        https://www.kernel.org/pub/tools/crosstool/files/bin/x86_64/13.3.0/
+        x86_64-gcc-13.3.0-nolibc-aarch64-linux.tar.gz
+      TOOLCHAIN_TAR: gcc.tar.gz
+      TOOLCHAIN_DIR: gcc-13.3.0-nolibc
+
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ccache wget git zip
+
+      - name: Setup ccache
+        run: |
+          ccache --max-size=2G
+          ccache --set-config=compression=true
+          echo "CCACHE_DIR=$HOME/.ccache" >> $GITHUB_ENV
+
+      - name: Download & extract GCC 13.3.0
+        run: |
+          wget -O "$TOOLCHAIN_TAR" "$TOOLCHAIN_URL"
+          gunzip "$TOOLCHAIN_TAR"
+          tar -xf "${TOOLCHAIN_TAR%.gz}"
+
+      - name: Set CONFIG & helper function
+        run: |
+          CONFIG="${{ inputs.repo }}"
+          export CONFIG
+          echo "CONFIG=$CONFIG" >> $GITHUB_ENV
+          echo 'in_kernel() { cd "$CONFIG" || { echo "Failed to cd to $CONFIG"; exit 1; }; }' >> $GITHUB_ENV
+
+      - name: Clone repositories
+        run: |
+          ANYKERNEL_BRANCH="sultan-${{ inputs.codename }}"
+          SUSFS_BRANCH="gki-android14-6.1"
+
+          git clone https://github.com/TheWildJames/AnyKernel3.git -b "$ANYKERNEL_BRANCH"
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
+          git clone https://github.com/yapixel/kernel_patches.git
+          git clone https://github.com/kerneltoast/${{ inputs.repo }} "$CONFIG"
+          git clone https://github.com/KOWX712/files.git kowsu_patches
+
+      - name: Add KernelSU
+        run: |
+          in_kernel
+          curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/master/kernel/setup.sh" | bash -s master
+
+      - name: Apply SUSFS & KowSU patches
+        run: |
+          in_kernel
+
+          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch .
+          patch -p1 -F 3 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || \
+            { echo "SUSFS main patch failed"; exit 1; }
+
+          cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
+          cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
+
+          cd KernelSU
+          cp ../../kowsu_patches/KowSU/revert_commit_conflict_with_susfs.patch .
+          patch -p1 --fuzz=3 < revert_commit_conflict_with_susfs.patch || exit 1
+
+          cp ../../kowsu_patches/KowSU/enable_susfs_for_kowsu.patch .
+          patch -p1 < enable_susfs_for_kowsu.patch || exit 1
+          cd ..
+
+          cp ../kernel_patches/sultan/sys.c_fix.patch .
+          patch -p1 --fuzz=3 < sys.c_fix.patch || exit 1
+
+      - name: Apply manual syscall hook
+        run: |
+          in_kernel
+          cp ../kernel_patches/syscall_hook/min_scope_syscall_hooks_v1.5.patch .
+          patch -p1 --forward < min_scope_syscall_hooks_v1.5.patch || exit 1
+
+      - name: Compute KernelSU version
+        run: |
+          cd "$CONFIG/KernelSU/kernel"
+          BASE=10200
+          COUNT=$(git rev-list --count HEAD)
+          KSUVER=$(( BASE + COUNT ))
+          echo "KSUVER=$KSUVER" >> $GITHUB_ENV
+
+      # === FIXED: Use env: to expand ${{ inputs.codename }} safely ===
+      - name: Add SUSFS Configuration Settings
         env:
           DEFCONFIG: arch/arm64/configs/${{ inputs.codename }}_defconfig
         run: |
@@ -61,3 +171,62 @@
           echo "CONFIG_COMPAT=y" >> "$DEFCONFIG"
           echo "CONFIG_ZRAM_GS_WRITEBACK=y" >> "$DEFCONFIG"
           echo "CONFIG_DEFAULT_BBR=y" >> "$DEFCONFIG"
+
+      - name: Patch localversion & timestamp
+        run: |
+          in_kernel
+          sed -i.bak 's/CONFIG_LOCALVERSION="-Sultan"/CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"/' \
+            arch/arm64/configs/${{ inputs.codename }}_defconfig
+          sed -i.bak 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
+          perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "$(date -u '+%a %b %d %H:%M:%S UTC %Y')"/' \
+            init/Makefile
+
+      - name: Build kernel
+        env:
+          CROSS_COMPILE: ${{ github.workspace }}/${{ env.TOOLCHAIN_DIR }}/aarch64-linux/bin/aarch64-linux-
+          CC: ${{ github.workspace }}/${{ env.TOOLCHAIN_DIR }}/aarch64-linux/bin/aarch64-linux-gcc
+        run: |
+          in_kernel
+          export KBUILD_BUILD_USER="github-actions"
+          export KBUILD_BUILD_HOST="runner"
+          [[ "${{ inputs.codename }}" == "zumapro" ]] && export KCFLAGS="-march=armv8.6-a -O3 --param=min-pagesize=0"
+
+          make O=out ${{ inputs.codename }}_defconfig -j$(nproc)
+          make O=out CROSS_COMPILE="ccache $CROSS_COMPILE" CC="ccache $CC" V=1 -j$(nproc)
+
+      - name: Copy Image & DTB
+        run: |
+          in_kernel
+          cp out/arch/arm64/boot/Image.lz4 ../AnyKernel3/Image.lz4
+
+          case "${{ inputs.codename }}" in
+            gs201)   DTB="google-devices/gs201/dts" ;;
+            zuma)    DTB="google-devices/zuma/dts" ;;
+            zumapro) DTB="google-devices/zumapro/dts" ;;
+            *)       echo "Unknown codename"; exit 1 ;;
+          esac
+          cat out/$DTB/*.dtb > ../AnyKernel3/dtb
+
+      - name: Get latest Sultan tag (semantic sort)
+        id: sultan_tag
+        run: |
+          TAG=$(git ls-remote --tags https://github.com/kerneltoast/android_kernel_google_zuma.git \
+                | cut -f2 | cut -d/ -f3 | grep -E '^[0-9]' | sort -V | tail -n1)
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Package ZIP
+        run: |
+          cd AnyKernel3
+          ZIP="KowSU-${{ env.KSUVER }}-${{ inputs.codename }}_Sultan-${{ steps.sultan_tag.outputs.tag }}_SUSFS.zip"
+          zip -r9 "../$ZIP" ./*
+          echo "ZIP_NAME=$ZIP" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-${{ inputs.codename }}-${{ inputs.repo }}-kowsu
+          path: ${{ env.ZIP_NAME }}
+          retention-days: 3
+
+      - name: ccache statistics
+        run: ccache -s
