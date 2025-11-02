@@ -1,203 +1,154 @@
 name: Build and Release Husky Kernels
 
 permissions:
-  contents: write  # Allow writing to repository contents (for pushing tags)
-  actions: write   # Allows triggering actions
+  contents: write   # push tag + create release
+  actions: write    # trigger reusable workflows
 
 on:
-  workflow_dispatch:
-    inputs:
-      make_release:
-        description: 'Do you want to create a release?'
-        required: true
-        type: boolean
-        default: true
-      dry_run:
-        description: 'Dry run mode (build without tagging/releasing)?'
-        required: false
-        type: boolean
-        default: false
+  workflow_dispatch:   # manual trigger only
 
 jobs:
-  generate-tag:
-    runs-on: ubuntu-latest
-    if: ${{ inputs.make_release || inputs.dry_run }}
-    outputs:
-      new_tag: ${{ steps.generate-tag.outputs.new_tag }}
-    env:
-      REPO_OWNER: yapixel
-      REPO_NAME: Husky_KernelSU_SUSFS
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Generate New Tag
-        id: generate-tag
-        run: |
-          # Fetch the latest tag from this repository
-          LATEST_TAG=$(gh api repos/$REPO_OWNER/$REPO_NAME/tags --jq '.[0].name')
-          if [ -z "$LATEST_TAG" ]; then
-            LATEST_TAG="v1.5.12-r0"  # Default to v1.5.12-r0 if no tag exists
-          fi
-          
-          # Increment the suffix (e.g., v1.5.12-r0 becomes v1.5.12-r1)
-          NEW_TAG=$(echo "$LATEST_TAG" | awk -F'-r' '{suffix=$2; if (!suffix) suffix=0; suffix++; printf "%s-r%d", $1, suffix}')
-          
-          # Output the new tag to be used
-          echo "New tag: $NEW_TAG"
-          
-          # Set the new tag as output
-          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
-
-#  build-kernel-cleanslate-kowsu:
-#    uses: ./.github/workflows/cleanslate_kowsu.yml 
-#    secrets: inherit
-#    needs: generate-tag
-#    if: ${{ inputs.make_release || inputs.dry_run }}
-#    with:
-#      codename: "zuma"
-#      repo: "google_common_aosp_simple"
-#      android_version: "android14"
-#      kernel_version: "6.1"
-#      release_tag: ${{ needs.generate-tag.outputs.new_tag }}
-
-  build-kernel-bluspark-ksu:
+  # --------------------------------------------------------------
+  # 1. Build Bluspark KSU
+  # --------------------------------------------------------------
+  build-bluspark-ksu:
     uses: ./.github/workflows/bluspark_ksu.yml
     secrets: inherit
-    needs: generate-tag
-    if: ${{ inputs.make_release || inputs.dry_run }}
     with:
       codename: "zuma"
       repo: "gs"
       android_version: "android14"
       kernel_version: "6.1"
-      release_tag: ${{ needs.generate-tag.outputs.new_tag }}
-      
 
-
-
-  build-kernel-zuma-kowsu:
-    uses: ./.github/workflows/sultan_kowsu.yml 
+  # --------------------------------------------------------------
+  # 2. Build Sultan KOWSU
+  # --------------------------------------------------------------
+  build-sultan-kowsu:
+    uses: ./.github/workflows/sultan_kowsu.yml
     secrets: inherit
-    needs: generate-tag
-    if: ${{ inputs.make_release || inputs.dry_run }}
     with:
       codename: "zuma"
       repo: "android_kernel_google_zuma"
       android_version: "android14"
       kernel_version: "6.1"
-      release_tag: ${{ needs.generate-tag.outputs.new_tag }}
 
-  trigger-release:
+  # --------------------------------------------------------------
+  # 3. Create & push tag + release (only if BOTH builds succeed)
+  # --------------------------------------------------------------
+  release:
     runs-on: ubuntu-latest
     needs:
-      - generate-tag
-     # - build-kernel-cleanslate-kowsu
-      - build-kernel-zuma-kowsu
-      - build-kernel-bluspark-ksu
-      
-      
-    if: ${{ inputs.make_release && !inputs.dry_run }}
+      - build-bluspark-ksu
+      - build-sultan-kowsu
+    if: success()                     # <-- GUARANTEES builds passed
     env:
       GH_TOKEN: ${{ github.token }}
-      NEW_TAG: ${{ needs.generate-tag.outputs.new_tag }}
+
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Create and Push Tag
+      # ----------------------------------------------------------
+      # Generate tag = YYMMDD (e.g. 250402)
+      # ----------------------------------------------------------
+      - name: Generate YYMMDD Tag
+        id: tag
         run: |
-          # Create and push the tag
-          git tag ${{ env.NEW_TAG }}
-          git push origin ${{ env.NEW_TAG }}
-          echo "Tag ${{ env.NEW_TAG }} created and pushed."
+          TAG=$(date '+%y%m%d')
+          echo "Generated tag: $TAG"
+          echo "new_tag=$TAG" >> $GITHUB_OUTPUT
 
-      - name: Set Build Date
-        id: set-build-date
+      # ----------------------------------------------------------
+      # Push the tag **AFTER** build success
+      # ----------------------------------------------------------
+      - name: Push Git Tag
         run: |
-          BUILD_DATE=$(date '+%Y-%m-%d %H:%M:%S UTC')
-          echo "build_date=$BUILD_DATE" >> $GITHUB_OUTPUT
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag ${{ steps.tag.outputs.new_tag }}
+          git push origin ${{ steps.tag.outputs.new_tag }}
+          echo "Tag ${{ steps.tag.outputs.new_tag }} pushed."
 
-      - name: Extract SUSFS Version
-        id: extract-version
+      # ----------------------------------------------------------
+      # Build-time metadata
+      # ----------------------------------------------------------
+      - name: Set Build Time
+        id: time
         run: |
-          SUSFS_VERSION=$(echo "${{ env.NEW_TAG }}" | cut -d'-' -f1 | sed 's/v//')
-          echo "susfs_version=v$SUSFS_VERSION" >> $GITHUB_OUTPUT
+          echo "build_time=$(date '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
 
-      - name: Set Release Name
+      # ----------------------------------------------------------
+      # Release name & body
+      # ----------------------------------------------------------
+      - name: Define Release Name & Body
+        id: release
         run: |
-          SUSFS_VERSION="${{ steps.extract-version.outputs.susfs_version }}"
-          echo "RELEASE_NAME=*TEST BUILD* Sultan Kernels With KernelSU/MKSU & SUSFS $SUSFS_VERSION *TEST BUILD*" >> $GITHUB_ENV
+          cat << 'EOF' > release.md
+          This release contains **KernelSU** and **MKSU** variants with **SUSFS**.
 
-      - name: Define Release Notes
-        id: define-release-notes
-        run: |
-          BUILD_DATE="${{ steps.set-build-date.outputs.build_date }}"
-          SUSFS_VERSION="${{ steps.extract-version.outputs.susfs_version }}"
-          RELEASE_NOTES=$(cat << EOF
-            This release contains KernelSU and MKSU variants with SUSFS $SUSFS_VERSION
-            
-            ⚠️ **COMPATIBILITY NOTICE** ⚠️
-            Please ensure compatibility by comparing release dates with official Sultan kernel releases:
-            - Check official Sultan releases: https://github.com/kerneltoast/android_kernel_google_gs201/releases
-            - This build is based on the latest Sultan kernel commits as of build date
-            - Always verify your device's Android version matches the kernel target (Android 14)
-            - Recommended to use kernels released within 30 days of official Sultan updates
-            
-            Module: 
-            -> https://github.com/sidex15/ksu_module_susfs
-            
-            Managers:
-            -> https://github.com/KOWX712/KernelSU
-            -> https://github.com/SukiSU-Ultra/SukiSU-Ultra
-            
-            Features:
-            [+] KernelSU Magic Managers v1.0.5
-            [+] SUSFS $SUSFS_VERSION
-            [+] Maphide LineageOS Detections
-            [+] Futile Maphide for jit-zygote-cache Detections
-            [+] Magic Mount Support
-            
-            📅 **Release Date Compatibility Check:**
-            - Built on: $BUILD_DATE
+          **COMPATIBILITY NOTICE**
+          - Official Sultan releases: https://github.com/kerneltoast/android_kernel_google_gs201/releases
+          - Built from latest Sultan commits as of: ${{ steps.time.outputs.build_time }}
+          - Target: **Android 14 (zuma)**
+          - Use within 30 days of an official release
+
+          **Managers**
+          - KernelSU: https://github.com/KOWX712/KernelSU
+          - SukiSU: https://github.com/SukiSU-Ultra/SukiSU-Ultra
+
+          **Features**
+          [+] KernelSU Magic Managers v1.0.5
+          [+] SUSFS
+          [+] Maphide (LineageOS + JIT cache)
+          [+] Magic Mount
+
+          **Module**
+          -> https://github.com/sidex15/ksu_module_susfs
           EOF
-          )
-          echo "release_notes<<EOF" >> $GITHUB_OUTPUT
-          echo "$RELEASE_NOTES" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Download Artifacts
+          echo "name=*TEST BUILD* Husky Kernels – ${{ steps.tag.outputs.new_tag }} *TEST BUILD*" >> $GITHUB_OUTPUT
+          echo "body=$(cat release.md)" >> $GITHUB_OUTPUT
+
+      # ----------------------------------------------------------
+      # Download artifacts from the two build jobs
+      # ----------------------------------------------------------
+      - name: Download Build Artifacts
         uses: actions/download-artifact@v4
         with:
-          path: ./downloaded-artifacts
+          path: ./artifacts
+          pattern: kernel-*
 
+      # ----------------------------------------------------------
+      # Create GitHub release
+      # ----------------------------------------------------------
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.NEW_TAG }}
+          tag_name: ${{ steps.tag.outputs.new_tag }}
+          name: ${{ steps.release.outputs.name }}
+          body: ${{ steps.release.outputs.body }}
           prerelease: true
-          name: ${{ env.RELEASE_NAME }}
-          body: ${{ steps.define-release-notes.outputs.release_notes }}
           token: ${{ github.token }}
 
-      - name: Upload Release Assets Dynamically
+      # ----------------------------------------------------------
+      # Upload zip files
+      # ----------------------------------------------------------
+      - name: Upload Release Assets
         run: |
-          if [ -z "$(ls ./downloaded-artifacts/kernel-*/* 2>/dev/null)" ]; then
-            echo "Error: No artifacts found in ./downloaded-artifacts/kernel-*/*"
-            exit 1
-          fi
-          for file in ./downloaded-artifacts/kernel-*/*; do
-            if [ -d "$file" ]; then
-              continue
-            fi
-            echo "Uploading $file..."
-            gh release upload ${{ env.NEW_TAG }} "$file"
+          echo "Uploading artifacts..."
+          for f in ./artifacts/kernel-*/*; do
+            [[ -f "$f" ]] || continue
+            echo "Uploading $f"
+            gh release upload "${{ steps.tag.outputs.new_tag }}" "$f" --clobber
           done
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
 
-      - name: Display Files Uploaded
+      # ----------------------------------------------------------
+      # Final summary
+      # ----------------------------------------------------------
+      - name: Summary
         run: |
-          echo "GitHub release created with the following files:"
-          ls -la ./downloaded-artifacts/**/*
+          echo "Release ${{ steps.tag.outputs.new_tag }} created and published."
+          echo "Uploaded files:"
+          ls -la ./artifacts/kernel-*/* || echo "No files uploaded."
