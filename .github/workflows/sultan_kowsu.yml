@@ -22,8 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TOOLCHAIN_URL: >-
-        https://www.kernel.org/pub/tools/crosstool/files/bin/x86_64/13.3.0/
-        x86_64-gcc-13.3.0-nolibc-aarch64-linux.tar.gz
+        https://www.kernel.org/pub/tools/crosstool/files/bin/x86_64/13.3.0/x86_64-gcc-13.3.0-nolibc-aarch64-linux.tar.gz
       TOOLCHAIN_TAR: gcc.tar.gz
       TOOLCHAIN_DIR: gcc-13.3.0-nolibc
     steps:
