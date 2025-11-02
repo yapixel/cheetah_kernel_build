@@ -361,7 +361,7 @@ jobs:
 
           TIMESTAMP=$(TZ=UTC date -u +"%Y%m%dT%H%MZ")
           
-          ZIP_NAME="KowSU-${{ env.KSUVER }}-${{ inputs.codename }}_GKI-202505_SUSFS.zip"
+          ZIP_NAME="KowSU-${{ env.KSUVER }}-${{ inputs.codename }}_GKI-6.1.134_SUSFS.zip"
           zip -r9 "../${ZIP_NAME}" ./*
 
           mkdir -p "../${{ env.BUILDS_DIR }}"
