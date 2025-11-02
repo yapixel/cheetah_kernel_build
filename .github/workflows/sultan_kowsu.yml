@@ -152,7 +152,7 @@ jobs:
         env:
           CODENAME: ${{ inputs.codename }}
         run: |
-          in_kernel
+          cd $CONFIG
           sed -i.bak 's/CONFIG_LOCALVERSION="-Sultan"/CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"/' \
             arch/arm64/configs/${CODENAME}_defconfig
           sed -i.bak 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
