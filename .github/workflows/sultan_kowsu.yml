@@ -40,9 +40,7 @@ jobs:
           wget -O "$TOOLCHAIN_TAR" "$TOOLCHAIN_URL"
           gunzip "$TOOLCHAIN_TAR"
           tar -xf "${TOOLCHAIN_TAR%.gz}"
-      - name: Define helper
-        run: |
-          echo 'in_kernel() { cd "$CONFIG" || { echo "Cannot cd to $CONFIG"; exit 1; }; }' >> "$GITHUB_ENV"
+     
       - name: Clone repositories
         env:
           GH_TOKEN: ${{ github.token }}
