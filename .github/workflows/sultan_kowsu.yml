@@ -173,7 +173,7 @@ jobs:
           make O=out CROSS_COMPILE="ccache $CROSS_COMPILE" CC="ccache $CC" V=1 -j$(nproc)
       - name: Copy Image & DTB
         run: |
-          in_kernel
+          cd $CONFIG
           cp out/arch/arm64/boot/Image.lz4 ../AnyKernel3/Image.lz4
           case "${{ inputs.codename }}" in
             gs201) DTB_DIR="google-devices/gs201/dts" ;;
