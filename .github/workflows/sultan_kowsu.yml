@@ -46,6 +46,19 @@ jobs:
           CONFIG="${{ inputs.repo }}"
           echo "CONFIG=$CONFIG" >> $GITHUB_ENV
           echo "CONFIG set to: $CONFIG"
+
+      - name: Get Latest Sultan Tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          LATEST_SULTAN_TAG=$(gh api repos/kerneltoast/android_kernel_google_zuma/tags --jq '.[0].name')
+          if [ -z "$LATEST_SULTAN_TAG" ]; then
+            echo "Error: Could not fetch latest Sultan tag"
+            exit 1
+          fi
+          echo "LATEST_SULTAN_TAG=$LATEST_SULTAN_TAG" >> $GITHUB_ENV
+          echo "Latest Sultan tag: $LATEST_SULTAN_TAG"
+          
      
       - name: Clone repositories
         env:
