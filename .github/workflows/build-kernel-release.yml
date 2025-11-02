@@ -8,18 +8,8 @@ on:
   workflow_dispatch:   # manual trigger only
 
 jobs:
-  # --------------------------------------------------------------
-  # 1. Build Bluspark KSU
-  # --------------------------------------------------------------
-  build-bluspark-ksu:
-    uses: ./.github/workflows/bluspark_ksu.yml
-    secrets: inherit
-    with:
-      codename: "zuma"
-      repo: "gs"
-      android_version: "android14"
-      kernel_version: "6.1"
-
+ 
+  
   # --------------------------------------------------------------
   # 2. Build Sultan KOWSU
   # --------------------------------------------------------------
@@ -38,7 +28,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     needs:
-      - build-bluspark-ksu
+      
       - build-sultan-kowsu
     if: success()                     # <-- GUARANTEES builds passed
     env:
