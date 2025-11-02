@@ -393,9 +393,9 @@ jobs:
           $(clang --version | head -n1)
           EOF
 
-      - name: Upload build_info
-        uses: actions/upload-artifact@v4
-        with:
-          name: kernel-gki-${{ inputs.codename }}-${{ github.run_id }}-info
-          path: build_info.txt
-          retention-days: 30
+     # - name: Upload build_info
+     #   uses: actions/upload-artifact@v4
+     #   with:
+     #     name: kernel-gki-${{ inputs.codename }}-${{ github.run_id }}-info
+     #     path: build_info.txt
+     #     retention-days: 30
