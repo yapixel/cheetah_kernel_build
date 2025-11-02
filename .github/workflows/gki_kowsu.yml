@@ -245,6 +245,13 @@ jobs:
           cp ../kernel_patches/syscall_hook/min_scope_syscall_hooks_v1.5.patch .
           patch -p1 < min_scope_syscall_hooks_v1.5.patch || true
 
+      - name: Compute KernelSU version
+        run: |
+          cd "$CONFIG/KernelSU/kernel"
+          BASE=10200
+          COUNT=$(git rev-list --count HEAD)
+          KSUVER=$(( BASE + COUNT ))
+          echo "KSUVER=$KSUVER" >> $GITHUB_ENV
       # -----------------------------------------------------------
       # 14. Kernel config (KSU + SUSFS + misc)
       # -----------------------------------------------------------
@@ -352,8 +359,8 @@ jobs:
           cd "${{ github.workspace }}/${{ env.ANYKERNEL_DIR }}"
 
           TIMESTAMP=$(TZ=UTC date -u +"%Y%m%dT%H%MZ")
-          #ZIP_NAME="${{ env.ZIP_PREFIX }}-${BUILD_VER}.zip"
-          ZIP_NMAE="KowSU-${{ env.KSUVER }}-${{ inputs.codename }}_GKI-202505_SUSFS.zip"
+          
+          ZIP_NAME="KowSU-${{ env.KSUVER }}-${{ inputs.codename }}_GKI-202505_SUSFS.zip"
           zip -r9 "../${ZIP_NAME}" ./*
 
           mkdir -p "../${{ env.BUILDS_DIR }}"
