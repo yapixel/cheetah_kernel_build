@@ -112,7 +112,6 @@ jobs:
         env:
           DEFCONFIG: arch/arm64/configs/${{ inputs.codename }}_defconfig
         run: |
-          in_kernel
           echo "CONFIG_KSU=y" >> "$DEFCONFIG"
           echo "CONFIG_KSU_KPROBES_HOOK=n" >> "$DEFCONFIG"
           echo "CONFIG_KSU_SUSFS=y" >> "$DEFCONFIG"
