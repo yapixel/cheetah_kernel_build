@@ -43,7 +43,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
+          
+      - name: Set Build Date
+        id: build_date
+        run: |
+          echo "build_date=$(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
       # ----------------------------------------------------------
       # Generate tag = YYMMDDHH (e.g. 25110415)
       # ----------------------------------------------------------
@@ -115,7 +119,7 @@ jobs:
 
           ## Release Date Compatibility Check
 
-          **Built on**: $BUILD_DATE
+          **Built on**: ${{ steps.build_date.outputs.build_date }}
           EOF
 
           # Output the entire file content as a multi-line step output
