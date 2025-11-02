@@ -151,25 +151,30 @@ jobs:
           echo "CONFIG_IP_SET_LIST_SET=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
           echo "CONFIG_IP6_NF_NAT=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
           echo "CONFIG_IP6_NF_TARGET_MASQUERADE=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-      # === FIXED: env: for CODENAME ===
-      - name: Patch localversion & timestamp
-        env:
-          CODENAME: ${{ inputs.codename }}
+    
+      - name: Run sed and perl Commands
         run: |
-          cd $CONFIG
-          sed -i.bak 's/CONFIG_LOCALVERSION="-Sultan"/CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"/' \
-            arch/arm64/configs/${CODENAME}_defconfig
-          sed -i.bak 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
-          perl -pi -e 's/build-timestamp = \$$$ or \$\(KBUILD_BUILD_TIMESTAMP $$, \$$$ build-timestamp-auto $$\)/build-timestamp = "$(date -u '+%a %b %d %H:%M:%S UTC %Y')"/' \
-            init/Makefile
+          echo "Changing to configuration directory: $CONFIG..."
+          cd "$CONFIG"
+          echo "Running sed commands..."
+          # Replace the entire CONFIG_LOCALVERSION line with the provided local_version
+          sed -i 's/CONFIG_LOCALVERSION="-Sultan"/CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"/' ./arch/arm64/configs/${{ inputs.codename }}_defconfig
+          # Prevent setlocalversion from appending '+' for dirty state
+          sed -i 's/${LOCALVERSION+set}/set/' ./scripts/setlocalversion
+          # Set build timestamp
+          perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "Tue Jul 8 09:17:32 UTC 2025"/' ./init/Makefile
+          echo "Kernel version suffix set to -android14-11-g66e758f7d0c0-ab13748739 without dirty state '+'"
+          echo "Build timestamp set to Tue Jul 8 09:17:32 UTC 2025"
+
+          
       - name: Build kernel
         env:
           CROSS_COMPILE: ${{ github.workspace }}/${{ env.TOOLCHAIN_DIR }}/aarch64-linux/bin/aarch64-linux-
           CC: ${{ github.workspace }}/${{ env.TOOLCHAIN_DIR }}/aarch64-linux/bin/aarch64-linux-gcc
         run: |
           cd $CONFIG
-          export KBUILD_BUILD_USER="github-actions"
-          export KBUILD_BUILD_HOST="runner"
+          export KBUILD_BUILD_USER="build-user"
+          export KBUILD_BUILD_HOST="build-host"
           if [[ "${{ inputs.codename }}" == "zumapro" ]]; then
             export KCFLAGS="-march=armv8.6-a -O3 --param=min-pagesize=0"
           fi
