@@ -62,7 +62,7 @@ env:
   THREADS: $(nproc)
 
 jobs:
-  build:
+   build-kernel-GKI-kowsu-susfs:
     runs-on: ubuntu-22.04
     permissions:
       contents: read
