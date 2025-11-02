@@ -72,56 +72,68 @@ jobs:
       # ----------------------------------------------------------
       # Release name & body
       # ----------------------------------------------------------
-      - name: Define Release Name & Body
-        id: release
+      - name: Define Release Notes
+        id: define-release-notes
         run: |
-          cat << 'EOF' > release.md
-          This release contains **KernelSU** and **MKSU** variants with **SUSFS**.
+          BUILD_DATE="${{ steps.set-build-date.outputs.build_date }}"
+          SUSFS_VERSION="${{ steps.extract-version.outputs.susfs_version }}"
 
-          **COMPATIBILITY NOTICE**
-          - Official Sultan releases: https://github.com/kerneltoast/android_kernel_google_gs201/releases
-          - Built from latest Sultan commits as of: ${{ steps.time.outputs.build_time }}
-          - Target: **Android 14 (zuma)**
-          - Use within 30 days of an official release
+          cat << EOF > release-notes.md
+          # SUSFS Kernel Module Release
 
-          **Managers**
-          - KernelSU: https://github.com/KOWX712/KernelSU
-          - SukiSU: https://github.com/SukiSU-Ultra/SukiSU-Ultra
+          This release contains **KernelSU** and **MKSU** variants with **SUSFS $SUSFS_VERSION**
 
-          **Features**
-          [+] KernelSU Magic Managers v1.0.5
-          [+] SUSFS
-          [+] Maphide (LineageOS + JIT cache)
-          [+] Magic Mount
+          ## Compatibility Notice
 
-          **Module**
+          Please ensure compatibility by comparing release dates with official Sultan kernel releases:
+
+          - Check official Sultan releases: https://github.com/kerneltoast/android_kernel_google_gs201/releases
+          - This build is based on the latest Sultan kernel commits as of build date
+          - Always verify your device's Android version matches the kernel target (**Android 14**)
+          - **Recommended**: Use kernels released **within 30 days** of official Sultan updates
+
+          ## Module & Managers
+
+          **Module**:  
           -> https://github.com/sidex15/ksu_module_susfs
+
+          **Managers**:  
+          -> https://github.com/KOWX712/KernelSU  
+          -> https://github.com/SukiSU-Ultra/SukiSU-Ultra
+
+          ## Features
+
+          [+] KernelSU Magic Managers v1.0.5  
+          [+] SUSFS $SUSFS_VERSION  
+          [+] Maphide LineageOS Detections  
+          [+] Futile Maphide for jit-zygote-cache Detections  
+          [+] Magic Mount Support
+
+          ## Release Date Compatibility Check
+
+          **Built on**: $BUILD_DATE
           EOF
 
-          echo "name=*TEST BUILD* Husky Kernels – ${{ steps.tag.outputs.new_tag }} *TEST BUILD*" >> $GITHUB_OUTPUT
-          echo "body=$(cat release.md)" >> $GITHUB_OUTPUT
-
-      # ----------------------------------------------------------
-      # Download artifacts from the two build jobs
-      # ----------------------------------------------------------
+          # Output the entire file content as a multi-line step output
+          echo "release_notes<<EOF" >> $GITHUB_OUTPUT
+          cat release-notes.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
       - name: Download Build Artifacts
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts
           pattern: kernel-*
 
-      # ----------------------------------------------------------
-      # Create GitHub release
-      # ----------------------------------------------------------
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.new_tag }}
-          name: ${{ steps.release.outputs.name }}
-          body: ${{ steps.release.outputs.body }}
-          prerelease: true
-          token: ${{ github.token }}
-
+          body: ${{ steps.define-release-notes.outputs.release_notes }}
+          tag_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # ----------------------------------------------------------
       # Upload zip files
       # ----------------------------------------------------------
