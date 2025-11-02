@@ -9,10 +9,6 @@ on:
 
 jobs:
  
-  
-  # --------------------------------------------------------------
-  # 2. Build Sultan KOWSU
-  # --------------------------------------------------------------
   build-sultan-kowsu:
     uses: ./.github/workflows/sultan_kowsu.yml
     secrets: inherit
@@ -21,15 +17,23 @@ jobs:
       repo: "android_kernel_google_zuma"
       android_version: "android14"
       kernel_version: "6.1"
+      
+  build-gki-kowsu:
+    uses: ./.github/workflows/gki_kowsu.yml
+    secrets: inherit
+    with:
+      codename: "zuma"
+      repo: "common"
+      android_version: "android14"
+      kernel_version: "6.1"
 
-  # --------------------------------------------------------------
-  # 3. Create & push tag + release (only if BOTH builds succeed)
-  # --------------------------------------------------------------
+
   release:
     runs-on: ubuntu-latest
     needs:
-      
+      - build-gki-kowsu
       - build-sultan-kowsu
+      
     if: success()                     # <-- GUARANTEES builds passed
     env:
       GH_TOKEN: ${{ github.token }}
@@ -79,7 +83,7 @@ jobs:
           SUSFS_VERSION="${{ steps.extract-version.outputs.susfs_version }}"
 
           cat << EOF > release-notes.md
-          # SUSFS Kernel Module Release
+          # SUSFS Kernel Release
 
           This release contains **KernelSU** and **MKSU** variants with **SUSFS $SUSFS_VERSION**
 
