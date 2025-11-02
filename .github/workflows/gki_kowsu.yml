@@ -246,8 +246,9 @@ jobs:
           patch -p1 < min_scope_syscall_hooks_v1.5.patch || true
 
       - name: Compute KernelSU version
+        working-directory: ${{ env.KERNEL_DIR }}
         run: |
-          cd "$CONFIG/KernelSU/kernel"
+          cd KernelSU/kernel
           BASE=10200
           COUNT=$(git rev-list --count HEAD)
           KSUVER=$(( BASE + COUNT ))
