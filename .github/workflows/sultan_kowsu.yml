@@ -40,13 +40,17 @@ jobs:
           wget -O "$TOOLCHAIN_TAR" "$TOOLCHAIN_URL"
           gunzip "$TOOLCHAIN_TAR"
           tar -xf "${TOOLCHAIN_TAR%.gz}"
+
+      - name: Set CONFIG Environment Variable
+        run: |
+          CONFIG="${{ inputs.repo }}"
+          echo "CONFIG=$CONFIG" >> $GITHUB_ENV
+          echo "CONFIG set to: $CONFIG"
      
       - name: Clone repositories
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          CONFIG="${{ inputs.repo }}"
-          export CONFIG
           ANYKERNEL_BRANCH="sultan-${{ inputs.codename }}"
           SUSFS_BRANCH="gki-android14-6.1"
           git clone https://github.com/TheWildJames/AnyKernel3.git -b "$ANYKERNEL_BRANCH"
