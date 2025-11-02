@@ -47,18 +47,7 @@ jobs:
           echo "CONFIG=$CONFIG" >> $GITHUB_ENV
           echo "CONFIG set to: $CONFIG"
 
-      - name: Get Latest Sultan Tag
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          LATEST_SULTAN_TAG=$(gh api repos/kerneltoast/android_kernel_google_zuma/tags --jq '.[0].name')
-          if [ -z "$LATEST_SULTAN_TAG" ]; then
-            echo "Error: Could not fetch latest Sultan tag"
-            exit 1
-          fi
-          echo "LATEST_SULTAN_TAG=$LATEST_SULTAN_TAG" >> $GITHUB_ENV
-          echo "Latest Sultan tag: $LATEST_SULTAN_TAG"
-          
+      
      
       - name: Clone repositories
         env:
@@ -210,17 +199,20 @@ jobs:
           TAG=$(git ls-remote --tags https://github.com/kerneltoast/android_kernel_google_zuma.git \
                 | awk -F'/' '{print $3}' | grep -E '^[0-9]+' | sort -V | tail -n1)
           echo "tag=$TAG" >> $GITHUB_OUTPUT
+          
       - name: Package ZIP
         run: |
           cd AnyKernel3
           ZIP="KowSU-${{ env.KSUVER }}-${{ inputs.codename }}_Sultan-${{ steps.sultan_tag.outputs.tag }}_SUSFS.zip"
           zip -r9 "../$ZIP" ./*
           echo "ZIP_NAME=$ZIP" >> $GITHUB_ENV
+          
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: kernel-${{ inputs.codename }}-kowsu
           path: ${{ env.ZIP_NAME }}
           retention-days: 3
+          
       - name: ccache statistics
         run: ccache -s
