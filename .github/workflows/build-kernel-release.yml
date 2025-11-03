@@ -27,6 +27,16 @@ jobs:
       android_version: "android14"
       kernel_version: "6.1"
       os_patch_level: 2025-05
+      
+  build-gki-kleaf-kowsu:
+    uses: ./.github/workflows/gki_kleaf_kowsu.yml
+    secrets: inherit
+    with:
+      codename: "gki"
+      #repo: "common"
+      android_version: "android14"
+      kernel_version: "6.1"
+      os_patch_level: 2025-05
 
 
   release:
@@ -34,6 +44,7 @@ jobs:
     needs:
       - build-gki-kowsu
       - build-sultan-kowsu
+      - build-gki-kleaf-kowsu
       
     if: success()                     # <-- GUARANTEES builds passed
     env:
