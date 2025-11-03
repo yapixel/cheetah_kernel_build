@@ -305,43 +305,52 @@ jobs:
             --config=fast \
             --lto=thin \
             //common:kernel_aarch64_dist
-
-      # -------------------------------------------------
-      # 14. Package with AnyKernel3
-      # -------------------------------------------------
-      - name: Package kernel
+            
+      - name: List Kleaf dist output
         run: |
-          cd $CONFIG
-          DIST="out/kernel_aarch64/dist"
-          BOOT_IMG="$DIST/boot.img"
-          #VENDOR_DLKM="$DIST/vendor_dlkm.img"
+         echo "=== Kleaf dist contents ==="
+         ls -la "$GITHUB_WORKSPACE/android14-6.1-134/out/kernel_aarch64/dist/" || echo "dist not found"
+         echo "boot.img size:"
+         stat "$GITHUB_WORKSPACE/android14-6.1-134/out/kernel_aarch64/dist/boot.img" 2>/dev/null || echo "Not found"
 
-          if [ ! -f "$BOOT_IMG" ]; then
-            echo "ERROR: boot.img not found at $BOOT_IMG"
-            exit 1
-          fi
+    
+      - name: Package kernel with AnyKernel3
+        run: |
+         set -e
 
-          cp -v "$BOOT_IMG" ../AnyKernel3/
-          #if [ -f "$VENDOR_DLKM" ]; then
-          #  mkdir -p ../AnyKernel3/modules
-          #  cp -v "$VENDOR_DLKM" ../AnyKernel3/modules/vendor_dlkm.img
-          #fi
+         # === 1. Define paths (Kleaf output) ===
+         KERNEL_ROOT="$GITHUB_WORKSPACE/android14-6.1-134"  # <-- Your repo sync dir
+         DIST_DIR="$KERNEL_ROOT/out/kernel_aarch64/dist"
+         BUILDS_DIR="$GITHUB_WORKSPACE/builds"
+         mkdir -p "$BUILDS_DIR"
 
-          cd ../AnyKernel3
-          mkdir -p ../builds
-          ZIP_NAME="KowSU-${{ env.KSUVER }}-${{ inputs.codename }}_GKI-6.1.134_SUSFS.zip"
-          ZIP_PATH="../builds/$ZIP_NAME"
-          zip -r9 "$ZIP_PATH" ./* > /dev/null
-          echo "ZIP_NAME=$ZIP_PATH" >> $GITHUB_ENV
+         # === 2. Verify boot.img exists ===
+         BOOT_IMG="$DIST_DIR/boot.img"
+         if [ ! -f "$BOOT_IMG" ]; then
+         echo "ERROR: boot.img not found at $BOOT_IMG"
+         echo "Contents of dist/:"
+         ls -la "$DIST_DIR" || true
+         exit 1
+         fi
 
-      # -------------------------------------------------
-      # 15. Upload artifact
-      # -------------------------------------------------
-      - name: Upload artifact
+    
+         cd AnyKernel3
+         ZIP_NAME="KowSU-${{ env.KSUVER }}-${{ inputs.codename }}_GKI-6.1.134_SUSFS.zip"
+         ZIP_PATH="$BUILDS_DIR/$ZIP_NAME"
+
+         zip -r9 "$ZIP_PATH" ./* > /dev/null
+         echo "ZIP created: $ZIP_PATH"
+
+         # === 5. Export for upload ===
+         echo "ZIP_PATH=$ZIP_PATH" >> $GITHUB_ENV
+         echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+
+
+      - name: Upload kernel zip
         uses: actions/upload-artifact@v4
         with:
           name: kernel-${{ inputs.codename }}-kowsu-6.1
-          path: ${{ env.ZIP_NAME }}
+          path: ${{ env.ZIP_PATH }}   # Absolute path → VALID
           retention-days: 3
 
       # -------------------------------------------------
