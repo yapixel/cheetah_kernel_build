@@ -22,7 +22,7 @@ jobs:
     uses: ./.github/workflows/gki_kowsu.yml
     secrets: inherit
     with:
-      codename: "zuma"
+      codename: "gki"
       repo: "common"
       android_version: "android14"
       kernel_version: "6.1"
