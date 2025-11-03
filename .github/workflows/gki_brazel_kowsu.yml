@@ -1,4 +1,4 @@
-name: GKI KowSU (GKI-native toolchains)
+name: GKI KowSU Brzel
 permissions:
   contents: write
   actions: write
@@ -23,7 +23,7 @@ on:
         default: true
 
 jobs:
-  build-kernel-GKI-kowsu-susfs:
+  build-kernel-GKI-brazel-kowsu-susfs:
     runs-on: ubuntu-latest
     env:
       DEBIAN_FRONTEND: noninteractive
