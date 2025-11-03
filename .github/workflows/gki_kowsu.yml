@@ -261,21 +261,37 @@ jobs:
       
       - name: Package kernel
         run: |
-          cd "$CONFIG"
+          # -----------------------------------------------------------------
+          # 1. Go to the kernel source and copy the Image
+          # -----------------------------------------------------------------
+          cd "${{ inputs.repo }}"
+
           IMAGE="out/arch/arm64/boot/Image"
-          cp -v ./out/arch/arm64/boot/Image ../AnyKernel3/
-          
-          cd ../AnyKernel3/
+          if [ ! -f "$IMAGE" ]; then
+            echo "ERROR: Kernel Image not found at $IMAGE"
+            exit 1
+          fi
 
-          TIMESTAMP=$(TZ=UTC date -u +"%Y%m%dT%H%MZ")
-          
+          cp -v "$IMAGE" ../AnyKernel3/
+
+          # -----------------------------------------------------------------
+          # 2. Build the ZIP straight into the builds/ folder
+          # -----------------------------------------------------------------
+          cd ../AnyKernel3
+
+          # Make sure the output folder exists
+          mkdir -p ../builds
+
           ZIP_NAME="KowSU-${{ env.KSUVER }}-${{ inputs.codename }}_GKI-6.1.134_SUSFS.zip"
-          zip -r9 "../${ZIP_NAME}" ./*
+          ZIP_PATH="../builds/$ZIP_NAME"
 
-          mkdir -p "../${{ env.BUILDS_DIR }}"
-          mv "../${ZIP_NAME}" "../${{ env.BUILDS_DIR }}/"
+          echo "Creating $ZIP_PATH ..."
+          zip -r9 "$ZIP_PATH" ./* > /dev/null   # silence zip output (optional)
 
-          echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
+          # -----------------------------------------------------------------
+          # 3. Export the full path for the upload-artifact step
+          # -----------------------------------------------------------------
+          echo "ZIP_NAME=$ZIP_PATH" >> "$GITHUB_ENV"
           
 
           
