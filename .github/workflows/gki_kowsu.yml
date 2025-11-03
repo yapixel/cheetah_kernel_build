@@ -1,4 +1,4 @@
-name: GKI KowSU (no cache, AOSP pre-builts)
+name: GKI KowSU (Clang r487747c – fixed paths)
 
 permissions:
   contents: write
@@ -75,27 +75,37 @@ jobs:
           git clone https://github.com/KOWX712/files.git kowsu_patches
 
       # -------------------------------------------------
-      # 5. Download AOSP pre-builts (clang + gcc) – no cache
+      # 5. Download Clang r487747c (17.0.2)
       # -------------------------------------------------
-      - name: Download AOSP pre-builts
+      - name: Download Clang (17.0.2_r487747c)
+        run: |
+          mkdir -p $HOME/clang
+          cd $HOME/clang
+          wget -q https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android14-release/clang-r487747c.tar.gz -O clang.tar.gz
+          tar -xzf clang.tar.gz
+          rm clang.tar.gz
+          echo "CLANG_PATH=$HOME/clang/bin" >> $GITHUB_ENV
+          echo "$HOME/clang/bin" >> $GITHUB_PATH
+
+      # -------------------------------------------------
+      # 6. Download AOSP pre-builts for ARM toolchains
+      # -------------------------------------------------
+      - name: Download AOSP pre-builts (ARM toolchains)
         run: |
           AOSP=android.googlesource.com
           BRANCH=main-kernel-build-2024
           git clone https://$AOSP/kernel/prebuilts/build-tools -b $BRANCH --depth 1 kernel-build-tools
-          git clone https://$AOSP/platform/system/tools/mkbootimg -b $BRANCH --depth 1 mkbootimg
 
       # -------------------------------------------------
-      # 6. Set toolchain environment variables
+      # 7. Set toolchain env
       # -------------------------------------------------
       - name: Set toolchain env
         run: |
-          echo "CLANG_PATH=$GITHUB_WORKSPACE/kernel-build-tools/linux-x86/bin" >> $GITHUB_ENV
-          echo "$GITHUB_WORKSPACE/kernel-build-tools/linux-x86/bin" >> $GITHUB_PATH
           echo "ARM64_TOOLCHAIN=$GITHUB_WORKSPACE/kernel-build-tools/linux-x86/bin/aarch64-linux-gnu-" >> $GITHUB_ENV
           echo "ARM32_TOOLCHAIN=$GITHUB_WORKSPACE/kernel-build-tools/linux-x86/bin/arm-linux-gnueabi-" >> $GITHUB_ENV
 
       # -------------------------------------------------
-      # 7. Repo init + sync kernel source
+      # 8. Repo init + sync kernel source
       # -------------------------------------------------
       - name: Initialize & sync kernel source
         run: |
@@ -115,7 +125,7 @@ jobs:
           $REPO sync -c -j$(nproc --all) --no-tags --fail-fast
 
       # -------------------------------------------------
-      # 8. Add KernelSU (KowSU)
+      # 9. Add KernelSU (KowSU)
       # -------------------------------------------------
       - name: Add KernelSU
         run: |
@@ -123,7 +133,7 @@ jobs:
           curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/master/kernel/setup.sh" | bash -s master
 
       # -------------------------------------------------
-      # 9. Apply SUSFS & KowSU patches
+      # 10. Apply SUSFS & KowSU patches
       # -------------------------------------------------
       - name: Apply SUSFS & KowSU patches
         run: |
@@ -144,7 +154,7 @@ jobs:
           patch -p1 --fuzz=3 < fix_core_hook_kowsu.patch
 
       # -------------------------------------------------
-      # 10. Apply manual syscall hook
+      # 11. Apply manual syscall hook
       # -------------------------------------------------
       - name: Apply manual syscall hook
         run: |
@@ -153,7 +163,7 @@ jobs:
           patch -p1 --forward < min_scope_syscall_hooks_v1.5.patch
 
       # -------------------------------------------------
-      # 11. Compute KernelSU version
+      # 12. Compute KernelSU version
       # -------------------------------------------------
       - name: Compute KernelSU version
         run: |
@@ -164,104 +174,106 @@ jobs:
           echo "KSUVER=$KSUVER" >> $GITHUB_ENV
 
       # -------------------------------------------------
-      # 12. Add device + SUSFS configuration (YOUR EXACT STYLE)
+      # 13. Create device-specific defconfig inside common/
       # -------------------------------------------------
-      - name: Add SUSFS Configuration Settings
+      - name: Create device-specific defconfig
         env:
           CODENAME: ${{ inputs.codename }}
         run: |
           cd kernel_gki
-          echo "Adding Pixel 8 device configuration settings to ${CODENAME}_defconfig..."
-          echo "CONFIG_ARM64_CORTEX_X3=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_ARM64_CORTEX_A715=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_ARM64_CORTEX_A510=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_ARM64_VA_BITS=48" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_ARM64_PA_BITS=48" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_ARM64_TAGGED_ADDR_ABI=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_ARM64_SVE=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_ARM64_BTI=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_ARM64_PTR_AUTH=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_SCHED_MC=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_SCHED_CORE=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_ENERGY_MODEL=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_UCLAMP_TASK=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_UCLAMP_TASK_GROUP=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_SCHEDUTIL=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_CPU_FREQ=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_CPUFREQ_DT=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_CPU_FREQ_GOV_SCHEDUTIL=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_LTO_CLANG_THIN=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
+          DEFCONFIG_PATH="common/arch/arm64/configs/${CODENAME}_defconfig"
+          echo "# ${CODENAME} GKI defconfig" > "$DEFCONFIG_PATH"
+          echo "CONFIG_ARM64_CORTEX_X3=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_ARM64_CORTEX_A715=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_ARM64_CORTEX_A510=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_ARM64_VA_BITS=48" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_ARM64_PA_BITS=48" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_ARM64_TAGGED_ADDR_ABI=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_ARM64_SVE=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_ARM64_BTI=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_ARM64_PTR_AUTH=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_SCHED_MC=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_SCHED_CORE=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_ENERGY_MODEL=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_UCLAMP_TASK=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_UCLAMP_TASK_GROUP=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_SCHEDUTIL=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_CPU_FREQ=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_CPUFREQ_DT=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_CPU_FREQ_GOV_SCHEDUTIL=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_LTO_CLANG_THIN=y" >> "$DEFCONFIG_PATH"
 
-          echo "CONFIG_KSU=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_KSU_KPROBES_HOOK=n" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_KSU_SUSFS=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_KSU_LSM_SECURITY_HOOKS=n" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_TMPFS_XATTR=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_TMPFS_POSIX_ACL=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_IP_NF_TARGET_TTL=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_TCP_CONG_BBR=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_NET_SCH_FQ=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_TCP_CONG_BIC=n" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_TCP_CONG_WESTWOOD=n" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_TCP_CONG_HTCP=n" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_BPF_STREAM_PARSER=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_NETFILTER_XT_SET=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_IP_SET=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_IP_SET_MAX=65534" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_IP_SET_BITMAP_IP=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_IP_SET_BITMAP_IPMAC=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_IP_SET_BITMAP_PORT=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_IP_SET_HASH_IP=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_IP_SET_HASH_IPMARK=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_IP_SET_HASH_IPPORT=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_IP_SET_HASH_IPPORTIP=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_IP_SET_HASH_IPPORTNET=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_IP_SET_HASH_IPMAC=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_IP_SET_HASH_MAC=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_IP_SET_HASH_NETPORTNET=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_IP_SET_HASH_NET=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_IP_SET_HASH_NETNET=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_IP_SET_HASH_NETPORT=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_IP_SET_HASH_NETIFACE=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_IP_SET_LIST_SET=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_IP6_NF_NAT=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_IP6_NF_TARGET_MASQUERADE=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
-          echo "CONFIG_CCACHE=y" >> ./arch/arm64/configs/${CODENAME}_defconfig
+          # KowSU + SUSFS (your exact echo style)
+          echo "CONFIG_KSU=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_KSU_KPROBES_HOOK=n" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_KSU_SUSFS=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_KSU_LSM_SECURITY_HOOKS=n" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_TMPFS_XATTR=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_TMPFS_POSIX_ACL=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_IP_NF_TARGET_TTL=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_IP6_NF_TARGET_HL=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_IP6_NF_MATCH_HL=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_TCP_CONG_ADVANCED=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_TCP_CONG_BBR=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_NET_SCH_FQ=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_TCP_CONG_BIC=n" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_TCP_CONG_WESTWOOD=n" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_TCP_CONG_HTCP=n" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_BPF_STREAM_PARSER=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_NETFILTER_XT_SET=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_IP_SET=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_IP_SET_MAX=65534" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_IP_SET_BITMAP_IP=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_IP_SET_BITMAP_IPMAC=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_IP_SET_BITMAP_PORT=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_IP_SET_HASH_IP=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_IP_SET_HASH_IPMARK=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_IP_SET_HASH_IPPORT=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_IP_SET_HASH_IPPORTIP=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_IP_SET_HASH_IPPORTNET=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_IP_SET_HASH_IPMAC=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_IP_SET_HASH_MAC=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_IP_SET_HASH_NETPORTNET=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_IP_SET_HASH_NET=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_IP_SET_HASH_NETNET=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_IP_SET_HASH_NETPORT=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_IP_SET_HASH_NETIFACE=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_IP_SET_LIST_SET=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_IP6_NF_NAT=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_IP6_NF_TARGET_MASQUERADE=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y" >> "$DEFCONFIG_PATH"
+          echo "CONFIG_CCACHE=y" >> "$DEFCONFIG_PATH"
 
       # -------------------------------------------------
-      # 13. Run sed / perl tweaks (your exact commands)
+      # 14. sed / perl tweaks (still inside common/)
       # -------------------------------------------------
-      - name: Run sed and perl Commands
+      - name: Run sed and perl tweaks
         run: |
           cd kernel_gki
           sed -i 's/CONFIG_LOCALVERSION="-Sultan"/CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"/' \
-              ./arch/arm64/configs/${{ inputs.codename }}_defconfig
-          sed -i 's/${LOCALVERSION+set}/set/' ./scripts/setlocalversion
-          perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "Tue Jul 8 09:17:32 UTC 2025"/' ./init/Makefile
+              common/arch/arm64/configs/${{ inputs.codename }}_defconfig
+          sed -i 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
+          perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "Tue Jul 8 09:17:32 UTC 2025"/' init/Makefile
 
       # -------------------------------------------------
-      # 14. Build kernel (traditional make, no Bazel)
+      # 15. Build kernel (run from top-level kernel_gki)
       # -------------------------------------------------
       - name: Build kernel
         run: |
@@ -289,7 +301,7 @@ jobs:
             all
 
       # -------------------------------------------------
-      # 15. Package with AnyKernel3
+      # 16. Package with AnyKernel3
       # -------------------------------------------------
       - name: Package kernel
         run: |
@@ -309,7 +321,7 @@ jobs:
           echo "ZIP_NAME=$ZIP_PATH" >> $GITHUB_ENV
 
       # -------------------------------------------------
-      # 16. Upload artifact
+      # 17. Upload artifact
       # -------------------------------------------------
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -318,4 +330,4 @@ jobs:
           path: ${{ env.ZIP_NAME }}
           retention-days: 3
 
-      
+     
