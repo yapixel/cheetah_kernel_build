@@ -152,10 +152,11 @@ jobs:
           patch -p1 < enable_susfs_for_kowsu.patch
           cp ../../kernel_patches/kowsu/fix_ksud.c.patch .
           patch -p1 < fix_ksud.c.patch
+          cp ../../kernel_patches/kowsu/fix_ksu.patch .
+          patch -p1 --fuzz=3 < fix_ksu.patch
           cp ../../kowsu_patches/KowSU/fix_core_hook_kowsu.patch .
           patch -p1 --fuzz=3 < fix_core_hook_kowsu.patch
-          cp ../../kowsu_patches/KowSU/fix_ksu.patch .
-          patch -p1 --fuzz=3 < fix_ksu.patch
+          
           
           
 
