@@ -90,7 +90,7 @@ jobs:
           git clone https://github.com/TheWildJames/AnyKernel3.git -b "$ANYKERNEL_BRANCH"
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
           git clone https://github.com/yapixel/kernel_patches.git
-          git clone --depth=1 https://android.googlesource.com/kernel/common -b "KERNEL_TAG" "$CONFIG"
+          git clone --depth=1 https://android.googlesource.com/kernel/common -b "$KERNEL_TAG" "$CONFIG"
           git clone https://github.com/KOWX712/files.git kowsu_patches
           
       - name: Add KernelSU
