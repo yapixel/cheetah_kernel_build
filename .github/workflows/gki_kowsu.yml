@@ -20,16 +20,9 @@ on:
         type: string
 jobs:
   build-kernel-GKI-kowsu-susfs:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     
     steps:
-      
-      - name: Free disk space
-        run: |
-          curl -L -o util_free_space.sh https://raw.githubusercontent.com/apache/arrow/main/ci/scripts/util_free_space.sh
-          chmod +x util_free_space.sh
-          ./util_free_space.sh
-
       - name: Install dependencies
         run: |
           sudo apt-get update
