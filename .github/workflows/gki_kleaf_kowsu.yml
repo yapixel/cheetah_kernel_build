@@ -311,7 +311,7 @@ jobs:
          echo "=== Kleaf dist contents ==="
          ls -la "$GITHUB_WORKSPACE/android14-6.1-134/out/kernel_aarch64/dist/" || echo "dist not found"
          echo "boot.img size:"
-         stat "$GITHUB_WORKSPACE/android14-6.1-134/out/kernel_aarch64/dist/boot.img" 2>/dev/null || echo "Not found"
+         stat "$GITHUB_WORKSPACE/android14-6.1-134/out/kernel_aarch64/dist/Image.lz4" 2>/dev/null || echo "Not found"
 
     
       - name: Package kernel with AnyKernel3
@@ -324,10 +324,10 @@ jobs:
          BUILDS_DIR="$GITHUB_WORKSPACE/builds"
          mkdir -p "$BUILDS_DIR"
 
-         # === 2. Verify boot.img exists ===
-         BOOT_IMG="$DIST_DIR/boot.img"
+         
+         BOOT_IMG="$DIST_DIR/Image.lz4"
          if [ ! -f "$BOOT_IMG" ]; then
-         echo "ERROR: boot.img not found at $BOOT_IMG"
+         echo "ERROR: Image.lz4 not found at $BOOT_IMG"
          echo "Contents of dist/:"
          ls -la "$DIST_DIR" || true
          exit 1
