@@ -138,10 +138,13 @@ jobs:
       - name: Apply SUSFS & KowSU patches
         run: |
           cd $CONFIG
-          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch .
-          patch -p1 -F 3 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
-          cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
-          cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
+          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch ./common/
+          cp -r ../susfs4ksu/kernel_patches/fs/* ./common//fs/
+          cp -r ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
+          # Change to common directory and apply common SUSFS patch
+          cd ../common
+          patch --fuzz=10 -p1 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
+
           cd KernelSU
           cp ../../kowsu_patches/KowSU/revert_commit_conflict_with_susfs.patch .
           patch -p1 --fuzz=3 < revert_commit_conflict_with_susfs.patch
@@ -157,8 +160,8 @@ jobs:
       # -------------------------------------------------
       - name: Apply manual syscall hook
         run: |
-          cd $CONFIG
-          cp ../kernel_patches/syscall_hook/min_scope_syscall_hooks_v1.5.patch .
+          cd "$CONFIG/common"
+          cp ../../kernel_patches/syscall_hook/min_scope_syscall_hooks_v1.5.patch .
           patch -p1 --forward < min_scope_syscall_hooks_v1.5.patch
 
       # -------------------------------------------------
@@ -166,7 +169,7 @@ jobs:
       # -------------------------------------------------
       - name: Compute KernelSU version
         run: |
-          cd $CONFIG/KernelSU/kernel
+          cd "$CONFIG/KernelSU/kernel"
           BASE=10200
           COUNT=$(git rev-list --count HEAD)
           KSUVER=$(( BASE + COUNT ))
@@ -175,7 +178,7 @@ jobs:
       - name: Apply Hide Stuff Patches
         run: |
           echo "Changing to configuration directory: $CONFIG..."
-          cd "$CONFIG"
+          cd "$CONFIG/common"
           cp ../kernel_patches/69_hide_stuff.patch ./
           patch -p1 -F 3 < 69_hide_stuff.patch 
 
