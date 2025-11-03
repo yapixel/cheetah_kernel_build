@@ -302,7 +302,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: kernel-${{ inputs.codename }}-kowsu
+          name: kernel-${{ inputs.codename }}-brazel
           path: ${{ env.ZIP_NAME }}
           retention-days: 3
 
