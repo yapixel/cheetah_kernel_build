@@ -1,9 +1,7 @@
 name: GKI KowSU (GKI-native toolchains)
-
 permissions:
   contents: write
   actions: write
-
 on:
   workflow_call:
     inputs:
@@ -23,11 +21,9 @@ on:
         required: false
         type: boolean
         default: true
-
 jobs:
   build-kernel-GKI-kowsu-susfs:
     runs-on: ubuntu-latest
-
     steps:
       # -------------------------------------------------
       # 1. Maximize disk space (optional)
@@ -89,14 +85,12 @@ jobs:
           FORMATTED_BRANCH="${{ inputs.android_version }}-${{ inputs.kernel_version }}-${{ inputs.os_patch_level }}"
           $REPO init --depth=1 -u https://android.googlesource.com/kernel/manifest \
                -b common-$FORMATTED_BRANCH --repo-rev=v2.16
-
           # Handle deprecated branches
           DEFAULT_XML=.repo/manifests/default.xml
           REMOTE=$(git ls-remote https://android.googlesource.com/kernel/common $FORMATTED_BRANCH)
           if grep -q deprecated <<< "$REMOTE"; then
             sed -i "s/\"$FORMATTED_BRANCH\"/\"deprecated\/$FORMATTED_BRANCH\"/g" $DEFAULT_XML
           fi
-
           $REPO sync -c -j$(nproc --all) --no-tags --fail-fast
 
       # -------------------------------------------------
@@ -135,7 +129,6 @@ jobs:
           patch -p1 -F 3 < ./common/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
           cp -r ../susfs4ksu/kernel_patches/fs/* ./common/fs/
           cp -r ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
-
           cd KernelSU
           cp ../../kowsu_patches/KowSU/revert_commit_conflict_with_susfs.patch .
           patch -p1 --fuzz=3 < revert_commit_conflict_with_susfs.patch
@@ -176,7 +169,6 @@ jobs:
           cd kernel_gki
           DEFCONFIG_PATH="common/arch/arm64/configs/${CODENAME}_defconfig"
           echo "# ${CODENAME} GKI defconfig" > "$DEFCONFIG_PATH"
-
           # Pixel 8 core config
           echo "CONFIG_ARM64_CORTEX_X3=y" >> "$DEFCONFIG_PATH"
           echo "CONFIG_ARM64_CORTEX_A715=y" >> "$DEFCONFIG_PATH"
@@ -198,7 +190,6 @@ jobs:
           echo "CONFIG_CPU_FREQ_GOV_SCHEDUTIL=y" >> "$DEFCONFIG_PATH"
           echo "CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y" >> "$DEFCONFIG_PATH"
           echo "CONFIG_LTO_CLANG_THIN=y" >> "$DEFCONFIG_PATH"
-
           # KowSU + SUSFS
           echo "CONFIG_KSU=y" >> "$DEFCONFIG_PATH"
           echo "CONFIG_KSU_KPROBES_HOOK=n" >> "$DEFCONFIG_PATH"
@@ -257,12 +248,11 @@ jobs:
           echo "CONFIG_CCACHE=y" >> "$DEFCONFIG_PATH"
 
       # -------------------------------------------------
-      # 13. Fix localversion and build timestamp 
+      # 13. Fix localversion and build timestamp
       # -------------------------------------------------
       - name: Fix localversion and build timestamp
         run: |
           cd kernel_gki
-
           # 1. Set correct LOCALVERSION in defconfig (NO Sultan replacement)
           DEFCONFIG="common/arch/arm64/configs/${{ inputs.codename }}_defconfig"
           if ! grep -q "CONFIG_LOCALVERSION=" "$DEFCONFIG"; then
@@ -270,49 +260,41 @@ jobs:
           else
             sed -i 's|CONFIG_LOCALVERSION=.*|CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"|' "$DEFCONFIG"
           fi
-
           # 2. Fix setlocalversion script (correct path: common/scripts/)
           sed -i 's/${LOCALVERSION+set}/set/' common/scripts/setlocalversion
-
           # 3. Set fixed build timestamp
           perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "Tue Jul 8 09:17:32 UTC 2025"/' init/Makefile
-     
-      - name: Build with retry
-        uses: nick-fields/retry@v3
-        with:
-          timeout_minutes: 30
-          max_attempts: 3
-          retry_on: timeout
-          command: |
-            set -e
-            set -x
-            cd "$GITHUB_WORKSPACE/kernel_gki"
 
-            
-
-            # Build using  custom defconfig
-            if [ -f "build/build.sh" ]; then
-              echo "Using build.sh with custom defconfig..."
-              LTO=thin \
-              BUILD_CONFIG=common/arch/arm64/configs/${{ inputs.codename }}_defconfig \
-              build/build.sh \
-                CC="ccache clang" \
-                LD=ld.lld \
-                HOSTLD=ld.lld \
-                || exit 1
-            else
-              echo "Using Bazel with custom defconfig..."
-              # Bazel still needs a BUILD_CONFIG fragment
-              echo "CONFIG_FILE=common/arch/arm64/configs/${{ inputs.codename }}_defconfig" > .build_config_local
-              tools/bazel build \
-                --disk_cache=$HOME/.cache/bazel \
-                --config=fast \
-                --lto=thin \
-                //common:kernel_aarch64_dist \
-                || exit 1
-            fi
-
-            ccache --show-stats
+      # -------------------------------------------------
+      # 14. Build kernel (no retry, no ccache setup)
+      # -------------------------------------------------
+      - name: Build kernel
+        run: |
+          set -e
+          set -x
+          cd "$GITHUB_WORKSPACE/kernel_gki"
+         
+          # Build using custom defconfig
+          if [ -f "build/build.sh" ]; then
+            echo "Using build.sh with custom defconfig..."
+            LTO=thin \
+            BUILD_CONFIG=common/arch/arm64/configs/${{ inputs.codename }}_defconfig \
+            build/build.sh \
+              CC="ccache clang" \
+              LD=ld.lld \
+              HOSTLD=ld.lld \
+              || exit 1
+          else
+            echo "Using Bazel with custom defconfig..."
+            # Bazel still needs a BUILD_CONFIG fragment
+            echo "CONFIG_FILE=common/arch/arm64/configs/${{ inputs.codename }}_defconfig" > .build_config_local
+            tools/bazel build \
+              --disk_cache=$HOME/.cache/bazel \
+              --config=fast \
+              --lto=thin \
+              //common:kernel_aarch64_dist \
+              || exit 1
+          fi
 
       # -------------------------------------------------
       # 15. Package with AnyKernel3
@@ -326,7 +308,6 @@ jobs:
             exit 1
           fi
           cp -v "$IMAGE" ../AnyKernel3/
-
           cd ../AnyKernel3
           mkdir -p ../builds
           ZIP_NAME="KowSU-${{ env.KSUVER }}-${{ inputs.codename }}_GKI-6.1.134_SUSFS.zip"
@@ -345,7 +326,7 @@ jobs:
           retention-days: 3
 
       # -------------------------------------------------
-      # 17. ccache statistics (optional)
+      # 17. ccache statistics (optional, no setup)
       # -------------------------------------------------
       - name: ccache statistics
         run: ccache -s
