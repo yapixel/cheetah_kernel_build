@@ -50,7 +50,18 @@ jobs:
           remove-android: "true"
           remove-haskell: "true"
           remove-codeql: "true"
+          
+      - name: Set CONFIG Environment Variable
+        run: |
+          # Set CONFIG dynamically based on inputs values
+          CONFIG="${{ inputs.android_version }}-${{ inputs.kernel_version }}-${{ inputs.sub_level }}"
 
+          # Set CONFIG as an environment variable for future steps
+          echo "CONFIG=$CONFIG" >> $GITHUB_ENV
+
+          echo "CONFIG set to: $CONFIG"
+          
+          
       # -------------------------------------------------
       # 2. Install dependencies
       # -------------------------------------------------
@@ -89,39 +100,36 @@ jobs:
       # -------------------------------------------------
       # 5. Repo init & sync (6.1.134)
       # -------------------------------------------------
-      - name: Initialize & sync kernel source
+      - name: Initialize and Sync Kernel Source
         run: |
-          mkdir -p kernel_gki
-          cd kernel_gki
-          FORMATTED_BRANCH="${{ inputs.android_version }}-6.1"
-          $REPO init --depth=1 -u https://android.googlesource.com/kernel/manifest \
-               -b common-$FORMATTED_BRANCH --repo-rev=stable
-          $REPO sync -c -j$(nproc --all) --no-tags --fail-fast
+          echo "Creating folder for configuration: $CONFIG..."
+          mkdir -p "$CONFIG"
+          cd "$CONFIG"
 
-      # -------------------------------------------------
-      # 6. Use GKI-native Clang (auto-detect)
-      # -------------------------------------------------
-      - name: Set Clang from GKI prebuilts
-        run: |
-          CLANG_DIR=$(ls -d $GITHUB_WORKSPACE/kernel_gki/prebuilts/clang/host/linux-x86/clang-* | sort -V | tail -1)
-          echo "CLANG_PATH=$CLANG_DIR/bin" >> $GITHUB_ENV
-          echo "$CLANG_DIR/bin" >> $GITHUB_PATH
+          # Initialize and sync kernel source
+          echo "Initializing and syncing kernel source..."
+          FORMATTED_BRANCH="${{ inputs.android_version }}-${{ inputs.kernel_version }}-${{ inputs.os_patch_level }}"
+          $REPO init --depth=1 --u https://android.googlesource.com/kernel/manifest -b common-${FORMATTED_BRANCH} --repo-rev=v2.16
 
-      # -------------------------------------------------
-      # 7. Use GKI-native GCC
-      # -------------------------------------------------
-      - name: Set GCC from GKI prebuilts
-        run: |
-          GCC_ROOT="$GITHUB_WORKSPACE/kernel_gki/prebuilts/gcc/linux-x86"
-          echo "ARM64_TOOLCHAIN=$GCC_ROOT/aarch64/aarch64-linux-android-4.9/bin/aarch64-linux-android-" >> $GITHUB_ENV
-          echo "ARM32_TOOLCHAIN=$GCC_ROOT/arm/arm-linux-androideabi-4.9/bin/arm-linux-androideabi-" >> $GITHUB_ENV
+          REMOTE_BRANCH=$(git ls-remote https://android.googlesource.com/kernel/common ${FORMATTED_BRANCH})
+          DEFAULT_MANIFEST_PATH=.repo/manifests/default.xml
+
+          # Check if branch is deprecated
+          if grep -q deprecated <<< $REMOTE_BRANCH; then
+            echo "Found deprecated branch: $FORMATTED_BRANCH"
+            sed -i "s/\"${FORMATTED_BRANCH}\"/\"deprecated\/${FORMATTED_BRANCH}\"/g" $DEFAULT_MANIFEST_PATH
+          fi
+
+          # Sync repo and apply patches
+          $REPO --version
+          $REPO --trace sync -c -j$(nproc --all) --no-tags --fail-fast
 
       # -------------------------------------------------
       # 8. Add KowSU
       # -------------------------------------------------
       - name: Add KernelSU
         run: |
-          cd kernel_gki
+          cd $CONFIG
           curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/master/kernel/setup.sh" | bash -s master
 
       # -------------------------------------------------
@@ -129,12 +137,12 @@ jobs:
       # -------------------------------------------------
       - name: Apply SUSFS & KowSU patches
         run: |
-          cd kernel_gki/common
-          cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch .
+          cd $CONFIG
+          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch .
           patch -p1 -F 3 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
-          cp -r ../../susfs4ksu/kernel_patches/fs/* ./fs/
-          cp -r ../../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
-          cd kernel_gki/KernelSU
+          cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
+          cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
+          cd KernelSU
           cp ../../kowsu_patches/KowSU/revert_commit_conflict_with_susfs.patch .
           patch -p1 --fuzz=3 < revert_commit_conflict_with_susfs.patch
           cp ../../kowsu_patches/KowSU/enable_susfs_for_kowsu.patch .
@@ -149,8 +157,8 @@ jobs:
       # -------------------------------------------------
       - name: Apply manual syscall hook
         run: |
-          cd kernel_gki/common
-          cp ../../kernel_patches/syscall_hook/min_scope_syscall_hooks_v1.5.patch .
+          cd $CONFIG
+          cp ../kernel_patches/syscall_hook/min_scope_syscall_hooks_v1.5.patch .
           patch -p1 --forward < min_scope_syscall_hooks_v1.5.patch
 
       # -------------------------------------------------
@@ -158,11 +166,18 @@ jobs:
       # -------------------------------------------------
       - name: Compute KernelSU version
         run: |
-          cd kernel_gki/KernelSU/kernel
+          cd $CONFIG/KernelSU/kernel
           BASE=10200
           COUNT=$(git rev-list --count HEAD)
           KSUVER=$(( BASE + COUNT ))
           echo "KSUVER=$KSUVER" >> $GITHUB_ENV
+
+      - name: Apply Hide Stuff Patches
+        run: |
+          echo "Changing to configuration directory: $CONFIG..."
+          cd "$CONFIG"
+          cp ../kernel_patches/69_hide_stuff.patch ./
+          patch -p1 -F 3 < 69_hide_stuff.patch 
 
       # -------------------------------------------------
       # 12. Create config fragment (fixed LOCALVERSION)
@@ -171,7 +186,7 @@ jobs:
         env:
           CODENAME: ${{ inputs.codename }}
         run: |
-          cd kernel_gki
+          cd $CONFIG
           FRAGMENT="common/arch/arm64/configs/${CODENAME}_fragment.config"
 
           cat > "$FRAGMENT" << 'EOF'
@@ -266,7 +281,7 @@ jobs:
       - name: Build kernel with Kleaf
         run: |
           set -e
-          cd "$GITHUB_WORKSPACE/kernel_gki"
+          cd "$CONFIG"
 
           cat > .build_config_local << EOF
           BUILD_CONFIG=common/build.config.gki.aarch64
@@ -285,7 +300,7 @@ jobs:
       # -------------------------------------------------
       - name: Package kernel
         run: |
-          cd kernel_gki
+          cd $CONFIG
           DIST="out/dist"
           BOOT_IMG="$DIST/boot.img"
           VENDOR_DLKM="$DIST/vendor_dlkm.img"
