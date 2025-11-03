@@ -21,9 +21,12 @@ on:
         required: false
         type: boolean
         default: true
+
 jobs:
   build-kernel-GKI-kowsu-susfs:
     runs-on: ubuntu-latest
+    env:
+      DEBIAN_FRONTEND: noninteractive
     steps:
       # -------------------------------------------------
       # 1. Maximize disk space (optional)
@@ -160,149 +163,128 @@ jobs:
           echo "KSUVER=$KSUVER" >> $GITHUB_ENV
 
       # -------------------------------------------------
-      # 12. Create device-specific defconfig (in common/)
+      # 12. Create GKI config fragment (NOT full defconfig)
       # -------------------------------------------------
-      - name: Create device-specific defconfig
+      - name: Create GKI config fragment
         env:
           CODENAME: ${{ inputs.codename }}
         run: |
           cd kernel_gki
-          DEFCONFIG_PATH="common/arch/arm64/configs/${CODENAME}_defconfig"
-          echo "# ${CODENAME} GKI defconfig" > "$DEFCONFIG_PATH"
-          # Pixel 8 core config
-          echo "CONFIG_ARM64_CORTEX_X3=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_ARM64_CORTEX_A715=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_ARM64_CORTEX_A510=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_ARM64_VA_BITS=48" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_ARM64_PA_BITS=48" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_ARM64_TAGGED_ADDR_ABI=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_ARM64_SVE=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_ARM64_BTI=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_ARM64_PTR_AUTH=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_SCHED_MC=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_SCHED_CORE=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_ENERGY_MODEL=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_UCLAMP_TASK=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_UCLAMP_TASK_GROUP=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_SCHEDUTIL=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_CPU_FREQ=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_CPUFREQ_DT=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_CPU_FREQ_GOV_SCHEDUTIL=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_LTO_CLANG_THIN=y" >> "$DEFCONFIG_PATH"
-          # KowSU + SUSFS
-          echo "CONFIG_KSU=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_KSU_KPROBES_HOOK=n" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_KSU_SUSFS=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_KSU_LSM_SECURITY_HOOKS=n" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_TMPFS_XATTR=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_TMPFS_POSIX_ACL=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_IP_NF_TARGET_TTL=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_IP6_NF_TARGET_HL=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_IP6_NF_MATCH_HL=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_TCP_CONG_ADVANCED=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_TCP_CONG_BBR=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_NET_SCH_FQ=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_TCP_CONG_BIC=n" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_TCP_CONG_WESTWOOD=n" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_TCP_CONG_HTCP=n" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_BPF_STREAM_PARSER=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_NETFILTER_XT_SET=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_IP_SET=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_IP_SET_MAX=65534" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_IP_SET_BITMAP_IP=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_IP_SET_BITMAP_IPMAC=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_IP_SET_BITMAP_PORT=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_IP_SET_HASH_IP=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_IP_SET_HASH_IPMARK=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_IP_SET_HASH_IPPORT=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_IP_SET_HASH_IPPORTIP=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_IP_SET_HASH_IPPORTNET=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_IP_SET_HASH_IPMAC=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_IP_SET_HASH_MAC=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_IP_SET_HASH_NETPORTNET=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_IP_SET_HASH_NET=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_IP_SET_HASH_NETNET=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_IP_SET_HASH_NETPORT=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_IP_SET_HASH_NETIFACE=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_IP_SET_LIST_SET=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_IP6_NF_NAT=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_IP6_NF_TARGET_MASQUERADE=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y" >> "$DEFCONFIG_PATH"
-          echo "CONFIG_CCACHE=y" >> "$DEFCONFIG_PATH"
+          FRAGMENT="common/arch/arm64/configs/${CODENAME}_fragment.config"
+
+          cat > "$FRAGMENT" << 'EOF'
+          # === Pixel 8 Core Config ===
+          CONFIG_ARM64_CORTEX_X3=y
+          CONFIG_ARM64_CORTEX_A715=y
+          CONFIG_ARM64_CORTEX_A510=y
+          CONFIG_ARM64_VA_BITS=48
+          CONFIG_ARM64_PA_BITS=48
+          CONFIG_ARM64_TAGGED_ADDR_ABI=y
+          CONFIG_ARM64_SVE=y
+          CONFIG_ARM64_BTI=y
+          CONFIG_ARM64_PTR_AUTH=y
+          CONFIG_SCHED_MC=y
+          CONFIG_SCHED_CORE=y
+          CONFIG_ENERGY_MODEL=y
+          CONFIG_UCLAMP_TASK=y
+          CONFIG_UCLAMP_TASK_GROUP=y
+          CONFIG_SCHEDUTIL=y
+          CONFIG_CPU_FREQ=y
+          CONFIG_CPUFREQ_DT=y
+          CONFIG_CPU_FREQ_GOV_SCHEDUTIL=y
+          CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y
+          CONFIG_LTO_CLANG_THIN=y
+
+          # === KowSU + SUSFS ===
+          CONFIG_KSU=y
+          CONFIG_KSU_KPROBES_HOOK=n
+          CONFIG_KSU_SUSFS=y
+          CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
+          CONFIG_KSU_LSM_SECURITY_HOOKS=n
+          CONFIG_KSU_SUSFS_SUS_PATH=y
+          CONFIG_KSU_SUSFS_SUS_MOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y
+          CONFIG_KSU_SUSFS_SUS_KSTAT=y
+          CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n
+          CONFIG_KSU_SUSFS_TRY_UMOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y
+          CONFIG_KSU_SUSFS_SPOOF_UNAME=y
+          CONFIG_KSU_SUSFS_ENABLE_LOG=y
+          CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
+          CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
+          CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
+          CONFIG_KSU_SUSFS_SUS_SU=n
+          CONFIG_TMPFS_XATTR=y
+          CONFIG_TMPFS_POSIX_ACL=y
+          CONFIG_IP_NF_TARGET_TTL=y
+          CONFIG_IP6_NF_TARGET_HL=y
+          CONFIG_IP6_NF_MATCH_HL=y
+          CONFIG_TCP_CONG_ADVANCED=y
+          CONFIG_TCP_CONG_BBR=y
+          CONFIG_NET_SCH_FQ=y
+          CONFIG_TCP_CONG_BIC=n
+          CONFIG_TCP_CONG_WESTWOOD=n
+          CONFIG_TCP_CONG_HTCP=n
+          CONFIG_BPF_STREAM_PARSER=y
+          CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y
+          CONFIG_NETFILTER_XT_SET=y
+          CONFIG_IP_SET=y
+          CONFIG_IP_SET_MAX=65534
+          CONFIG_IP_SET_BITMAP_IP=y
+          CONFIG_IP_SET_BITMAP_IPMAC=y
+          CONFIG_IP_SET_BITMAP_PORT=y
+          CONFIG_IP_SET_HASH_IP=y
+          CONFIG_IP_SET_HASH_IPMARK=y
+          CONFIG_IP_SET_HASH_IPPORT=y
+          CONFIG_IP_SET_HASH_IPPORTIP=y
+          CONFIG_IP_SET_HASH_IPPORTNET=y
+          CONFIG_IP_SET_HASH_IPMAC=y
+          CONFIG_IP_SET_HASH_MAC=y
+          CONFIG_IP_SET_HASH_NETPORTNET=y
+          CONFIG_IP_SET_HASH_NET=y
+          CONFIG_IP_SET_HASH_NETNET=y
+          CONFIG_IP_SET_HASH_NETPORT=y
+          CONFIG_IP_SET_HASH_NETIFACE=y
+          CONFIG_IP_SET_LIST_SET=y
+          CONFIG_IP6_NF_NAT=y
+          CONFIG_IP6_NF_TARGET_MASQUERADE=y
+          CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y
+          CONFIG_CCACHE=y
+          EOF
+
+          # Dynamic localversion
+          LOCALVERSION="-${{ inputs.android_version }}-${{ inputs.kernel_version }}-${{ inputs.os_patch_level }}-kowsu${{ env.KSUVER }}"
+          echo "CONFIG_LOCALVERSION=\"$LOCALVERSION\"" >> "$FRAGMENT"
+
+          echo "FRAGMENT_PATH=$FRAGMENT" >> $GITHUB_ENV
 
       # -------------------------------------------------
-      # 13. Fix localversion and build timestamp
-      # -------------------------------------------------
-      - name: Fix localversion and build timestamp
-        run: |
-          cd kernel_gki
-          # 1. Set correct LOCALVERSION in defconfig (NO Sultan replacement)
-          DEFCONFIG="common/arch/arm64/configs/${{ inputs.codename }}_defconfig"
-          if ! grep -q "CONFIG_LOCALVERSION=" "$DEFCONFIG"; then
-            echo 'CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"' >> "$DEFCONFIG"
-          else
-            sed -i 's|CONFIG_LOCALVERSION=.*|CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"|' "$DEFCONFIG"
-          fi
-          # 2. Fix setlocalversion script (correct path: common/scripts/)
-          sed -i 's/${LOCALVERSION+set}/set/' common/scripts/setlocalversion
-          # 3. Set fixed build timestamp
-          perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "Tue Jul 8 09:17:32 UTC 2025"/' init/Makefile
-
-      # -------------------------------------------------
-      # 14. Build kernel (no retry, no ccache setup)
+      # 13. Build kernel using GKI base + fragment (Bazel only)
       # -------------------------------------------------
       - name: Build kernel
         run: |
           set -e
-          set -x
           cd "$GITHUB_WORKSPACE/kernel_gki"
-         
-          # Build using custom defconfig
-          if [ -f "build/build.sh" ]; then
-            echo "Using build.sh with custom defconfig..."
-            LTO=thin \
-            BUILD_CONFIG=common/arch/arm64/configs/${{ inputs.codename }}_defconfig \
-            build/build.sh \
-              CC="ccache clang" \
-              LD=ld.lld \
-              HOSTLD=ld.lld \
-              || exit 1
-          else
-            echo "Using Bazel with custom defconfig..."
-            # Bazel still needs a BUILD_CONFIG fragment
-            echo "CONFIG_FILE=common/arch/arm64/configs/${{ inputs.codename }}_defconfig" > .build_config_local
-            tools/bazel build \
-              --disk_cache=$HOME/.cache/bazel \
-              --config=fast \
-              --lto=thin \
-              //common:kernel_aarch64_dist \
-              || exit 1
-          fi
+
+          cat > .build_config_local << EOF
+          BUILD_CONFIG=common/build.config.gki.aarch64
+          GKI_CONFIG_FRAGMENT=$FRAGMENT_PATH
+          EOF
+
+          tools/bazel build \
+            --disk_cache=$HOME/.cache/bazel \
+            --config=fast \
+            --lto=thin \
+            //common:kernel_aarch64_dist
 
       # -------------------------------------------------
-      # 15. Package with AnyKernel3
+      # 14. Package with AnyKernel3
       # -------------------------------------------------
       - name: Package kernel
         run: |
           cd kernel_gki
-          IMAGE="out/arch/arm64/boot/Image"
+          IMAGE="out/common/dist/Image"
           if [ ! -f "$IMAGE" ]; then
             echo "ERROR: Kernel Image not found at $IMAGE"
             exit 1
@@ -310,13 +292,13 @@ jobs:
           cp -v "$IMAGE" ../AnyKernel3/
           cd ../AnyKernel3
           mkdir -p ../builds
-          ZIP_NAME="KowSU-${{ env.KSUVER }}-${{ inputs.codename }}_GKI-6.1.134_SUSFS.zip"
+          ZIP_NAME="KowSU-${{ env.KSUVER }}-${{ inputs.codename }}_GKI-${{ inputs.kernel_version }}_SUSFS.zip"
           ZIP_PATH="../builds/$ZIP_NAME"
           zip -r9 "$ZIP_PATH" ./* > /dev/null
           echo "ZIP_NAME=$ZIP_PATH" >> $GITHUB_ENV
 
       # -------------------------------------------------
-      # 16. Upload artifact
+      # 15. Upload artifact
       # -------------------------------------------------
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -326,7 +308,7 @@ jobs:
           retention-days: 3
 
       # -------------------------------------------------
-      # 17. ccache statistics (optional, no setup)
+      # 16. ccache statistics (optional)
       # -------------------------------------------------
       - name: ccache statistics
         run: ccache -s
