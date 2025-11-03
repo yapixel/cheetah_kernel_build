@@ -1,4 +1,4 @@
-name: GKI KowSU (Clang r487747c – fixed paths)
+name: GKI KowSU (GKI-native toolchains)
 
 permissions:
   contents: write
@@ -19,6 +19,10 @@ on:
       os_patch_level:
         required: true
         type: string
+      maximize_space:
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   build-kernel-GKI-kowsu-susfs:
@@ -26,9 +30,10 @@ jobs:
 
     steps:
       # -------------------------------------------------
-      # 1. Maximize disk space
+      # 1. Maximize disk space (optional)
       # -------------------------------------------------
-      - name: Maximize build space
+      - name: Maximize build space (optional)
+        if: ${{ inputs.maximize_space }}
         uses: easimon/maximize-build-space@master
         with:
           root-reserve-mb: 8192
@@ -75,37 +80,7 @@ jobs:
           git clone https://github.com/KOWX712/files.git kowsu_patches
 
       # -------------------------------------------------
-      # 5. Download Clang r487747c (17.0.2)
-      # -------------------------------------------------
-      - name: Download Clang (17.0.2_r487747c)
-        run: |
-          mkdir -p $HOME/clang
-          cd $HOME/clang
-          wget -q https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android14-release/clang-r487747c.tar.gz -O clang.tar.gz
-          tar -xzf clang.tar.gz
-          rm clang.tar.gz
-          echo "CLANG_PATH=$HOME/clang/bin" >> $GITHUB_ENV
-          echo "$HOME/clang/bin" >> $GITHUB_PATH
-
-      # -------------------------------------------------
-      # 6. Download AOSP pre-builts for ARM toolchains
-      # -------------------------------------------------
-      - name: Download AOSP pre-builts (ARM toolchains)
-        run: |
-          AOSP=android.googlesource.com
-          BRANCH=main-kernel-build-2024
-          git clone https://$AOSP/kernel/prebuilts/build-tools -b $BRANCH --depth 1 kernel-build-tools
-
-      # -------------------------------------------------
-      # 7. Set toolchain env
-      # -------------------------------------------------
-      - name: Set toolchain env
-        run: |
-          echo "ARM64_TOOLCHAIN=$GITHUB_WORKSPACE/kernel-build-tools/linux-x86/bin/aarch64-linux-gnu-" >> $GITHUB_ENV
-          echo "ARM32_TOOLCHAIN=$GITHUB_WORKSPACE/kernel-build-tools/linux-x86/bin/arm-linux-gnueabi-" >> $GITHUB_ENV
-
-      # -------------------------------------------------
-      # 8. Repo init + sync kernel source
+      # 5. Repo init + sync kernel source
       # -------------------------------------------------
       - name: Initialize & sync kernel source
         run: |
@@ -125,7 +100,25 @@ jobs:
           $REPO sync -c -j$(nproc --all) --no-tags --fail-fast
 
       # -------------------------------------------------
-      # 9. Add KernelSU (KowSU)
+      # 6. Use GKI-native Clang (r487747c)
+      # -------------------------------------------------
+      - name: Set Clang from GKI prebuilts
+        run: |
+          CLANG_ROOT="$GITHUB_WORKSPACE/kernel_gki/prebuilts/clang/host/linux-x86/clang-r487747c"
+          echo "CLANG_PATH=$CLANG_ROOT/bin" >> $GITHUB_ENV
+          echo "$CLANG_ROOT/bin" >> $GITHUB_PATH
+
+      # -------------------------------------------------
+      # 7. Use GKI-native GCC (ARM64 + ARM32)
+      # -------------------------------------------------
+      - name: Set GCC from GKI prebuilts
+        run: |
+          GCC_ROOT="$GITHUB_WORKSPACE/kernel_gki/prebuilts/gcc/linux-x86"
+          echo "ARM64_TOOLCHAIN=$GCC_ROOT/aarch64/aarch64-linux-android-4.9/bin/aarch64-linux-android-" >> $GITHUB_ENV
+          echo "ARM32_TOOLCHAIN=$GCC_ROOT/arm/arm-linux-androideabi-4.9/bin/arm-linux-androideabi-" >> $GITHUB_ENV
+
+      # -------------------------------------------------
+      # 8. Add KernelSU (KowSU)
       # -------------------------------------------------
       - name: Add KernelSU
         run: |
@@ -133,7 +126,7 @@ jobs:
           curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/master/kernel/setup.sh" | bash -s master
 
       # -------------------------------------------------
-      # 10. Apply SUSFS & KowSU patches
+      # 9. Apply SUSFS & KowSU patches
       # -------------------------------------------------
       - name: Apply SUSFS & KowSU patches
         run: |
@@ -154,7 +147,7 @@ jobs:
           patch -p1 --fuzz=3 < fix_core_hook_kowsu.patch
 
       # -------------------------------------------------
-      # 11. Apply manual syscall hook
+      # 10. Apply manual syscall hook
       # -------------------------------------------------
       - name: Apply manual syscall hook
         run: |
@@ -163,7 +156,7 @@ jobs:
           patch -p1 --forward < min_scope_syscall_hooks_v1.5.patch
 
       # -------------------------------------------------
-      # 12. Compute KernelSU version
+      # 11. Compute KernelSU version
       # -------------------------------------------------
       - name: Compute KernelSU version
         run: |
@@ -174,7 +167,7 @@ jobs:
           echo "KSUVER=$KSUVER" >> $GITHUB_ENV
 
       # -------------------------------------------------
-      # 13. Create device-specific defconfig inside common/
+      # 12. Create device-specific defconfig (in common/)
       # -------------------------------------------------
       - name: Create device-specific defconfig
         env:
@@ -183,6 +176,8 @@ jobs:
           cd kernel_gki
           DEFCONFIG_PATH="common/arch/arm64/configs/${CODENAME}_defconfig"
           echo "# ${CODENAME} GKI defconfig" > "$DEFCONFIG_PATH"
+
+          # Pixel 8 core config
           echo "CONFIG_ARM64_CORTEX_X3=y" >> "$DEFCONFIG_PATH"
           echo "CONFIG_ARM64_CORTEX_A715=y" >> "$DEFCONFIG_PATH"
           echo "CONFIG_ARM64_CORTEX_A510=y" >> "$DEFCONFIG_PATH"
@@ -204,7 +199,7 @@ jobs:
           echo "CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y" >> "$DEFCONFIG_PATH"
           echo "CONFIG_LTO_CLANG_THIN=y" >> "$DEFCONFIG_PATH"
 
-          # KowSU + SUSFS (your exact echo style)
+          # KowSU + SUSFS
           echo "CONFIG_KSU=y" >> "$DEFCONFIG_PATH"
           echo "CONFIG_KSU_KPROBES_HOOK=n" >> "$DEFCONFIG_PATH"
           echo "CONFIG_KSU_SUSFS=y" >> "$DEFCONFIG_PATH"
@@ -262,7 +257,7 @@ jobs:
           echo "CONFIG_CCACHE=y" >> "$DEFCONFIG_PATH"
 
       # -------------------------------------------------
-      # 14. sed / perl tweaks (still inside common/)
+      # 13. Run sed / perl tweaks
       # -------------------------------------------------
       - name: Run sed and perl tweaks
         run: |
@@ -273,7 +268,7 @@ jobs:
           perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "Tue Jul 8 09:17:32 UTC 2025"/' init/Makefile
 
       # -------------------------------------------------
-      # 15. Build kernel (run from top-level kernel_gki)
+      # 14. Build kernel
       # -------------------------------------------------
       - name: Build kernel
         run: |
@@ -301,7 +296,7 @@ jobs:
             all
 
       # -------------------------------------------------
-      # 16. Package with AnyKernel3
+      # 15. Package with AnyKernel3
       # -------------------------------------------------
       - name: Package kernel
         run: |
@@ -321,7 +316,7 @@ jobs:
           echo "ZIP_NAME=$ZIP_PATH" >> $GITHUB_ENV
 
       # -------------------------------------------------
-      # 17. Upload artifact
+      # 16. Upload artifact
       # -------------------------------------------------
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -330,4 +325,8 @@ jobs:
           path: ${{ env.ZIP_NAME }}
           retention-days: 3
 
-     
+      # -------------------------------------------------
+      # 17. ccache statistics (optional)
+      # -------------------------------------------------
+      - name: ccache statistics
+        run: ccache -s
