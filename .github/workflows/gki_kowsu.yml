@@ -240,13 +240,29 @@ jobs:
           export KBUILD_BUILD_USER="build-user"
           export KBUILD_BUILD_HOST="build-host"
 
-          make -j${{ env.THREADS }} \
+          # Limit jobs to prevent OOM (critical!)
+          JOBS=4
+
+          echo "Building with $JOBS parallel jobs to avoid OOM..."
+
+          make -j$JOBS \
             LLVM_IAS=1 LLVM=1 ARCH=arm64 \
             CLANG_TRIPLE=aarch64-linux-gnu- \
             CROSS_COMPILE_COMPAT="${{ env.ARM32_TOOLCHAIN }}" \
             CROSS_COMPILE="${{ env.ARM64_TOOLCHAIN }}" \
             CC="ccache clang" LD=ld.lld HOSTLD=ld.lld \
-            O="${{ env.OUT_DIR }}" gki_defconfig all
+            O=out \
+            ${{ inputs.codename }}_defconfig
+
+          # Now build modules + Image
+          make -j$JOBS \
+            LLVM_IAS=1 LLVM=1 ARCH=arm64 \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE_COMPAT="${{ env.ARM32_TOOLCHAIN }}" \
+            CROSS_COMPILE="${{ env.ARM64_TOOLCHAIN }}" \
+            CC="ccache clang" LD=ld.lld HOSTLD=ld.lld \
+            O=out \
+            all
 
      
       
