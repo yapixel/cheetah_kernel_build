@@ -142,7 +142,7 @@ jobs:
           cp -r ../susfs4ksu/kernel_patches/fs/* ./common//fs/
           cp -r ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
           # Change to common directory and apply common SUSFS patch
-          cd ../common
+          cd ./common
           patch --fuzz=10 -p1 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
 
           cd KernelSU
