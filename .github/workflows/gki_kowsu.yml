@@ -276,33 +276,43 @@ jobs:
 
           # 3. Set fixed build timestamp
           perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "Tue Jul 8 09:17:32 UTC 2025"/' init/Makefile
-      # -------------------------------------------------
-      # 14. Build kernel
-      # -------------------------------------------------
-      - name: Build kernel
-        run: |
-          cd kernel_gki
-          export KBUILD_BUILD_USER="build-user"
-          export KBUILD_BUILD_HOST="build-host"
-          JOBS=4
+     
+      - name: Build with retry
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 30
+          max_attempts: 3
+          retry_on: timeout
+          command: |
+            set -e
+            set -x
+            cd "$GITHUB_WORKSPACE/kernel_gki"
 
-          make -j$JOBS \
-            LLVM_IAS=1 LLVM=1 ARCH=arm64 \
-            CLANG_TRIPLE=aarch64-linux-gnu- \
-            CROSS_COMPILE_COMPAT="${{ env.ARM32_TOOLCHAIN }}" \
-            CROSS_COMPILE="${{ env.ARM64_TOOLCHAIN }}" \
-            CC="ccache clang" LD=ld.lld HOSTLD=ld.lld \
-            O=out \
-            ${{ inputs.codename }}_defconfig
+            
 
-          make -j$JOBS \
-            LLVM_IAS=1 LLVM=1 ARCH=arm64 \
-            CLANG_TRIPLE=aarch64-linux-gnu- \
-            CROSS_COMPILE_COMPAT="${{ env.ARM32_TOOLCHAIN }}" \
-            CROSS_COMPILE="${{ env.ARM64_TOOLCHAIN }}" \
-            CC="ccache clang" LD=ld.lld HOSTLD=ld.lld \
-            O=out \
-            all
+            # Build using  custom defconfig
+            if [ -f "build/build.sh" ]; then
+              echo "Using build.sh with custom defconfig..."
+              LTO=thin \
+              BUILD_CONFIG=common/arch/arm64/configs/${{ inputs.codename }}_defconfig \
+              build/build.sh \
+                CC="ccache clang" \
+                LD=ld.lld \
+                HOSTLD=ld.lld \
+                || exit 1
+            else
+              echo "Using Bazel with custom defconfig..."
+              # Bazel still needs a BUILD_CONFIG fragment
+              echo "CONFIG_FILE=common/arch/arm64/configs/${{ inputs.codename }}_defconfig" > .build_config_local
+              tools/bazel build \
+                --disk_cache=$HOME/.cache/bazel \
+                --config=fast \
+                --lto=thin \
+                //common:kernel_aarch64_dist \
+                || exit 1
+            fi
+
+            ccache --show-stats
 
       # -------------------------------------------------
       # 15. Package with AnyKernel3
