@@ -26,7 +26,7 @@ jobs:
       repo: "common"
       android_version: "android14"
       kernel_version: "6.1"
-      os_patch_level: 2025-05
+      #os_patch_level: 2025-05
       
   build-gki-kleaf-kowsu:
     uses: ./.github/workflows/gki_kleaf_kowsu.yml
