@@ -287,6 +287,9 @@ jobs:
       # 13. Build with Kleaf (6.1.134)
       # -------------------------------------------------
       - name: Build kernel with Kleaf
+        env:
+          KBUILD_BUILD_USER: "kleaf"
+          KBUILD_BUILD_HOST: "build-host"
         run: |
           set -e
           cd "$CONFIG"
