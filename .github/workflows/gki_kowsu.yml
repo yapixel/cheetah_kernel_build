@@ -257,16 +257,25 @@ jobs:
           echo "CONFIG_CCACHE=y" >> "$DEFCONFIG_PATH"
 
       # -------------------------------------------------
-      # 13. Run sed / perl tweaks
+      # 13. Fix localversion and build timestamp 
       # -------------------------------------------------
-      - name: Run sed and perl tweaks
+      - name: Fix localversion and build timestamp
         run: |
           cd kernel_gki
-          sed -i 's/CONFIG_LOCALVERSION="-Sultan"/CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"/' \
-              common/arch/arm64/configs/${{ inputs.codename }}_defconfig
-          sed -i 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
-          perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "Tue Jul 8 09:17:32 UTC 2025"/' init/Makefile
 
+          # 1. Set correct LOCALVERSION in defconfig (NO Sultan replacement)
+          DEFCONFIG="common/arch/arm64/configs/${{ inputs.codename }}_defconfig"
+          if ! grep -q "CONFIG_LOCALVERSION=" "$DEFCONFIG"; then
+            echo 'CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"' >> "$DEFCONFIG"
+          else
+            sed -i 's|CONFIG_LOCALVERSION=.*|CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"|' "$DEFCONFIG"
+          fi
+
+          # 2. Fix setlocalversion script (correct path: common/scripts/)
+          sed -i 's/${LOCALVERSION+set}/set/' common/scripts/setlocalversion
+
+          # 3. Set fixed build timestamp
+          perl -pi -e 's/build-timestamp = \$\(or \$\(KBUILD_BUILD_TIMESTAMP\), \$\(build-timestamp-auto\)\)/build-timestamp = "Tue Jul 8 09:17:32 UTC 2025"/' init/Makefile
       # -------------------------------------------------
       # 14. Build kernel
       # -------------------------------------------------
