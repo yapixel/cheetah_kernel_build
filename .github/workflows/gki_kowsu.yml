@@ -163,7 +163,7 @@ jobs:
           echo "KSUVER=$KSUVER" >> $GITHUB_ENV
 
       # -------------------------------------------------
-      # 12. Create GKI config fragment (NOT full defconfig)
+      # 12. Create GKI config fragment (fixed LOCALVERSION)
       # -------------------------------------------------
       - name: Create GKI config fragment
         env:
@@ -253,9 +253,8 @@ jobs:
           CONFIG_CCACHE=y
           EOF
 
-          # Dynamic localversion
-          LOCALVERSION="-${{ inputs.android_version }}-${{ inputs.kernel_version }}-${{ inputs.os_patch_level }}-kowsu${{ env.KSUVER }}"
-          echo "CONFIG_LOCALVERSION=\"$LOCALVERSION\"" >> "$FRAGMENT"
+          # Fixed LOCALVERSION (exactly as you had before)
+          echo 'CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"' >> "$FRAGMENT"
 
           echo "FRAGMENT_PATH=$FRAGMENT" >> $GITHUB_ENV
 
