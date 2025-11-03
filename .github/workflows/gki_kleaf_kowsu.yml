@@ -345,7 +345,7 @@ jobs:
       - name: Upload ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: kowsu-${{ inputs.codename }}-image-only
+          name: kowsu-${{ inputs.codename }}-gki
           path: ${{ env.ZIP_PATH }}
           retention-days: 7
 
