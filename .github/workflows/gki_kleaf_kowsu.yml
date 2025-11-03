@@ -314,47 +314,41 @@ jobs:
          stat "$GITHUB_WORKSPACE/android14-6.1-134/out/kernel_aarch64/dist/Image.lz4" 2>/dev/null || echo "Not found"
 
     
-      - name: Package kernel with AnyKernel3
+       # 12. Package into AnyKernel3
+      - name: Package Image.lz4 into AnyKernel3
         run: |
-         set -e
+          DIST_DIR="$CONFIG/out/kernel_aarch64/dist"
+          AK3_DIR="$GITHUB_WORKSPACE/AnyKernel3"
+          BUILD_DIR="$GITHUB_WORKSPACE/builds"
+          mkdir -p "$BUILD_DIR"
 
-         # === 1. Define paths (Kleaf output) ===
-         KERNEL_ROOT="$GITHUB_WORKSPACE/android14-6.1-134"  # <-- Your repo sync dir
-         DIST_DIR="$KERNEL_ROOT/out/kernel_aarch64/dist"
-         BUILDS_DIR="$GITHUB_WORKSPACE/builds"
-         mkdir -p "$BUILDS_DIR"
+          # Verify Image.lz4 exists
+          if [ ! -f "$DIST_DIR/Image.lz4" ]; then
+            echo "ERROR: Image.lz4 not found!"
+            ls -la "$DIST_DIR"
+            exit 1
+          fi
 
-         
-         BOOT_IMG="$DIST_DIR/Image.lz4"
-         if [ ! -f "$BOOT_IMG" ]; then
-         echo "ERROR: Image.lz4 not found at $BOOT_IMG"
-         echo "Contents of dist/:"
-         ls -la "$DIST_DIR" || true
-         exit 1
-         fi
+          # Copy only Image.lz4
+          cp "$DIST_DIR/Image.lz4" "$AK3_DIR/Image"
 
-    
-         cd AnyKernel3
-         ZIP_NAME="KowSU-${{ env.KSUVER }}-${{ inputs.codename }}_GKI-6.1.134_SUSFS.zip"
-         ZIP_PATH="$BUILDS_DIR/$ZIP_NAME"
+          # Create ZIP
+          cd "$AK3_DIR"
+          ZIP_NAME="KowSU-${{ env.KSUVER }}-${{ inputs.codename }}-GKI-${{ inputs.kernel_version }}.${{ inputs.sub_level }}-SUSFS.zip"
+          ZIP_PATH="$BUILD_DIR/$ZIP_NAME"
+          zip -r9 "$ZIP_PATH" ./* > /dev/null
 
-         zip -r9 "$ZIP_PATH" ./* > /dev/null
-         echo "ZIP created: $ZIP_PATH"
+          echo "ZIP_PATH=$ZIP_PATH" >> $GITHUB_ENV
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
 
-         # === 5. Export for upload ===
-         echo "ZIP_PATH=$ZIP_PATH" >> $GITHUB_ENV
-         echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
-
-
-      - name: Upload kernel zip
+      # 13. Upload
+      - name: Upload ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: kernel-${{ inputs.codename }}-kowsu-6.1
-          path: ${{ env.ZIP_PATH }}   # Absolute path → VALID
-          retention-days: 3
+          name: kowsu-${{ inputs.codename }}-image-only
+          path: ${{ env.ZIP_PATH }}
+          retention-days: 7
 
-      # -------------------------------------------------
-      # 16. ccache stats
-      # -------------------------------------------------
-      - name: ccache statistics
+      # 14. ccache stats
+      - name: ccache stats
         run: ccache -s
