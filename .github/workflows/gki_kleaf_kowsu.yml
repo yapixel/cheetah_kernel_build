@@ -17,6 +17,10 @@ on:
         required: true
         type: string
         default: "6.1"
+      sub_level: 
+        required: true
+        type: string
+        default: "134"
       os_patch_level:
         required: true
         type: string
