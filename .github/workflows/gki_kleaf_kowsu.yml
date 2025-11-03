@@ -149,11 +149,11 @@ jobs:
           cp ../../kowsu_patches/KowSU/revert_commit_conflict_with_susfs.patch .
           patch -p1 --fuzz=3 < revert_commit_conflict_with_susfs.patch
           cp ../../kowsu_patches/KowSU/enable_susfs_for_kowsu.patch .
-          patch -p1 < enable_susfs_for_kowsu.patch
+          patch -p1 < enable_susfs_for_kowsu.patch || true
           cp ../../kernel_patches/kowsu/fix_ksud.c.patch .
           patch -p1 < fix_ksud.c.patch
           cp ../../kernel_patches/kowsu/fix_ksu.patch .
-          patch -p1 --fuzz=3 < fix_ksu.patch
+          patch -p1 < fix_ksu.patch
           cp ../../kowsu_patches/KowSU/fix_core_hook_kowsu.patch .
           patch -p1 --fuzz=3 < fix_core_hook_kowsu.patch
           
