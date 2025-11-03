@@ -309,9 +309,9 @@ jobs:
       - name: Package kernel
         run: |
           cd $CONFIG
-          DIST="out/dist"
+          DIST="out/kernel_aarch64/dist"
           BOOT_IMG="$DIST/boot.img"
-          VENDOR_DLKM="$DIST/vendor_dlkm.img"
+          #VENDOR_DLKM="$DIST/vendor_dlkm.img"
 
           if [ ! -f "$BOOT_IMG" ]; then
             echo "ERROR: boot.img not found at $BOOT_IMG"
@@ -319,10 +319,10 @@ jobs:
           fi
 
           cp -v "$BOOT_IMG" ../AnyKernel3/
-          if [ -f "$VENDOR_DLKM" ]; then
-            mkdir -p ../AnyKernel3/modules
-            cp -v "$VENDOR_DLKM" ../AnyKernel3/modules/vendor_dlkm.img
-          fi
+          #if [ -f "$VENDOR_DLKM" ]; then
+          #  mkdir -p ../AnyKernel3/modules
+          #  cp -v "$VENDOR_DLKM" ../AnyKernel3/modules/vendor_dlkm.img
+          #fi
 
           cd ../AnyKernel3
           mkdir -p ../builds
