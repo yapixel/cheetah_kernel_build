@@ -345,9 +345,9 @@ jobs:
       - name: Upload ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: kernel-${{ inputs.codename }}-kowsu
+          name: kernel-${{ inputs.codename }}-kowsu-${{ inputs.kernel_version }}.${{ inputs.sub_level }}
           path: ${{ env.ZIP_PATH }}
-          retention-days: 7
+          retention-days: 3
 
       # 14. ccache stats
       - name: ccache stats
