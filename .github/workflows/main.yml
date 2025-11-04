@@ -70,19 +70,30 @@ jobs:
     with:
       susfs_version: ${{ needs.generate-susfs-version.outputs.susfs_version }}
 
- # ------------------------------------------------------------------
+  # ------------------------------------------------------------------
   # 4. Release Job (only if not 'Actions')
   # ------------------------------------------------------------------
   release:
     runs-on: ubuntu-latest
     if: ${{ inputs.release_type != 'Actions' }}
     needs:
+      - generate-susfs-version      # ← NEW: gives us the SUSFS version
       - build-a14-6-1
       - build-sultan
     env:
       GH_TOKEN: ${{ github.token }}
 
     steps:
+      # ----------------------------------------------------------
+      # 0. Checkout (required for gh-release)
+      # ----------------------------------------------------------
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github
+          sparse-checkout-cone-mode: false
+
       # ----------------------------------------------------------
       # 1. Generate New Tag
       # ----------------------------------------------------------
@@ -124,7 +135,7 @@ jobs:
       - name: Set Release Name
         run: |
           SUSFS_VERSION="${{ steps.extract-version.outputs.susfs_version }}"
-          echo "RELEASE_NAME=*TEST BUILD* Sultan Kernels With KernelSU/MKSU & SUSFS $SUSFS_VERSION *TEST BUILD*" >> $GITHUB_ENV
+          echo "RELEASE_NAME=*TEST BUILD* Sultan Kernels With KernelSU/M apo & SUSFS $SUSFS_VERSION *TEST BUILD*" >> $GITHUB_ENV
 
       # ----------------------------------------------------------
       # 5. Define Release Notes
@@ -137,6 +148,7 @@ jobs:
           RELEASE_NOTES=$(cat << EOF
             This release contains KernelSU and MKSU variants with SUSFS $SUSFS_VERSION
             
+            **COMPATIBILITY NOTICE**
             ⚠️ **COMPATIBILITY NOTICE** ⚠️
             Please ensure compatibility by comparing release dates with official Sultan kernel releases:
             - Check official Sultan releases: https://github.com/kerneltoast/android_kernel_google_gs201/releases
