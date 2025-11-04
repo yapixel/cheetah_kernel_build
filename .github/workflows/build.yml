@@ -34,7 +34,7 @@ on:
 jobs:
   build-kernel:
     runs-on: ubuntu-latest
-    name: ${{ inputs.codename }} | ${{ inputs.kernel_version }}.${{ inputs.sub_level }} | ${{ inputs.os_patch_level }}
+    name: ${{ inputs.kernel_version }}.${{ inputs.sub_level }} | ${{ inputs.os_patch_level }}
     env:
       DEBIAN_FRONTEND: noninteractive
       CONFIG: ${{ inputs.android_version }}-${{ inputs.kernel_version }}-${{ inputs.sub_level }}
@@ -177,7 +177,7 @@ jobs:
       # -------------------------------------------------
       - name: Create GKI Config Fragment
         run: |
-          FRAGMENT="common/arch/arm64/configs/${{ inputs.codename }}_fragment.config"
+          FRAGMENT="common/arch/arm64/configs/gki_fragment.config"
           cat > "$CONFIG/$FRAGMENT" << 'EOF'
           # === Pixel Core Config ===
           CONFIG_ARM64_CORTEX_X3=y
