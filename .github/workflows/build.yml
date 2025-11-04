@@ -296,7 +296,7 @@ jobs:
       - name: Upload Kernel ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.codename }}-KowSU-${{ inputs.kernel_version }}.${{ inputs.sub_level }}-${{ inputs.os_patch_level }}
+          name: KowSU-${{ inputs.kernel_version }}.${{ inputs.sub_level }}-${{ inputs.os_patch_level }}
           path: ${{ env.ZIP_PATH }}
           retention-days: 7
 
