@@ -1,28 +1,28 @@
+
 name: Kernel Config - A14 6.1
 
 permissions:
-  contents: write   # push tags, create releases
-  actions: write    # trigger downstream workflows
+  contents: write  # Allow writing to repository contents
+  actions: write   # Allows triggering actions
 
 on:
-  workflow_call: {}   # called from the release workflow
+  workflow_call:
+    inputs: {}
 
 jobs:
   build-kernels-a14-6-1:
     name: "6.1.${{ matrix.sub_level }}-${{ matrix.os_patch_level }}"
-    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
           
+         
           - sub_level: "134"
             os_patch_level: "2025-05"
           - sub_level: "145"
             os_patch_level: "2025-09"
           
-
-    # Call your actual build workflow (e.g. GKI Kleaf + Sultan)
     uses: ./.github/workflows/gki_kleaf_kowsu.yml
     secrets: inherit
     with:
@@ -30,4 +30,3 @@ jobs:
       kernel_version: "6.1"
       sub_level: ${{ matrix.sub_level }}
       os_patch_level: ${{ matrix.os_patch_level }}
-      
