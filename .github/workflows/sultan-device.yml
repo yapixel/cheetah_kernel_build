@@ -1,0 +1,29 @@
+
+name: Sultan GCC Device Matrix
+
+permissions:
+  contents: write
+  actions: write
+
+on:
+  workflow_call:
+
+jobs:
+  build-sultan:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - codename: "gs201"
+            repo: "android_kernel_google_gs201"
+          - codename: "zuma"
+            repo: "android_kernel_google_zuma"
+          - codename: "zumapro"
+            repo: "android_kernel_google_zumapro"
+    uses: ./.github/workflows/sultan-build.yml
+    secrets: inherit
+    with:
+      codename: ${{ matrix.codename }}
+      repo: ${{ matrix.repo }}
+      android_version: "android14"
+      kernel_version: "6.1"
