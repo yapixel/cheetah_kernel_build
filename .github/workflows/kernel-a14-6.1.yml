@@ -1,9 +1,8 @@
-
 name: Kernel Config - A14 6.1
 
 permissions:
-  contents: write  # Allow writing to repository contents
-  actions: write   # Allows triggering actions
+  contents: write
+  actions: write
 
 on:
   workflow_call:
@@ -16,13 +15,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          
-         
           - sub_level: "134"
             os_patch_level: "2025-05"
           - sub_level: "145"
             os_patch_level: "2025-09"
-          
+
     uses: ./.github/workflows/gki_kleaf_kowsu.yml
     secrets: inherit
     with:
