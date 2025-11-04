@@ -1,0 +1,311 @@
+name: GKI Kleaf KowSU Build
+
+permissions:
+  contents: write
+  actions: write
+
+on:
+  workflow_call:
+    inputs:
+      codename:
+        description: "Device codename (e.g. husky, akita)"
+        required: true
+        type: string
+      android_version:
+        description: "Android version (e.g. android14)"
+        required: true
+        type: string
+        default: android14
+      kernel_version:
+        description: "Kernel version (e.g. 6.1)"
+        required: true
+        type: string
+        default: "6.1"
+      sub_level:
+        description: "Kernel sub-level (e.g. 134, 145)"
+        required: true
+        type: string
+      os_patch_level:
+        description: "OS patch level (e.g. 2025-05, 2025-09)"
+        required: true
+        type: string
+      maximize_space:
+        description: "Free up disk space (recommended)"
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  build-kernel:
+    runs-on: ubuntu-latest
+    name: ${{ inputs.codename }} | ${{ inputs.kernel_version }}.${{ inputs.sub_level }} | ${{ inputs.os_patch_level }}
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      CONFIG: ${{ inputs.android_version }}-${{ inputs.kernel_version }}-${{ inputs.sub_level }}
+      BRANCH: common-${{ inputs.android_version }}-${{ inputs.kernel_version }}-${{ inputs.os_patch_level }}
+
+    steps:
+      # -------------------------------------------------
+      # 1. Maximize Disk Space
+      # -------------------------------------------------
+      - name: Maximize Build Space
+        if: ${{ inputs.maximize_space }}
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 8192
+          temp-reserve-mb: 2048
+          swap-size-mb: 8192
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+
+      # -------------------------------------------------
+      # 2. Checkout (for gh, repo, etc.)
+      # -------------------------------------------------
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # -------------------------------------------------
+      # 3. Install Dependencies
+      # -------------------------------------------------
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential bc bison flex libssl-dev libelf-dev libncurses-dev \
+            zip ccache curl git wget cpio python3 python3-pip device-tree-compiler \
+            kmod dwarves pahole repo openjdk-11-jdk
+
+      # -------------------------------------------------
+      # 4. Install Repo Tool
+      # -------------------------------------------------
+      - name: Install Repo
+        run: |
+          mkdir -p ./bin
+          curl https://storage.googleapis.com/git-repo-downloads/repo > ./bin/repo
+          chmod a+rx ./bin/repo
+          echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
+
+      # -------------------------------------------------
+      # 5. Clone Patch Repos
+      # -------------------------------------------------
+      - name: Clone Patch Repositories
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git clone https://github.com/TheWildJames/AnyKernel3.git -b gki-2.0
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}
+          git clone https://github.com/yapixel/kernel_patches.git
+          git clone https://github.com/KOWX712/files.git kowsu_patches
+
+      # -------------------------------------------------
+      # 6. Repo Init & Sync
+      # -------------------------------------------------
+      - name: Initialize & Sync Kernel Source
+        run: |
+          mkdir -p "$CONFIG"
+          cd "$CONFIG"
+
+          repo init --depth=1 -u https://android.googlesource.com/kernel/manifest -b $BRANCH --repo-rev=v2.16
+
+          # Handle deprecated branches
+          if git ls-remote --exit-code https://android.googlesource.com/kernel/common "refs/heads/$BRANCH" | grep -q deprecated; then
+            echo "Warning: Branch $BRANCH is deprecated. Using deprecated/$BRANCH"
+            sed -i "s|\"$BRANCH\"|\"deprecated/$BRANCH\"|g" .repo/manifests/default.xml
+          fi
+
+          repo sync -c -j$(nproc --all) --no-tags --fail-fast
+
+      # -------------------------------------------------
+      # 7. Add KernelSU (KowSU)
+      # -------------------------------------------------
+      - name: Add KowSU
+        run: |
+          cd "$CONFIG"
+          curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/master/kernel/setup.sh" | bash -s master
+
+      # -------------------------------------------------
+      # 8. Apply SUSFS + KowSU Patches
+      # -------------------------------------------------
+      - name: Apply Patches
+        run: |
+          cd "$CONFIG"
+
+          # SUSFS
+          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch ./common/
+          cp -r ../susfs4ksu/kernel_patches/fs/* ./common/fs/
+          cp -r ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
+          cd ./common
+          patch --fuzz=10 -p1 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
+
+          # KowSU Patches
+          cd ../KernelSU
+          cp ../../kowsu_patches/KowSU/revert_commit_conflict_with_susfs.patch .
+          patch -p1 --fuzz=3 < revert_commit_conflict_with_susfs.patch || true
+
+          cp ../../kowsu_patches/KowSU/enable_susfs_for_kowsu.patch .
+          patch -p1 < enable_susfs_for_kowsu.patch || true
+
+          cp ../../kernel_patches/kowsu/fix_ksud.c.patch .
+          patch -p1 < fix_ksud.c.patch || true
+
+          cp ../../kernel_patches/kowsu/fix_ksu.patch .
+          patch -p1 < fix_ksu.patch || true
+
+          cp ../../kowsu_patches/KowSU/fix_core_hook_kowsu.patch .
+          patch -p1 --fuzz=3 < fix_core_hook_kowsu.patch || true
+
+          # Syscall Hook
+          cd ../common
+          cp ../../kernel_patches/syscall_hook/min_scope_syscall_hooks_v1.5.patch .
+          patch -p1 --forward < min_scope_syscall_hooks_v1.5.patch || true
+
+          # Hide Stuff
+          cp ../../kernel_patches/69_hide_stuff.patch .
+          patch -p1 -F 3 < 69_hide_stuff.patch || true
+
+      # -------------------------------------------------
+      # 9. Compute KSU Version
+      # -------------------------------------------------
+      - name: Compute KSU Version
+        run: |
+          cd "$CONFIG/KernelSU/kernel"
+          BASE=10200
+          COUNT=$(git rev-list --count HEAD)
+          KSUVER=$(( BASE + COUNT ))
+          echo "KSUVER=$KSUVER" >> $GITHUB_ENV
+
+      # -------------------------------------------------
+      # 10. Create Config Fragment
+      # -------------------------------------------------
+      - name: Create GKI Config Fragment
+        run: |
+          FRAGMENT="common/arch/arm64/configs/${{ inputs.codename }}_fragment.config"
+          cat > "$CONFIG/$FRAGMENT" << 'EOF'
+          # === Pixel Core Config ===
+          CONFIG_ARM64_CORTEX_X3=y
+          CONFIG_ARM64_CORTEX_A715=y
+          CONFIG_ARM64_CORTEX_A510=y
+          CONFIG_ARM64_VA_BITS=48
+          CONFIG_ARM64_PA_BITS=48
+          CONFIG_ARM64_TAGGED_ADDR_ABI=y
+          CONFIG_ARM64_SVE=y
+          CONFIG_ARM64_BTI=y
+          CONFIG_ARM64_PTR_AUTH=y
+          CONFIG_SCHED_MC=y
+          CONFIG_SCHED_CORE=y
+          CONFIG_ENERGY_MODEL=y
+          CONFIG_UCLAMP_TASK=y
+          CONFIG_UCLAMP_TASK_GROUP=y
+          CONFIG_SCHEDUTIL=y
+          CONFIG_CPU_FREQ=y
+          CONFIG_CPUFREQ_DT=y
+          CONFIG_CPU_FREQ_GOV_SCHEDUTIL=y
+          CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y
+          CONFIG_LTO_CLANG_THIN=y
+
+          # === KowSU + SUSFS ===
+          CONFIG_KSU=y
+          CONFIG_KSU_KPROBES_HOOK=n
+          CONFIG_KSU_SUSFS=y
+          CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
+          CONFIG_KSU_LSM_SECURITY_HOOKS=n
+          CONFIG_KSU_SUSFS_SUS_PATH=y
+          CONFIG_KSU_SUSFS_SUS_MOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y
+          CONFIG_KSU_SUSFS_SUS_KSTAT=y
+          CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n
+          CONFIG_KSU_SUSFS_TRY_UMOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y
+          CONFIG_KSU_SUSFS_SPOOF_UNAME=y
+          CONFIG_KSU_SUSFS_ENABLE_LOG=y
+          CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
+          CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
+          CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
+          CONFIG_KSU_SUSFS_SUS_SU=n
+          CONFIG_TMPFS_XATTR=y
+          CONFIG_TMPFS_POSIX_ACL=y
+          CONFIG_IP_NF_TARGET_TTL=y
+          CONFIG_IP6_NF_TARGET_HL=y
+          CONFIG_IP6_NF_MATCH_HL=y
+          CONFIG_TCP_CONG_ADVANCED=y
+          CONFIG_TCP_CONG_BBR=y
+          CONFIG_NET_SCH_FQ=y
+          CONFIG_BPF_STREAM_PARSER=y
+          CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y
+          CONFIG_NETFILTER_XT_SET=y
+          CONFIG_IP_SET=y
+          CONFIG_IP_SET_MAX=65534
+          CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y
+          CONFIG_CCACHE=y
+          EOF
+
+          # Fixed LOCALVERSION
+          echo 'CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"' >> "$CONFIG/$FRAGMENT"
+          echo "FRAGMENT_PATH=$CONFIG/$FRAGMENT" >> $GITHUB_ENV
+
+      # -------------------------------------------------
+      # 11. Build with Kleaf
+      # -------------------------------------------------
+      - name: Build Kernel with Kleaf
+        env:
+          KBUILD_BUILD_USER: kleaf
+          KBUILD_BUILD_HOST: build-host
+        run: |
+          cd "$CONFIG"
+          cat > .build_config_local << EOF
+          BUILD_CONFIG=common/build.config.gki.aarch64
+          GKI_CONFIG_FRAGMENT=$FRAGMENT_PATH
+          KLEAF_CHECK_ABI=false
+          EOF
+
+          tools/bazel run \
+            --disk_cache=$HOME/.cache/bazel \
+            --config=fast \
+            --lto=thin \
+            //common:kernel_aarch64_dist
+
+      # -------------------------------------------------
+      # 12. Package AnyKernel3 ZIP
+      # -------------------------------------------------
+      - name: Package AnyKernel3 ZIP
+        run: |
+          DIST_DIR="$CONFIG/out/kernel_aarch64/dist"
+          AK3_DIR="$GITHUB_WORKSPACE/AnyKernel3"
+          BUILD_DIR="$GITHUB_WORKSPACE/builds"
+          mkdir -p "$BUILD_DIR"
+
+          if [ ! -f "$DIST_DIR/Image.lz4" ]; then
+            echo "ERROR: Image.lz4 not found!"
+            ls -la "$DIST_DIR"
+            exit 1
+          fi
+
+          cp "$DIST_DIR/Image.lz4" "$AK3_DIR/Image"
+          cd "$AK3_DIR"
+
+          ZIP_NAME="KowSU-${{ env.KSUVER }}-${{ inputs.codename }}-GKI-${{ inputs.kernel_version }}.${{ inputs.sub_level }}-SUSFS.zip"
+          ZIP_PATH="$BUILD_DIR/$ZIP_NAME"
+
+          zip -r9 "$ZIP_PATH" ./* > /dev/null
+
+          echo "ZIP_PATH=$ZIP_PATH" >> $GITHUB_ENV
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+
+      # -------------------------------------------------
+      # 13. Upload Artifact
+      # -------------------------------------------------
+      - name: Upload Kernel ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.codename }}-KowSU-${{ inputs.kernel_version }}.${{ inputs.sub_level }}-${{ inputs.os_patch_level }}
+          path: ${{ env.ZIP_PATH }}
+          retention-days: 7
+
+      # -------------------------------------------------
+      # 14. ccache Stats
+      # -------------------------------------------------
+      - name: ccache Statistics
+        run: ccache -s
