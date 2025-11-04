@@ -35,6 +35,8 @@ jobs:
       ${{ inputs.build_selection == 'Android14-6.1' || inputs.build_selection == 'All' }}
     uses: ./.github/workflows/kernel-a14-6.1.yml
     secrets: inherit
+    with:
+      susfs_version: ${{ steps.tag.outputs.base }}
     # NO 'with:' block – kernel-a14-6.1.yml does NOT require codename
 
   # ------------------------------------------------------------------
@@ -45,6 +47,8 @@ jobs:
       ${{ inputs.build_selection == 'Sultan-GCC' || inputs.build_selection == 'All' }}
     uses: ./.github/workflows/sultan-device.yml
     secrets: inherit
+    with:
+      susfs_version: ${{ steps.tag.outputs.base }}
     # No inputs needed – matrix defined inside sultan-device.yml
 
   # ------------------------------------------------------------------
