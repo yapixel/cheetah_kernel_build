@@ -28,15 +28,14 @@ on:
 
 jobs:
   # ------------------------------------------------------------------
-  # Android 14 - 6.1 (GKI Kleaf Matrix)
+  # Android 14 - 6.1 (GKI Kleaf Matrix) – NO codename needed
   # ------------------------------------------------------------------
   build-a14-6-1:
     if: >-
       ${{ inputs.build_selection == 'Android14-6.1' || inputs.build_selection == 'All' }}
     uses: ./.github/workflows/kernel-a14-6.1.yml
     secrets: inherit
-    with:
-      codename: husky   # change if needed
+    # NO 'with:' block – kernel-a14-6.1.yml does NOT require codename
 
   # ------------------------------------------------------------------
   # Sultan GCC (Device Matrix: gs201, zuma, zumapro)
@@ -46,6 +45,7 @@ jobs:
       ${{ inputs.build_selection == 'Sultan-GCC' || inputs.build_selection == 'All' }}
     uses: ./.github/workflows/sultan-device.yml
     secrets: inherit
+    # No inputs needed – matrix defined inside sultan-device.yml
 
   # ------------------------------------------------------------------
   # Release Job (only if not 'Actions')
@@ -91,17 +91,16 @@ jobs:
           REV=$(echo "$LATEST_TAG" | grep -o 'r[0-9]*$' | tr -d 'r')
           NEW_REV=$((REV + 1))
           NEW_TAG="${BASE}-r${NEW_REV}"
-          echo "Previous: $LATEST_TAG → New: $NEW_TAG"
+          echo "Previous: $LATEST_TAG to New: $NEW_TAG"
           echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
 
       # ----------------------------------------------------------
-      # Download ALL artifacts
+      # Download ALL artifacts (GKI + Sultan)
       # ----------------------------------------------------------
       - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
           path: ./downloaded-artifacts
-          # GKI: *-AnyKernel3 | Sultan: kernel-*-sultan-kowsu
           pattern: '*'
 
       # ----------------------------------------------------------
@@ -175,7 +174,7 @@ jobs:
           for dir in "${dirs[@]}"; do
             name=$(basename "$dir")
             zip_name="${name}.zip"
-            echo "Packaging $name → $zip_name"
+            echo "Packaging $name to $zip_name"
             (cd "$dir" && zip -r -9 "../../$zip_name" ./*)
             echo "Uploading $zip_name"
             gh release upload ${{ steps.tag.outputs.new_tag }} "$zip_name" --clobber
