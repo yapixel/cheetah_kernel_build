@@ -7,10 +7,6 @@ permissions:
 on:
   workflow_call:
     inputs:
-      codename:
-        description: "Device codename (e.g. husky, akita)"
-        required: true
-        type: string
       android_version:
         description: "Android version (e.g. android14)"
         required: true
