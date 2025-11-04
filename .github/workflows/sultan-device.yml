@@ -7,6 +7,10 @@ permissions:
 
 on:
   workflow_call:
+    inputs:
+      susfs_version:
+        required: true
+        type: string
 
 jobs:
   build-sultan:
@@ -27,3 +31,4 @@ jobs:
       repo: ${{ matrix.repo }}
       android_version: "android14"
       kernel_version: "6.1"
+      susfs_version: ${{ inputs.susfs_version }}
