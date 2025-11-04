@@ -115,10 +115,10 @@ jobs:
           - The Solution: This version changes one line from false to true to force load the kernel module, bypassing the failure check that would normally prevent loading.
 
           **Features:**
-          -> Wild KSU
-          -> Multi Manager Support for WKSU, KernelSU-Next! Needs Testing: KSU, MKSU RKSU, xxKSU, KowSU and SukiSU (Best compatibility with WKSU, no support will be provided for other managers)
+          -> KowSU
+          -> Multi Manager Support for  MKSU KowSU and SukiSU 
           -> SUSFS v1.5.12
-          -> Scope-Minimized Manual hooks v1.4
+          -> Scope-Minimized Manual hooks v1.5
           -> Ptrace Patch Support for Older Kernels (<5.16)
           -> IPSet Support for Advanced Network Filtering
           -> Wireguard Support
@@ -126,12 +126,6 @@ jobs:
           -> Kernel Sound System: Basic audio support with PCM, timers, procfs info, dynamic devices, and loopback module (module found at /data/adb/lkm after install)
           -> Added BBG support to prevent unauthorised writes to certain partitions: https://github.com/vc-teahouse/Baseband-guard
 
-          **BBG (Baseband-guard)**
-          - A lightweight LSM (Linux Security Module) for Android kernel
-          - Blocks unauthorized writes to critical partitions/device nodes
-          - Prevents malicious tampering with baseband and boot chain
-          - Kernel-level protection via LSM hooks
-          - Reduces risk of soft-brick/hard-brick issues
 
           **Notes:**
           -> SUS SU Mode 2 will show as disabled or not compatible due to non-kprobe hooks and is not needed anymore!
@@ -144,8 +138,8 @@ jobs:
           -> https://github.com/sidex15/ksu_module_susfs
 
           **Managers:**
-          -> WKSU: https://github.com/WildKernels/Wild_KSU
-          -> Next: https://github.com/KernelSU-Next/KernelSU-Next
+          -> KowSU: https://github.com/KOWX712/KernelSU
+          -> SukiSU: https://github.com/SukiSU-Ultra/SukiSU-Ultra
           EOF
 
       # ----------------------------------------------------------
