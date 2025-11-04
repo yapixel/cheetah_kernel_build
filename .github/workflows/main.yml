@@ -29,7 +29,7 @@ on:
           - Android14-5.15
           - Android14-6.1
           - Android15-6.6
-        default: All
+        default: Android14-6.1
 
 jobs:
   
