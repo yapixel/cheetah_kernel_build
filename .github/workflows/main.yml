@@ -39,7 +39,7 @@ jobs:
   # ------------------------------------------------------------------
   build-a14-6-1:
     if: ${{ inputs.build_selection == 'All' || inputs.build_selection == 'Android14-6.1' }}
-    uses: ./.github/workflows/kernel-matrix-a14-6.1.yml
+    uses: ./.github/workflows/kernel-a14-6.1.yml
     secrets: inherit
 
  
