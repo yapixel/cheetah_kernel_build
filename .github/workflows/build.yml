@@ -1,4 +1,4 @@
-name: GKI Kleaf KowSU Build
+name: GKI Kernel Build Process
 
 permissions:
   contents: write
