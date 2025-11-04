@@ -282,7 +282,7 @@ jobs:
           cp "$DIST_DIR/Image.lz4" "$AK3_DIR/Image"
           cd "$AK3_DIR"
 
-          ZIP_NAME="KowSU-${{ env.KSUVER }}-${{ inputs.codename }}-GKI-${{ inputs.kernel_version }}.${{ inputs.sub_level }}-SUSFS.zip"
+          ZIP_NAME="KowSU-${{ env.KSUVER }}-${{ inputs.codename }}-GKI-${{ inputs.kernel_version }}.${{ inputs.sub_level }}-SUSFS-${{ inputs.susfs_version }}.zip"
           ZIP_PATH="$BUILD_DIR/$ZIP_NAME"
 
           zip -r9 "$ZIP_PATH" ./* > /dev/null
