@@ -22,7 +22,7 @@ on:
 
 jobs:
   build:
-    name: Sultan-${{ inputs.codename }}
+    name: sultan-${{ inputs.codename }}
     runs-on: ubuntu-latest
     env:
       TOOLCHAIN_URL: >-
