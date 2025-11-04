@@ -1,4 +1,4 @@
-name: Sultan Kernel Build 
+name: Sultan Kernel Build Process
 
 permissions:
   contents: write
