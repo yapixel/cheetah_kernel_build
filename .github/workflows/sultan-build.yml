@@ -19,6 +19,9 @@ on:
       kernel_version:
         required: true
         type: string
+      susfs_version:        
+        required: true
+        type: string
 
 jobs:
   build:
@@ -200,10 +203,19 @@ jobs:
                 | awk -F'/' '{print $3}' | grep -E '^[0-9]+' | sort -V | tail -n1)
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
+      - name: Get Sultan Version from Default Branch
+        id: sultan_version
+        run: |
+          cd "$CONFIG"
+          DEFAULT_BRANCH=$(git remote show origin | grep 'HEAD branch' | cut -d' ' -f5)
+          VERSION=$(echo "$DEFAULT_BRANCH" | sed 's/-sultan$//')
+          echo "Sultan version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Package ZIP
         run: |
           cd AnyKernel3
-          ZIP="KowSU-${{ env.KSUVER }}-${{ inputs.codename }}_Sultan-${{ steps.tag.outputs.tag }}_SUSFS.zip"
+          ZIP="KowSU-${{ env.KSUVER }}-${{ inputs.codename }}_Sultan-${{ steps.sultan_version.outputs.version }}_SUSFS-${{ inputs.susfs_version }}.zip"
           zip -r9 "../$ZIP" ./*
           echo "ZIP_NAME=$ZIP" >> $GITHUB_ENV
 
