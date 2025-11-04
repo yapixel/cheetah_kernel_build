@@ -1,0 +1,191 @@
+name: Build Kernels
+
+permissions:
+  contents: write
+  actions: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: "Choose Release Type"
+        required: true
+        type: choice
+        options:
+          - Actions
+          - Pre-Release
+          - Release
+        default: Actions
+      build_selection:
+        description: "Choose which kernels to build"
+        required: true
+        type: choice
+        options:
+          - All
+          - Test Build
+          - Android12-5.10
+          - Android13-5.10
+          - Android13-5.15
+          - Android14-5.15
+          - Android14-6.1
+          - Android15-6.6
+        default: All
+
+jobs:
+  
+
+  # ------------------------------------------------------------------
+  # Android 14 - 6.1 (Matrix via reusable workflow)
+  # ------------------------------------------------------------------
+  build-a14-6-1:
+    if: ${{ inputs.build_selection == 'All' || inputs.build_selection == 'Android14-6.1' }}
+    uses: ./.github/workflows/kernel-matrix-a14-6.1.yml
+    secrets: inherit
+
+ 
+  # ------------------------------------------------------------------
+  # Release Job (only if not 'Actions')
+  # ------------------------------------------------------------------
+  release:
+    runs-on: ubuntu-latest
+    if: ${{ inputs.release_type != 'Actions' }}
+    needs:
+      
+      - build-a14-6-1
+      
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_NAME: "GKI Kernels With KowSU & SUSFS v1.5.12"
+
+    steps:
+      # ----------------------------------------------------------
+      # Free up space (optional, but helpful on CI)
+      # ----------------------------------------------------------
+      - name: Free Disk Space
+        run: |
+          curl -L -o util_free_space.sh https://raw.githubusercontent.com/apache/arrow/main/ci/scripts/util_free_space.sh
+          chmod +x util_free_space.sh
+          ./util_free_space.sh
+
+      # ----------------------------------------------------------
+      # Checkout (to access gh CLI and repo)
+      # ----------------------------------------------------------
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # ----------------------------------------------------------
+      # Generate incremental tag: v1.5.12-r0 → v1.5.12-r1
+      # ----------------------------------------------------------
+      - name: Generate New Tag
+        id: tag
+        run: |
+          LATEST_TAG=$(gh api repos/${{ github.repository }}/tags --jq '.[0].name' 2>/dev/null || echo "")
+          if [ -z "$LATEST_TAG" ] || ! [[ "$LATEST_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-r[0-9]+$ ]]; then
+            LATEST_TAG="v1.5.12-r0"
+          fi
+          BASE=$(echo "$LATEST_TAG" | sed 's/-r.*//')
+          REV=$(echo "$LATEST_TAG" | grep -o 'r[0-9]*$' | tr -d 'r')
+          NEW_REV=$((REV + 1))
+          NEW_TAG="${BASE}-r${NEW_REV}"
+          echo "Previous: $LATEST_TAG → New: $NEW_TAG"
+          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+
+      # ----------------------------------------------------------
+      # Download all AnyKernel3 artifacts
+      # ----------------------------------------------------------
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./downloaded-artifacts
+          pattern: '*-AnyKernel3'
+
+      # ----------------------------------------------------------
+      # Create release body
+      # ----------------------------------------------------------
+      - name: Create Release Body
+        run: |
+          cat << 'EOF' > release_body.md
+          **IMPORTANT DISCLAIMER**
+          This software is provided for testing and educational purposes only. Use at your own risk.
+          The developers are not responsible for any damage, data loss, or issues that may occur.
+          Please ensure you have proper backups before installation.
+
+          **Normal**
+          - Default kernel configuration
+          - Standard kernel module loading behavior
+          - Recommended for most users
+
+          **Bypass**
+          - Includes module check bypass modifications
+          - What are kernel modules? Kernel modules are pieces of code that can be loaded into the kernel at runtime to extend functionality (like device drivers, filesystem support, etc.). These are different from KernelSU/Magisk modules.
+          - The Problem: Sometimes when installing a custom kernel, the device tries to load a kernel module that fails due to version mismatches, missing dependencies, or signature verification issues. This can cause boot failures or device instability.
+          - The Solution: This version changes one line from false to true to force load the kernel module, bypassing the failure check that would normally prevent loading.
+
+          **Features:**
+          -> Wild KSU
+          -> Multi Manager Support for WKSU, KernelSU-Next! Needs Testing: KSU, MKSU RKSU, xxKSU, KowSU and SukiSU (Best compatibility with WKSU, no support will be provided for other managers)
+          -> SUSFS v1.5.12
+          -> Scope-Minimized Manual hooks v1.4
+          -> Ptrace Patch Support for Older Kernels (<5.16)
+          -> IPSet Support for Advanced Network Filtering
+          -> Wireguard Support
+          -> BBR v1 Support
+          -> Kernel Sound System: Basic audio support with PCM, timers, procfs info, dynamic devices, and loopback module (module found at /data/adb/lkm after install)
+          -> Added BBG support to prevent unauthorised writes to certain partitions: https://github.com/vc-teahouse/Baseband-guard
+
+          **BBG (Baseband-guard)**
+          - A lightweight LSM (Linux Security Module) for Android kernel
+          - Blocks unauthorized writes to critical partitions/device nodes
+          - Prevents malicious tampering with baseband and boot chain
+          - Kernel-level protection via LSM hooks
+          - Reduces risk of soft-brick/hard-brick issues
+
+          **Notes:**
+          -> SUS SU Mode 2 will show as disabled or not compatible due to non-kprobe hooks and is not needed anymore!
+          -> Official Kernel Flasher is broken with latest susfs, try https://github.com/fatalcoder524/KernelFlasher/
+          -> **boot.img files**: Available as CI artifacts only - download from the Actions tab in the "Misc" Artifact
+          -> **Warning**: boot.img files may not boot on some devices
+          -> **Note:** For detailed commit information and component versions, please check the build summary in the "Misc" Artifact
+
+          **Module:**
+          -> https://github.com/sidex15/ksu_module_susfs
+
+          **Managers:**
+          -> WKSU: https://github.com/WildKernels/Wild_KSU
+          -> Next: https://github.com/KernelSU-Next/KernelSU-Next
+          EOF
+
+      # ----------------------------------------------------------
+      # Create GitHub Release
+      # ----------------------------------------------------------
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.new_tag }}
+          name: ${{ env.RELEASE_NAME }}
+          body_path: release_body.md
+          draft: false
+          prerelease: ${{ inputs.release_type == 'Pre-Release' }}
+
+      # ----------------------------------------------------------
+      # Package & Upload AnyKernel3 ZIPs
+      # ----------------------------------------------------------
+      - name: Package and Upload ZIPs
+        run: |
+          shopt -s nullglob
+          dirs=(./downloaded-artifacts/*/)
+          if [ ${#dirs[@]} -eq 0 ]; then
+            echo "No AnyKernel3 artifacts found. Skipping upload."
+            exit 0
+          fi
+
+          for dir in "${dirs[@]}"; do
+            name=$(basename "$dir")
+            zip_name="${name}.zip"
+            echo "Packaging $name → $zip_name"
+            (cd "$dir" && zip -r -9 "../../$zip_name" ./*)
+            echo "Uploading $zip_name"
+            gh release upload ${{ steps.tag.outputs.new_tag }} "$zip_name" --clobber
+          done
+
+     
