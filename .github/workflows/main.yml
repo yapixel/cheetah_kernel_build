@@ -135,7 +135,11 @@ jobs:
       - name: Set Release Name
         run: |
           SUSFS_VERSION="${{ steps.extract-version.outputs.susfs_version }}"
-          echo "Sultan Kernels With KernelSU & SUSFS $SUSFS_VERSION" >> $GITHUB_ENV
+          if [[ "${{ inputs.release_type }}" == "Pre-Release" ]]; then
+            echo "RELEASE_NAME=*TEST BUILD* Sultan Kernels With KernelSU & SUSFS $SUSFS_VERSION *TEST BUILD*" >> $GITHUB_ENV
+          else
+            echo "RELEASE_NAME=Sultan Kernels With KernelSU & SUSFS $SUSFS_VERSION" >> $GITHUB_ENV
+          fi
 
       # ----------------------------------------------------------
       # 5. Define Release Notes
