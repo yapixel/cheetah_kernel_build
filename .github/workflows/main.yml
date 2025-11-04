@@ -93,6 +93,7 @@ jobs:
           NEW_TAG="${BASE}-r${NEW_REV}"
           echo "Previous: $LATEST_TAG to New: $NEW_TAG"
           echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+          echo "base=$CLEAN_BASE" >> $GITHUB_OUTPUT
 
       # ----------------------------------------------------------
       # Download ALL artifacts (GKI + Sultan)
