@@ -21,14 +21,8 @@ on:
         required: true
         type: choice
         options:
-          - All
-          - Test Build
-          - Android12-5.10
-          - Android13-5.10
-          - Android13-5.15
-          - Android14-5.15
           - Android14-6.1
-          - Android15-6.6
+          
         default: Android14-6.1
 
 jobs:
@@ -38,7 +32,6 @@ jobs:
   # Android 14 - 6.1 (Matrix via reusable workflow)
   # ------------------------------------------------------------------
   build-a14-6-1:
-    if: ${{ inputs.build_selection == 'All' || inputs.build_selection == 'Android14-6.1' }}
     uses: ./.github/workflows/kernel-a14-6.1.yml
     secrets: inherit
 
