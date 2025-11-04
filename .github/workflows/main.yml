@@ -28,16 +28,36 @@ on:
 
 jobs:
   # ------------------------------------------------------------------
-  # Android 14 - 6.1 (GKI Kleaf Matrix) – NO codename needed
+  # Generate SUSFS version from latest tag (used by all builds)
+  # ------------------------------------------------------------------
+  generate-susfs-version:
+    runs-on: ubuntu-latest
+    outputs:
+      susfs_version: ${{ steps.tag.outputs.base }}
+    steps:
+      - name: Generate SUSFS Version
+        id: tag
+        run: |
+          LATEST_TAG=$(gh api repos/${{ github.repository }}/ Universitat --jq '.[0].name' 2>/dev/null || echo "")
+          if [ -z "$LATEST_TAG" ] || ! [[ "$LATEST_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-r[0-9]+$ ]]; then
+            LATEST_TAG="v1.5.12-r0"
+          fi
+          BASE=$(echo "$LATEST_TAG" | sed 's/-r.*//')        # v1.5.12
+          CLEAN_BASE=$(echo "$BASE" | sed 's/^v//')           # 1.5.12
+          echo "SUSFS version: $CLEAN_BASE"
+          echo "base=$CLEAN_BASE" >> $GITHUB_OUTPUT
+
+  # ------------------------------------------------------------------
+  # Android 14 - 6.1 (GKI Kleaf Matrix)
   # ------------------------------------------------------------------
   build-a14-6-1:
     if: >-
       ${{ inputs.build_selection == 'Android14-6.1' || inputs.build_selection == 'All' }}
+    needs: generate-susfs-version
     uses: ./.github/workflows/kernel-a14-6.1.yml
     secrets: inherit
     with:
-      susfs_version: ${{ steps.tag.outputs.base }}
-    # NO 'with:' block – kernel-a14-6.1.yml does NOT require codename
+      susfs_version: ${{ needs.generate-susfs-version.outputs.susfs_version }}
 
   # ------------------------------------------------------------------
   # Sultan GCC (Device Matrix: gs201, zuma, zumapro)
@@ -45,11 +65,11 @@ jobs:
   build-sultan:
     if: >-
       ${{ inputs.build_selection == 'Sultan-GCC' || inputs.build_selection == 'All' }}
+    needs: generate-susfs-version
     uses: ./.github/workflows/sultan-device.yml
     secrets: inherit
     with:
-      susfs_version: ${{ steps.tag.outputs.base }}
-    # No inputs needed – matrix defined inside sultan-device.yml
+      susfs_version: ${{ needs.generate-susfs-version.outputs.susfs_version }}
 
   # ------------------------------------------------------------------
   # Release Job (only if not 'Actions')
@@ -58,11 +78,13 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ inputs.release_type != 'Actions' }}
     needs:
+      - generate-susfs-version
       - build-a14-6-1
       - build-sultan
     env:
       GH_TOKEN: ${{ github.token }}
-      RELEASE_NAME: "GKI + Sultan Kernels With KowSU & SUSFS v1.5.12"
+      RELEASE_NAME: "GKI + Sultan Kernels With KowSU & SUSFS v${{ needs.generate-susfs-version.outputs.susfs_version }}"
+      SUSFS_VERSION: ${{ needs.generate-susfs-version.outputs.susfs_version }}
 
     steps:
       # ----------------------------------------------------------
@@ -89,7 +111,7 @@ jobs:
         run: |
           LATEST_TAG=$(gh api repos/${{ github.repository }}/tags --jq '.[0].name' 2>/dev/null || echo "")
           if [ -z "$LATEST_TAG" ] || ! [[ "$LATEST_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-r[0-9]+$ ]]; then
-            LATEST_TAG="v1.5.12-r0"
+            LATEST_TAG="v${{ env.SUSFS_VERSION }}-r0"
           fi
           BASE=$(echo "$LATEST_TAG" | sed 's/-r.*//')
           REV=$(echo "$LATEST_TAG" | grep -o 'r[0-9]*$' | tr -d 'r')
@@ -97,10 +119,9 @@ jobs:
           NEW_TAG="${BASE}-r${NEW_REV}"
           echo "Previous: $LATEST_TAG to New: $NEW_TAG"
           echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
-          echo "base=$CLEAN_BASE" >> $GITHUB_OUTPUT
 
       # ----------------------------------------------------------
-      # Download ALL artifacts (GKI + Sultan)
+      # Download ALL artifacts
       # ----------------------------------------------------------
       - name: Download Artifacts
         uses: actions/download-artifact@v4
@@ -131,7 +152,7 @@ jobs:
           **Common Features:**
           -> KowSU
           -> Multi Manager Support for MKSU, KowSU and SukiSU
-          -> SUSFS v1.5.12
+          -> SUSFS v${{ env.SUSFS_VERSION }}
           -> Scope-Minimized Manual hooks v1.5
           -> Ptrace Patch Support for Older Kernels (<5.16)
           -> IPSet Support for Advanced Network Filtering
