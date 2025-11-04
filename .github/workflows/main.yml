@@ -28,27 +28,26 @@ on:
 
 jobs:
   # ------------------------------------------------------------------
-  # Generate SUSFS version from latest tag
+  # 1. Extract SUSFS version from latest tag (e.g. v1.5.12 → 1.5.12)
   # ------------------------------------------------------------------
   generate-susfs-version:
     runs-on: ubuntu-latest
     outputs:
-      susfs_version: ${{ steps.tag.outputs.base }}
+      susfs_version: ${{ steps.extract.outputs.susfs_version }}
     steps:
       - name: Extract SUSFS Version
-        id: tag
+        id: extract
         run: |
           LATEST_TAG=$(gh api repos/${{ github.repository }}/tags --jq '.[0].name' 2>/dev/null || echo "")
           if [ -z "$LATEST_TAG" ] || ! [[ "$LATEST_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-r[0-9]+$ ]]; then
             LATEST_TAG="v1.5.12-r0"
           fi
-          BASE=$(echo "$LATEST_TAG" | sed 's/-r.*//')        # v1.5.12
-          CLEAN_BASE=$(echo "$BASE" | sed 's/^v//')           # 1.5.12
-          echo "SUSFS version: $CLEAN_BASE"
-          echo "base=$CLEAN_BASE" >> $GITHUB_OUTPUT
+          VERSION=$(echo "$LATEST_TAG" | sed 's/-r.*//' | sed 's/^v//')
+          echo "SUSFS version: $VERSION"
+          echo "susfs_version=$VERSION" >> $GITHUB_OUTPUT
 
   # ------------------------------------------------------------------
-  # Android 14 - 6.1 (GKI Kleaf Matrix)
+  # 2. Android 14 - 6.1 (GKI Kleaf Matrix)
   # ------------------------------------------------------------------
   build-a14-6-1:
     if: >-
@@ -60,7 +59,7 @@ jobs:
       susfs_version: ${{ needs.generate-susfs-version.outputs.susfs_version }}
 
   # ------------------------------------------------------------------
-  # Sultan GCC (Device Matrix: gs201, zuma, zumapro)
+  # 3. Sultan GCC (Device Matrix: gs201, zuma, zumapro)
   # ------------------------------------------------------------------
   build-sultan:
     if: >-
@@ -72,7 +71,7 @@ jobs:
       susfs_version: ${{ needs.generate-susfs-version.outputs.susfs_version }}
 
   # ------------------------------------------------------------------
-  # Release Job (only if not 'Actions')
+  # 4. Release Job (only if not 'Actions')
   # ------------------------------------------------------------------
   release:
     runs-on: ubuntu-latest
