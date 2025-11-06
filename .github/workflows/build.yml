@@ -171,7 +171,7 @@ jobs:
       - name: Compute KSU Version
         run: |
           cd "$CONFIG/KernelSU/kernel"
-          BASE=10200
+          BASE=20000
           COUNT=$(git rev-list --count HEAD)
           KSUVER=$(( BASE + COUNT ))
           echo "KSUVER=$KSUVER" >> $GITHUB_ENV
