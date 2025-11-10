@@ -69,36 +69,30 @@ jobs:
       - name: Add KernelSU
         run: |
           cd $CONFIG
-          curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/master/kernel/setup.sh" | bash -s master
+          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash -s susfs-main
 
-      - name: Apply SUSFS & KowSU patches
+      - name: Apply SUSFS 
         run: |
           cd $CONFIG
           cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch .
           patch -p1 -F 3 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
           cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
           cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
-          cd KernelSU
-          cp ../../kowsu_patches/KowSU/revert_commit_conflict_with_susfs.patch .
-          patch -p1 --fuzz=3 < revert_commit_conflict_with_susfs.patch || exit 1
-          cp ../../kowsu_patches/KowSU/enable_susfs_for_kowsu.patch .
-          patch -p1 < enable_susfs_for_kowsu.patch || exit 1
-          cd ..
           cp ../kernel_patches/sultan/sys.c_fix.patch .
           patch -p1 --fuzz=3 < sys.c_fix.patch || exit 1
 
       - name: Apply manual syscall hook
         run: |
           cd $CONFIG
-          cp ../kernel_patches/syscall_hook/min_scope_syscall_hooks_v1.5.patch .
-          patch -p1 --forward < min_scope_syscall_hooks_v1.5.patch || exit 1
+          cp ../../kernel_patches/sukisu/scope_min_manual_hooks_v1.6.patch .
+          patch -p1 --forward < scope_min_manual_hooks_v1.6.patch || true
 
       - name: Compute KernelSU version
         run: |
           cd "$CONFIG/KernelSU/kernel"
           BASE=10200
           COUNT=$(git rev-list --count HEAD)
-          KSUVER=$(( BASE + COUNT ))
+          KSUVER=$(( BASE + COUNT - 2815 ))
           echo "KSUVER=$KSUVER" >> $GITHUB_ENV
 
       - name: Add SUSFS config
@@ -215,14 +209,14 @@ jobs:
       - name: Package ZIP
         run: |
           cd AnyKernel3
-          ZIP="KowSU-${{ env.KSUVER }}-${{ inputs.codename }}_Sultan-${{ steps.sultan_version.outputs.version }}-SUSFS-${{ inputs.susfs_version }}.zip"
+          ZIP="SukiSU-${{ env.KSUVER }}-${{ inputs.codename }}_Sultan-${{ steps.sultan_version.outputs.version }}-SUSFS-${{ inputs.susfs_version }}.zip"
           zip -r9 "../$ZIP" ./*
           echo "ZIP_NAME=$ZIP" >> $GITHUB_ENV
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: kernel-${{ inputs.codename }}-sultan-kowsu
+          name: kernel-${{ inputs.codename }}-sultan-sukisu
           path: ${{ env.ZIP_NAME }}
           retention-days: 7
 
