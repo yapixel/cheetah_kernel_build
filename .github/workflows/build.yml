@@ -1,3 +1,4 @@
+
 name: GKI Kernel Build Process
 
 permissions:
@@ -123,43 +124,28 @@ jobs:
       - name: Add KowSU
         run: |
           cd "$CONFIG"
-          curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/master/kernel/setup.sh" | bash -s master
+          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash susfs-main
 
       # -------------------------------------------------
-      # 8. Apply SUSFS + KowSU Patches
+      # 8. Apply SUSFS + SukiSU Patches
       # -------------------------------------------------
-      - name: Apply Patches
+      - name: Apply SUSFS Patches for KernelSU Variants
         run: |
           cd "$CONFIG"
 
           # SUSFS
+          echo "Applying SUSFS patches..."
           cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch ./common/
           cp -r ../susfs4ksu/kernel_patches/fs/* ./common/fs/
           cp -r ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
           cd ./common
           patch --fuzz=10 -p1 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
 
-          # KowSU Patches
-          cd ../KernelSU
-          cp ../../kowsu_patches/KowSU/revert_commit_conflict_with_susfs.patch .
-          patch -p1 --fuzz=3 < revert_commit_conflict_with_susfs.patch || true
-
-          cp ../../kowsu_patches/KowSU/enable_susfs_for_kowsu.patch .
-          patch -p1 < enable_susfs_for_kowsu.patch || true
-
-          cp ../../kernel_patches/kowsu/fix_ksud.c.patch .
-          patch -p1 < fix_ksud.c.patch || true
-
-          cp ../../kernel_patches/kowsu/fix_ksu.patch .
-          patch -p1 < fix_ksu.patch || true
-
-          cp ../../kowsu_patches/KowSU/fix_core_hook_kowsu.patch .
-          patch -p1 --fuzz=3 < fix_core_hook_kowsu.patch || true
 
           # Syscall Hook
           cd ../common
-          cp ../../kernel_patches/syscall_hook/min_scope_syscall_hooks_v1.5.patch .
-          patch -p1 --forward < min_scope_syscall_hooks_v1.5.patch || true
+          cp ../../kernel_patches/sukisu/scope_min_manual_hooks_v1.6.patch .
+          patch -p1 --forward < scope_min_manual_hooks_v1.6.patch || true
 
           # Hide Stuff
           cp ../../kernel_patches/69_hide_stuff.patch .
@@ -171,9 +157,9 @@ jobs:
       - name: Compute KSU Version
         run: |
           cd "$CONFIG/KernelSU/kernel"
-          BASE=20000
+          BASE=40000
           COUNT=$(git rev-list --count HEAD)
-          KSUVER=$(( BASE + COUNT ))
+          KSUVER=$(( BASE + COUNT -2815 ))
           echo "KSUVER=$KSUVER" >> $GITHUB_ENV
 
       # -------------------------------------------------
@@ -286,7 +272,7 @@ jobs:
           cp "$DIST_DIR/Image.lz4" "$AK3_DIR/Image"
           cd "$AK3_DIR"
 
-          ZIP_NAME="KowSU-${{ env.KSUVER }}-GKI-${{ inputs.kernel_version }}.${{ inputs.sub_level }}-SUSFS-${{ inputs.susfs_version }}.zip"
+          ZIP_NAME="SukiSU-${{ env.KSUVER }}-GKI-${{ inputs.kernel_version }}.${{ inputs.sub_level }}-SUSFS-${{ inputs.susfs_version }}.zip"
           ZIP_PATH="$BUILD_DIR/$ZIP_NAME"
 
           zip -r9 "$ZIP_PATH" ./* > /dev/null
@@ -300,7 +286,7 @@ jobs:
       - name: Upload Kernel ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: KowSU-${{ inputs.kernel_version }}.${{ inputs.sub_level }}-${{ inputs.os_patch_level }}
+          name: SukiSU-${{ inputs.kernel_version }}.${{ inputs.sub_level }}-${{ inputs.os_patch_level }}
           path: ${{ env.ZIP_PATH }}
           retention-days: 7
 
