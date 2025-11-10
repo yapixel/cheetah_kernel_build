@@ -119,12 +119,12 @@ jobs:
           repo sync -c -j$(nproc --all) --no-tags --fail-fast
 
       # -------------------------------------------------
-      # 7. Add KernelSU (KowSU)
+      # 7. Add KernelSU (SukiSU)
       # -------------------------------------------------
       - name: Add KowSU
         run: |
           cd "$CONFIG"
-          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash susfs-main
+          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash susfs-main
 
       # -------------------------------------------------
       # 8. Apply SUSFS + SukiSU Patches
