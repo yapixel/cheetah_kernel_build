@@ -121,7 +121,7 @@ jobs:
       # -------------------------------------------------
       # 7. Add KernelSU (SukiSU)
       # -------------------------------------------------
-      - name: Add KowSU
+      - name: Add SukiSU
         run: |
           cd "$CONFIG"
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash -s susfs-main
