@@ -64,7 +64,7 @@ jobs:
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "gki-android14-6.1"
           git clone https://github.com/yapixel/kernel_patches.git
           git clone https://github.com/kerneltoast/${{ inputs.repo }} "$CONFIG"
-          git clone https://github.com/KOWX712/files.git kowsu_patches
+      
 
       - name: Add KernelSU
         run: |
@@ -103,6 +103,7 @@ jobs:
           cat << 'EOF' >> ./arch/arm64/configs/${CODENAME}_defconfig
           CONFIG_KSU=y
           CONFIG_KSU_KPROBES_HOOK=n
+          CONFIG_KSU_MANUAL_HOOK=y
           CONFIG_KSU_SUSFS=y
           CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
           CONFIG_KSU_LSM_SECURITY_HOOKS=n
