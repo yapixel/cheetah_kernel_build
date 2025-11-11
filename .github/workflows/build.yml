@@ -191,9 +191,10 @@ jobs:
           CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y
           CONFIG_LTO_CLANG_THIN=y
 
-          # === KowSU + SUSFS ===
+          # === SukiSU + SUSFS ===
           CONFIG_KSU=y
           CONFIG_KSU_KPROBES_HOOK=n
+          CONFIG_KSU_MANUAL_HOOK=y
           CONFIG_KSU_SUSFS=y
           CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
           CONFIG_KSU_LSM_SECURITY_HOOKS=n
