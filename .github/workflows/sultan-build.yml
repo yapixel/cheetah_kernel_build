@@ -103,7 +103,6 @@ jobs:
           cat << 'EOF' >> ./arch/arm64/configs/${CODENAME}_defconfig
           CONFIG_KSU=y
           CONFIG_KSU_KPROBES_HOOK=n
-          CONFIG_KSU_MANUAL_HOOK=y
           CONFIG_KSU_SUSFS=y
           CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
           CONFIG_KSU_LSM_SECURITY_HOOKS=n
