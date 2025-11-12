@@ -151,16 +151,13 @@ jobs:
           cp ../../kernel_patches/69_hide_stuff.patch .
           patch -p1 -F 3 < 69_hide_stuff.patch || true
 
-      # -------------------------------------------------
-      # 9. Compute KSU Version
-      # -------------------------------------------------
+
       - name: Compute KSU Version
         run: |
-          cd "$CONFIG/KernelSU/kernel"
-          BASE=40000
-          COUNT=$(git rev-list --count HEAD)
-          KSUVER=$(( BASE + COUNT -2815 ))
-          echo "KSUVER=$KSUVER" >> $GITHUB_ENV
+          cd "$CONFIG"
+          git clone --depth=1 https://github.com/TheSillyOk/sh sh
+          KSU_VER=$(./sh/extract_ksuver.sh "https://github.com/SukiSU-Ultra/SukiSU-Ultra" "kernel/Makefile" "." "susfs-main" || echo "unknown")
+          echo "KSUVER=$KSU_VER" >> $GITHUB_ENV
 
       # -------------------------------------------------
       # 10. Create Config Fragment
@@ -275,7 +272,7 @@ jobs:
           cp "$DIST_DIR/Image.lz4" "$AK3_DIR/Image"
           cd "$AK3_DIR"
 
-          ZIP_NAME="SukiSU-${{ env.KSUVER }}-GKI-${{ inputs.kernel_version }}.${{ inputs.sub_level }}-SUSFS-${{ inputs.susfs_version }}.zip"
+          ZIP_NAME="SukiSU-r${{ env.KSUVER }}-GKI-${{ inputs.kernel_version }}.${{ inputs.sub_level }}-SUSFS-${{ inputs.susfs_version }}.zip"
           ZIP_PATH="$BUILD_DIR/$ZIP_NAME"
 
           zip -r9 "$ZIP_PATH" ./* > /dev/null
