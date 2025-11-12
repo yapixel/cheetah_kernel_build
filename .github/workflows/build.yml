@@ -246,6 +246,8 @@ jobs:
           BUILD_CONFIG=common/build.config.gki.aarch64
           GKI_CONFIG_FRAGMENT=$FRAGMENT_PATH
           KLEAF_CHECK_ABI=false
+          LTO=thin
+          USE_CCACHE=1
           EOF
 
           tools/bazel run \
