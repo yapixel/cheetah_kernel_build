@@ -1,4 +1,4 @@
-name: Build Android Kernel with KowSU & Clang22
+name: Build Kernel with KowSU & Clang22
 
 on:
   push:
@@ -232,6 +232,12 @@ jobs:
         cat >> "$CONFIG" << EOF
         CONFIG_LOCALVERSION="${{ env.LOCALVERSION }}"
         CONFIG_LOCALVERSION_AUTO=n
+        CONFIG_KSU=y
+        CONFIG_KSU_KPROBES_HOOK=y
+        CONFIG_KSU_DEBUG=n
+        CONFIG_KSU_THRONE_TRACKER_ALWAYS_THREADED=y
+        CONFIG_KSU_ALLOWLIST_WORKAROUND=n
+        CONFIG_KSU_LSM_SECURITY_HOOKS=y
         CONFIG_TMPFS_XATTR=y
         CONFIG_TMPFS_POSIX_ACL=y
         CONFIG_TCP_CONG_ADVANCED=y
