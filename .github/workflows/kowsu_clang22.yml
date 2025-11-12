@@ -288,6 +288,9 @@ jobs:
         mkdir -p ${{ env.OUT_DIR }}
 
     - name: Build kernel
+      env:
+          KBUILD_BUILD_USER: kleaf
+          KBUILD_BUILD_HOST: build-host
       working-directory: ${{ env.KERNEL_DIR }}
       run: |
         make -j${{ env.THREADS }} \
@@ -356,7 +359,7 @@ jobs:
         cat > ../build_info.txt << EOF
         Build Information
         =================
-        Kernel Version: 6.1.145
+        Kernel Version: 6.1.155
         Build Number: ${{ env.BUILD_VER }}
         Build Date: $(date -u)
         Commit SHA: ${{ github.sha }}
