@@ -219,7 +219,7 @@ jobs:
           cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./
           cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
           cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
-          patch --fuzz=10 -p1 < 50_add_susfs_in_gki-android24-6.1.patch || true
+          patch --fuzz=10 -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
           rm -f fs/proc/base.c.rej fs/proc/base.c.orig
           
           cp ../kernel_patches/mksu/fix_proc_base.patch ./
