@@ -222,7 +222,7 @@ jobs:
           patch --fuzz=10 -p1 < 50_add_susfs_in_gki-android24-6.1.patch || true
           rm -f fs/proc/base.c.rej fs/proc/base.c.orig
           
-          cp ../../kernel_patches/mksu/fix_proc_base.patch ./
+          cp ../kernel_patches/mksu/fix_proc_base.patch ./
           patch -p1 --fuzz 3 < fix_proc_base.patch
 
           cd kernelSU
