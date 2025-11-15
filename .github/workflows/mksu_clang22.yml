@@ -222,12 +222,12 @@ jobs:
           patch --fuzz=10 -p1 < 0001-50_add_susfs_in_gki-android14-6.1.patch || true
           rm -f fs/proc/base.c.rej fs/proc/base.c.orig
           
-          cp ../kernel_patches/mksu/fix_proc_base.patch ./
-          patch -p1 --fuzz 3 < fix_proc_base.patch
+          #cp ../kernel_patches/mksu/fix_proc_base.patch ./
+          #patch -p1 --fuzz 3 < fix_proc_base.patch
 
           cd KernelSU
           cp -fv ../../kernel_patches/mksu/0001-10-add_SuSFS_to_KernelSU_v2.patch ./
-          patch -p1 < 0001-10-add_SuSFS_to_KernelSU_v2.patch
+          patch -p1 < 0001-10-add_SuSFS_to_KernelSU_v2.patch || true
           cd ../
           # Hide Stuff
           cp ../kernel_patches/69_hide_stuff.patch .
