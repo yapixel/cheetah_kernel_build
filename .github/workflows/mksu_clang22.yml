@@ -216,7 +216,7 @@ jobs:
       run: |
           # SUSFS
           echo "Applying SUSFS patches..."
-          cp ../susfs4ksu/kernel_patches/add_susfs_in_gki-android14-6.1.patch ./common/
+          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./common/
           cp -r ../susfs4ksu/kernel_patches/fs/* ./common/fs/
           cp -r ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
           cd ./common
