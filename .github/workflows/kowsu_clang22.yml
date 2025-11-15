@@ -1,7 +1,7 @@
 name: Build Kernel with KowSU & Clang22
 
 on:
-  push:
+  
   workflow_dispatch:
     inputs:
       pixel8a:
