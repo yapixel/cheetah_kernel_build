@@ -225,7 +225,7 @@ jobs:
           cp ../kernel_patches/mksu/fix_proc_base.patch ./
           patch -p1 --fuzz 3 < fix_proc_base.patch
 
-          cd kernelSU
+          cd KernelSU
           cp -fv ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
           patch -p1 < 10_enable_susfs_for_ksu.patch
           cd ../
