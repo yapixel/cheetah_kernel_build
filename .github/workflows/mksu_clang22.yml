@@ -216,10 +216,9 @@ jobs:
       run: |
           # SUSFS
           echo "Applying SUSFS patches..."
-          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./common/
-          cp -r ../susfs4ksu/kernel_patches/fs/* ./common/fs/
-          cp -r ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
-          cd ./common
+          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./
+          cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
+          cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
           patch --fuzz=10 -p1 < 50_add_susfs_in_gki-android24-6.1.patch || true
           rm -f fs/proc/base.c.rej fs/proc/base.c.orig
           
@@ -227,11 +226,11 @@ jobs:
           patch -p1 --fuzz 3 < fix_proc_base.patch
 
           cd kernelSU
-          cp -fv ../../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
+          cp -fv ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
           patch -p1 < 10_enable_susfs_for_ksu.patch
           cd ../
           # Hide Stuff
-          cp ../../kernel_patches/69_hide_stuff.patch .
+          cp ../kernel_patches/69_hide_stuff.patch .
           patch -p1 -F 3 < 69_hide_stuff.patch || true
 
 
