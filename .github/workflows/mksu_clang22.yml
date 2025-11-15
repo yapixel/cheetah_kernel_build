@@ -1,7 +1,6 @@
 name: Build Kernel with MKSU & Clang22
 
 on:
-  push:
   workflow_dispatch:
     inputs:
       pixel8a:
@@ -122,24 +121,24 @@ jobs:
         echo "CLANG_PATH=$HOME/clang/bin" >> $GITHUB_ENV
         echo "$HOME/clang/bin" >> $GITHUB_PATH
 
-    - name: Download ARM64 GCC toolchain
+    - name: Download ARM64 GNU Toolchain 14.3.rel1
       run: |
-        mkdir -p $HOME/toolchains
-        cd $HOME/toolchains
-        
-        # Clone LineageOS ARM64 toolchain
-        git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 aarch64-linux-android-4.9
-        
-        echo "ARM64_TOOLCHAIN=$HOME/toolchains/aarch64-linux-android-4.9/bin/aarch64-linux-android-" >> $GITHUB_ENV
+          mkdir -p $HOME/toolchains
+          cd $HOME/toolchains
+          wget -q https://developer.arm.com/-/media/Files/downloads/gnu/14.3.rel1/binrel/arm-gnu-toolchain-14.3.rel1-x86_64-aarch64-none-linux-gnu.tar.xz -O tc.tar.xz
+          tar -xJf tc.tar.xz
+          rm tc.tar.xz
+          TC_DIR=$(ls -d arm-gnu-toolchain-*)
+          echo "ARM64_TOOLCHAIN=$HOME/toolchains/$TC_DIR/bin/aarch64-none-linux-gnu-" >> $GITHUB_ENV
 
-    - name: Download ARM32 GCC toolchain
+    - name: Download ARM32 GNU Toolchain 14.3.rel1
       run: |
-        cd $HOME/toolchains
-        
-        # Clone LineageOS ARM32 toolchain
-        git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 arm-linux-androideabi-4.9
-        
-        echo "ARM32_TOOLCHAIN=$HOME/toolchains/arm-linux-androideabi-4.9/bin/arm-linux-androideabi-" >> $GITHUB_ENV
+          cd $HOME/toolchains
+          wget -q https://developer.arm.com/-/media/Files/downloads/gnu/14.3.rel1/binrel/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi.tar.xz -O tc-arm.tar.xz
+          tar -xJf tc-arm.tar.xz
+          rm tc-arm.tar.xz
+          TC_DIR=$(ls -d arm-gnu-toolchain-*arm-none-eabi*)
+          echo "ARM32_TOOLCHAIN=$HOME/toolchains/$TC_DIR/bin/arm-none-eabi-" >> $GITHUB_ENV
 
 
     - name: Clone kernel source
