@@ -384,8 +384,8 @@ jobs:
        fi
        echo "BUILD_VER=$BUILD_VER" >> $GITHUB_ENV
 
-       # --- Prepare zip path ---
-       ZIP_NAME="ak3.zip"
+       # --- Prepare zip path with versioned name ---
+       ZIP_NAME="${{ env.ZIP_PREFIX }}-r${BUILD_VER}.zip"
        ZIP_PATH="${{ github.workspace }}/${{ env.BUILDS_DIR }}/${ZIP_NAME}"
 
        # Create destination directory
@@ -405,10 +405,10 @@ jobs:
     - name: Upload kernel artifact
       uses: actions/upload-artifact@v4
       with:
-       name: ak3
-       path: ${{ env.ZIP_PATH }}
-       retention-days: 30
-       compression-level: 0
+        name: ${{ env.ZIP_NAME }}
+        path: ${{ env.ZIP_PATH }}
+        retention-days: 30
+        compression-level: 0
 
     - name: Generate build info
       run: |
