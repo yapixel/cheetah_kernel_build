@@ -359,34 +359,45 @@ jobs:
 
     - name: Package kernel
       run: |
-        IMAGE="${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }}/arch/arm64/boot/Image"
-        cp -fv "$IMAGE" "${{ env.ANYKERNEL_DIR }}"/
+        set -euo pipefail
 
-        cd "${{ env.ANYKERNEL_DIR }}"
-        rm -rf .git
+        KERNEL_IMAGE="${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }}/arch/arm64/boot/Image"
+        ANYKERNEL_IMAGE="${{ env.ANYKERNEL_DIR }}/Image"
 
-        # Get BUILD version from KernelSU
-        if [ -d "../${{ env.KERNEL_DIR }}/KernelSU/.git" ]; then
-          cd "../${{ env.KERNEL_DIR }}/KernelSU"
-          BUILD_COUNT=$(git rev-list --count HEAD 2>/dev/null || echo "1998")
+        # --- FAIL FAST if Image missing ---
+        if [ ! -f "$KERNEL_IMAGE" ] || [ ! -s "$KERNEL_IMAGE" ]; then
+          echo "ERROR: Kernel Image not found or empty!"
+          echo "Expected: $KERNEL_IMAGE"
+          ls -lh "${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }}/arch/arm64/boot/" || true
+          exit 1
+        fi
+
+        # --- Copy ---
+        cp -fv "$KERNEL_IMAGE" "$ANYKERNEL_IMAGE"
+
+        # --- Compute BUILD_VER safely ---
+        if [ -d "${{ env.KERNEL_DIR }}/KernelSU/.git" ]; then
+          BUILD_COUNT=$(git -C "${{ env.KERNEL_DIR }}/KernelSU" rev-list --count HEAD)
           BUILD_VER=$((20000 + BUILD_COUNT))
         else
           BUILD_VER="22143"
         fi
-        echo "BUILD_VER=${BUILD_VER}" >> $GITHUB_ENV
+        echo "BUILD_VER=$BUILD_VER" >> $GITHUB_ENV
 
-        cd "${{ github.workspace }}/${{ env.ANYKERNEL_DIR }}"
+        # --- Zip ---
+        cd "${{ env.ANYKERNEL_DIR }}"
+        rm -rf .git  # optional, harmless
 
         TIMESTAMP=$(TZ=UTC date -u +"%Y%m%dT%H%MZ")
         ZIP_NAME="${{ env.ZIP_PREFIX }}-${BUILD_VER}.zip"
         ZIP_PATH="${{ github.workspace }}/${{ env.BUILDS_DIR }}/${ZIP_NAME}"
 
-        echo "Zipping to: $ZIP_PATH"
+        mkdir -p "$(dirname "$ZIP_PATH")"
+        echo "Zipping → $ZIP_PATH"
         zip -r9 "$ZIP_PATH" ./* > /dev/null
 
-        echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
-        echo "ZIP_PATH=${ZIP_PATH}" >> $GITHUB_ENV
-
+        echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+        echo "ZIP_PATH=$ZIP_PATH" >> $GITHUB_ENV
     - name: Upload kernel artifact
       uses: actions/upload-artifact@v4
       with:
