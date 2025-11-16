@@ -361,10 +361,10 @@ jobs:
       run: |
         IMAGE="${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }}/arch/arm64/boot/Image"
         cp -fv "$IMAGE" "${{ env.ANYKERNEL_DIR }}"/
-        
+
         cd "${{ env.ANYKERNEL_DIR }}"
         rm -rf .git
-        
+
         # Get BUILD version from KernelSU
         if [ -d "../${{ env.KERNEL_DIR }}/KernelSU/.git" ]; then
           cd "../${{ env.KERNEL_DIR }}/KernelSU"
@@ -373,33 +373,31 @@ jobs:
         else
           BUILD_VER="22143"
         fi
-        
-        cd "${{ github.workspace }}/${{ env.ANYKERNEL_DIR }}"
-        
-        # Create timestamp label
-        TIMESTAMP=$(TZ=UTC date -u +"%Y%m%dT%H%MZ")
-        BUILD_LABEL="${TIMESTAMP}-${{ env.GIT_SHORT_SHA }}"
-        ZIP_NAME="${{ env.ZIP_PREFIX }}-${BUILD_VER}.zip"
-        
-        zip -r "../${ZIP_NAME}" ./*
-        
-        mkdir -p "../${{ env.BUILDS_DIR }}"
-        mv "../${ZIP_NAME}" "../${{ env.BUILDS_DIR }}/"
-        
-        echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
         echo "BUILD_VER=${BUILD_VER}" >> $GITHUB_ENV
+
+        cd "${{ github.workspace }}/${{ env.ANYKERNEL_DIR }}"
+
+        TIMESTAMP=$(TZ=UTC date -u +"%Y%m%dT%H%MZ")
+        ZIP_NAME="${{ env.ZIP_PREFIX }}-${BUILD_VER}.zip"
+        ZIP_PATH="${{ github.workspace }}/${{ env.BUILDS_DIR }}/${ZIP_NAME}"
+
+        echo "Zipping to: $ZIP_PATH"
+        zip -r9 "$ZIP_PATH" ./* > /dev/null
+
+        echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
+        echo "ZIP_PATH=${ZIP_PATH}" >> $GITHUB_ENV
 
     - name: Upload kernel artifact
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.ZIP_NAME }}
-        path: ${{ env.BUILDS_DIR }}/${{ env.ZIP_NAME }}
+        path: ${{ env.ZIP_PATH }}
         retention-days: 30
 
     - name: Generate build info
       run: |
-        cd "${{ env.KERNEL_DIR }}"
-        cat > ../build_info.txt << EOF
+        CLANG_VER=$(clang --version | head -n1 | awk '{print $3 $4}')
+        cat > "${{ env.BUILDS_DIR }}/build_info.txt" << EOF
         Build Information
         =================
         Kernel Version: 6.1.155
@@ -409,11 +407,11 @@ jobs:
         Short SHA: ${{ env.GIT_SHORT_SHA }}
         LTO Type: ${{ env.LTO_TYPE }}
         Pixel 8a Config: ${{ env.PIXEL8A }}
-        
+
         Compiler Information
         ===================
-        Clang Version: $(clang --version | head -n1)
-        
+        Clang Version: ${CLANG_VER}
+
         Build Configuration
         ==================
         KernelSU: Enabled (kowsu-susfs)
@@ -422,14 +420,12 @@ jobs:
         BBR TCP: Enabled
         IPSet: Enabled
         EOF
-        
-        cat ../build_info.txt
 
     - name: Upload build info
       uses: actions/upload-artifact@v4
       with:
         name: build-info
-        path: build_info.txt
+        path: ${{ env.BUILDS_DIR }}/build_info.txt
         retention-days: 30
 
     - name: Create Release (on tag)
@@ -437,16 +433,16 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          ${{ env.BUILDS_DIR }}/${{ env.ZIP_NAME }}
-          build_info.txt
+          ${{ env.ZIP_PATH }}
+          ${{ env.BUILDS_DIR }}/build_info.txt
         body: |
           ## Kernel Build ${{ github.ref_name }}
-          
+
           - **Build Version**: ${{ env.BUILD_VER }}
           - **Commit**: ${{ github.sha }}
           - **LTO**: ${{ env.LTO_TYPE }}
           - **Date**: $(date -u)
-          
+
           ### Features
           - KowSU (kowsu-susfs branch)
           - SuSFS patches for android14-6.1
