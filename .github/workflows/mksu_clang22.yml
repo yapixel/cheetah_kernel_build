@@ -386,7 +386,7 @@ jobs:
 
         # --- Prepare zip path BEFORE changing directory ---
         TIMESTAMP=$(TZ=UTC date -u +"%Y%m%dT%H%MZ")
-        ZIP_NAME="${{ env.ZIP_PREFIX }}-${BUILD_VER}.zip"
+        ZIP_NAME="${{ env.ZIP_PREFIX }}-r${BUILD_VER}.zip"
         ZIP_PATH="${{ github.workspace }}/${{ env.BUILDS_DIR }}/${ZIP_NAME}"
 
         # Create destination directory
