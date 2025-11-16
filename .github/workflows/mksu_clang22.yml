@@ -356,58 +356,59 @@ jobs:
           echo "Error: Kernel Image not found!"
           exit 1
         fi
-
+        
     - name: Package kernel
       run: |
-        set -euo pipefail
+       set -euo pipefail
 
-        KERNEL_IMAGE="${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }}/arch/arm64/boot/Image"
-        ANYKERNEL_IMAGE="${{ env.ANYKERNEL_DIR }}/Image"
+       KERNEL_IMAGE="${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }}/arch/arm64/boot/Image"
+       ANYKERNEL_IMAGE="${{ env.ANYKERNEL_DIR }}/Image"
 
-        # --- FAIL FAST if Image missing ---
-        if [ ! -f "$KERNEL_IMAGE" ] || [ ! -s "$KERNEL_IMAGE" ]; then
-          echo "ERROR: Kernel Image not found or empty!"
-          echo "Expected: $KERNEL_IMAGE"
-          ls -lh "${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }}/arch/arm64/boot/" || true
-          exit 1
-        fi
+       # --- FAIL FAST if Image missing ---
+       if [ ! -f "$KERNEL_IMAGE" ] || [ ! -s "$KERNEL_IMAGE" ]; then
+       echo "ERROR: Kernel Image not found or empty!"
+       echo "Expected: $KERNEL_IMAGE"
+       ls -lh "${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }}/arch/arm64/boot/" || true
+       exit 1
+       fi
 
-        # --- Copy ---
-        cp -fv "$KERNEL_IMAGE" "$ANYKERNEL_IMAGE"
+       # --- Copy ---
+       cp -fv "$KERNEL_IMAGE" "$ANYKERNEL_IMAGE"
 
-        # --- Compute BUILD_VER safely ---
-        if [ -d "${{ env.KERNEL_DIR }}/KernelSU/.git" ]; then
-          BUILD_COUNT=$(git -C "${{ env.KERNEL_DIR }}/KernelSU" rev-list --count HEAD)
-          BUILD_VER=$((20000 + BUILD_COUNT))
-        else
-          BUILD_VER="22143"
-        fi
-        echo "BUILD_VER=$BUILD_VER" >> $GITHUB_ENV
+       # --- Compute BUILD_VER safely ---
+       if [ -d "${{ env.KERNEL_DIR }}/KernelSU/.git" ]; then
+       BUILD_COUNT=$(git -C "${{ env.KERNEL_DIR }}/KernelSU" rev-list --count HEAD)
+       BUILD_VER=$((20000 + BUILD_COUNT))
+       else
+       BUILD_VER="22143"
+       fi
+       echo "BUILD_VER=$BUILD_VER" >> $GITHUB_ENV
 
-        # --- Prepare zip path BEFORE changing directory ---
-        TIMESTAMP=$(TZ=UTC date -u +"%Y%m%dT%H%MZ")
-        ZIP_NAME="${{ env.ZIP_PREFIX }}-r${BUILD_VER}.zip"
-        ZIP_PATH="${{ github.workspace }}/${{ env.BUILDS_DIR }}/${ZIP_NAME}"
+       # --- Prepare zip path ---
+       ZIP_NAME="ak3.zip"
+       ZIP_PATH="${{ github.workspace }}/${{ env.BUILDS_DIR }}/${ZIP_NAME}"
 
-        # Create destination directory
-        mkdir -p "$(dirname "$ZIP_PATH")"
-        
-        # --- Change to AnyKernel directory ---
-        cd "${{ env.ANYKERNEL_DIR }}"
-        rm -rf .git  # optional, harmless
+       # Create destination directory
+       mkdir -p "$(dirname "$ZIP_PATH")"
+    
+       # --- Change to AnyKernel directory ---
+       cd "${{ env.ANYKERNEL_DIR }}"
+       rm -rf .git  # optional, harmless
 
-        # --- Zip using absolute path ---
-        echo "Zipping → $ZIP_PATH"
-        zip -r9 "$ZIP_PATH" ./* > /dev/null
+       # --- Zip using absolute path ---
+       echo "Zipping → $ZIP_PATH"
+       zip -r9 "$ZIP_PATH" . -x '*.git*' > /dev/null
 
-        echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
-        echo "ZIP_PATH=$ZIP_PATH" >> $GITHUB_ENV
+       echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+       echo "ZIP_PATH=$ZIP_PATH" >> $GITHUB_ENV
+
     - name: Upload kernel artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ env.ZIP_NAME }}
-        path: ${{ env.ZIP_PATH }}
-        retention-days: 30
+       name: ak3
+       path: ${{ env.ZIP_PATH }}
+       retention-days: 30
+       compression-level: 0
 
     - name: Generate build info
       run: |
