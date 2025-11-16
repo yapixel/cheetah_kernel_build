@@ -384,15 +384,19 @@ jobs:
         fi
         echo "BUILD_VER=$BUILD_VER" >> $GITHUB_ENV
 
-        # --- Zip ---
-        cd "${{ env.ANYKERNEL_DIR }}"
-        rm -rf .git  # optional, harmless
-
+        # --- Prepare zip path BEFORE changing directory ---
         TIMESTAMP=$(TZ=UTC date -u +"%Y%m%dT%H%MZ")
         ZIP_NAME="${{ env.ZIP_PREFIX }}-${BUILD_VER}.zip"
         ZIP_PATH="${{ github.workspace }}/${{ env.BUILDS_DIR }}/${ZIP_NAME}"
 
+        # Create destination directory
         mkdir -p "$(dirname "$ZIP_PATH")"
+        
+        # --- Change to AnyKernel directory ---
+        cd "${{ env.ANYKERNEL_DIR }}"
+        rm -rf .git  # optional, harmless
+
+        # --- Zip using absolute path ---
         echo "Zipping → $ZIP_PATH"
         zip -r9 "$ZIP_PATH" ./* > /dev/null
 
