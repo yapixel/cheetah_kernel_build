@@ -386,6 +386,7 @@ jobs:
 
        # --- Prepare zip path with versioned name ---
        ZIP_NAME="${{ env.ZIP_PREFIX }}-r${BUILD_VER}.zip"
+       ARTIFACT_NAME="${{ env.ZIP_PREFIX }}-r${BUILD_VER}"
        ZIP_PATH="${{ github.workspace }}/${{ env.BUILDS_DIR }}/${ZIP_NAME}"
 
        # Create destination directory
@@ -400,15 +401,16 @@ jobs:
        zip -r9 "$ZIP_PATH" . -x '*.git*' > /dev/null
 
        echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+       echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> $GITHUB_ENV
        echo "ZIP_PATH=$ZIP_PATH" >> $GITHUB_ENV
 
     - name: Upload kernel artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ env.ZIP_NAME }}
-        path: ${{ env.ZIP_PATH }}
-        retention-days: 30
-        compression-level: 0
+       name: ${{ env.ARTIFACT_NAME }}
+       path: ${{ env.ZIP_PATH }}
+       retention-days: 30
+       compression-level: 0
 
     - name: Generate build info
       run: |
