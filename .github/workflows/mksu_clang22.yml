@@ -254,21 +254,19 @@ jobs:
 
        # Ensure CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT exists
        if ! grep -q "config KSU_SUSFS_HAS_MAGIC_MOUNT" KernelSU/kernel/Kconfig; then
-        log_info "Adding CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT option"
-        sed -i '/config KSU_SUSFS$/a\
-        \
-        config KSU_SUSFS_HAS_MAGIC_MOUNT\
-      	bool "Magic Mount compatibility flag"\
-       	depends on KSU_SUSFS\
-      	default y\
-      	help\
-    	  This flag indicates that Magic Mount functionality existed\
-    	  but has been replaced by SUSFS. Set to Y to show Magic Mount\
-    	  as DEPRECATED in the Manager instead of just DISABLED.\
-    	  \
-    	  Setting this to Y with KSU_SUPPORT_MOUNT=n will show:\
-    	  "Magic Mount: DEPRECATED" in SUSFS-aware managers.\
-        ' KernelSU/kernel/Kconfig || true
+       log_info "Adding CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT option"
+       sed -i '/config KSU_SUSFS$/a\
+       \nconfig KSU_SUSFS_HAS_MAGIC_MOUNT\
+       \tbool "Magic Mount compatibility flag"\
+       \tdepends on KSU_SUSFS\
+       \tdefault y\
+       \thelp\
+       \t  This flag indicates that Magic Mount functionality existed\
+       \t  but has been replaced by SUSFS. Set to Y to show Magic Mount\
+       \t  as DEPRECATED in the Manager instead of just DISABLED.\
+       \t  \
+       \t  Setting this to Y with KSU_SUPPORT_MOUNT=n will show:\
+       \t  "Magic Mount: DEPRECATED" in SUSFS-aware managers.' KernelSU/kernel/Kconfig || true
         fi
         else
         log_info "KernelSU/kernel/Kconfig not found, skipping Kconfig changes"
