@@ -234,6 +234,7 @@ jobs:
           patch -p1 -F 3 < 69_hide_stuff.patch || true
 
     - name: Mark Magic Mount as deprecated and expose correct status to Manager
+      working-directory: ${{ env.KERNEL_DIR }}
       run: |
        set -e  # Stop on any error
        log_info() {
