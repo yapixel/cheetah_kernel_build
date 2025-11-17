@@ -226,7 +226,7 @@ jobs:
           #patch -p1 --fuzz 3 < fix_proc_base.patch
 
           cd KernelSU
-          cp -fv ../../kernel_patches/mksu/0001-10-add_SuSFS_to_KernelSU_v2.patch ./
+          cp  ../../kernel_patches/mksu/0001-10-add_SuSFS_to_KernelSU_v2.patch ./
           patch -p1 < 0001-10-add_SuSFS_to_KernelSU_v2.patch || true
           cd ../
           # Hide Stuff
