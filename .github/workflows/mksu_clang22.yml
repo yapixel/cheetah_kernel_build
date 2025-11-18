@@ -228,7 +228,7 @@ jobs:
           #patch -p1 --fuzz 3 < fix_avc.c.patch
 
           cd KernelSU
-          cp  ../../kernel_patches/mksu/0001-10_enable_susfs_for_ksu_5ec1cff.patch
+          cp  ../../kernel_patches/mksu/0001-10_enable_susfs_for_ksu_5ec1cff.patch ./
           patch -p1 < 0001-10_enable_susfs_for_ksu_5ec1cff.patch || true
           cd ../
           # Hide Stuff
