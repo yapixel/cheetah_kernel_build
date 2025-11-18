@@ -1,5 +1,5 @@
 
-name: Build Android Kernel with SukiSU & Clang22
+name: Build Android Kernel with SukiSU 
 
 on:
   push:
