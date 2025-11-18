@@ -224,6 +224,8 @@ jobs:
           
           cp ../kernel_patches/mksu/fix_proc_base.patch ./
           patch -p1 --fuzz 3 < fix_proc_base.patch
+          cp ../kernel_patches/mksu/fix_avc.c.patch ./
+          patch -p1 --fuzz 3 < fix_avc.c.patch
 
           cd KernelSU
           cp  ../../kernel_patches/mksu/0001-10-add_SuSFS_to_KernelSU_v2.patch ./
