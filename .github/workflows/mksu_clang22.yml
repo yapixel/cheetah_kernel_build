@@ -235,61 +235,7 @@ jobs:
           cp ../kernel_patches/69_hide_stuff.patch .
           patch -p1 -F 3 < 69_hide_stuff.patch || true
 
-    - name: Mark Magic Mount as deprecated and expose correct status to Manager
-      working-directory: ${{ env.KERNEL_DIR }}
-      run: |
-       set -e  # Stop on any error
-       log_info() {
-       echo "::notice ::$1"
-       }
-
-       log_info "Configuring Magic Mount deprecation (CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT)"
-
-       # 1. Update KernelSU/kernel/Kconfig
-       if [[ -f "KernelSU/kernel/Kconfig" ]]; then
-       log_info "Updating KernelSU Kconfig"
-
-       # Mark old KSU_SUPPORT_MOUNT as deprecated and default n
-       sed -i '/config KSU_SUPPORT_MOUNT/,/^config\|^menu\|^endmenu/{
-        /default y/s/default y/default n/
-        /bool/s|bool.*|bool "Magic Mount Support (DEPRECATED - Use SUSFS)"|
-        }' KernelSU/kernel/Kconfig || true
-
-       # Ensure CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT exists
-       if ! grep -q "config KSU_SUSFS_HAS_MAGIC_MOUNT" KernelSU/kernel/Kconfig; then
-       log_info "Adding CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT option"
-       sed -i '/config KSU_SUSFS$/a\
-       \nconfig KSU_SUSFS_HAS_MAGIC_MOUNT\
-       \tbool "Magic Mount compatibility flag"\
-       \tdepends on KSU_SUSFS\
-       \tdefault y\
-       \thelp\
-       \t  This flag indicates that Magic Mount functionality existed\
-       \t  but has been replaced by SUSFS. Set to Y to show Magic Mount\
-       \t  as DEPRECATED in the Manager instead of just DISABLED.\
-       \t  \
-       \t  Setting this to Y with KSU_SUPPORT_MOUNT=n will show:\
-       \t  "Magic Mount: DEPRECATED" in SUSFS-aware managers.' KernelSU/kernel/Kconfig || true
-        fi
-        else
-        log_info "KernelSU/kernel/Kconfig not found, skipping Kconfig changes"
-        fi
-
-        # 2. Update Makefile to respect the new config flag
-        if [[ -f "KernelSU/kernel/Makefile" ]]; then
-        if ! grep -q "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT" KernelSU/kernel/Makefile; then
-        log_info "Adding CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT flag to Makefile"
-        {
-          echo ""
-          echo "# Magic Mount deprecation flag"
-          echo "ccflags-\$(CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT) += -DKSU_SUSFS_HAS_MAGIC_MOUNT"
-        } >> KernelSU/kernel/Makefile
-        fi
-        else
-        log_info "KernelSU/kernel/Makefile not found, skipping Makefile changes"
-        fi
-
-        log_info "Magic Mount deprecation configuration completed"
+    
         
     - name: Compute KSU Version
       run: |
