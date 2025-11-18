@@ -226,7 +226,7 @@ jobs:
           
 
           cd KernelSU
-          cp  ../../kernel_patches/mksu/0001-10_enable_susfs_for_ksu_KOWX712.patch ./
+          cp  ../../kernel_patches/kowsu/0001-10_enable_susfs_for_ksu_KOWX712.patch ./
           patch -p1 < 0001-10_enable_susfs_for_ksu_KOWX712.patch || true
           cd ../
           # Hide Stuff
