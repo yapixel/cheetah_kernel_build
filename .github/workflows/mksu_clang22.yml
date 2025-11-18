@@ -216,7 +216,7 @@ jobs:
       run: |
           # SUSFS
           echo "Applying SUSFS patches..."
-          cp ../kernel_patches/0001-50_add_susfs_to_kernelside_5ec1cff.patch ./
+          cp ../kernel_patches/mksu/0001-50_add_susfs_to_kernelside_5ec1cff.patch ./
           cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
           cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
           patch --fuzz=10 -p1 < 0001-50_add_susfs_to_kernelside_5ec1cff.patch || true
