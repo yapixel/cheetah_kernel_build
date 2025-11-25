@@ -333,6 +333,7 @@ jobs:
         # Disable BTF debug info (optional - only if pahole fails)
         sed -i '/^CONFIG_DEBUG_INFO_BTF/d' "$CONFIG"
         echo "# CONFIG_DEBUG_INFO_BTF is not set" >> "$CONFIG"
+        echo "# CONFIG_KSU_HOSTS_BLOCKING is not set" >> "$CONFIG"
 
     - name: Prepare build
       working-directory: ${{ env.KERNEL_DIR }}
