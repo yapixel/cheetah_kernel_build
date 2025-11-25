@@ -24,7 +24,7 @@ env:
   ZIP_PREFIX: AK3-A14-6.1.145-KowSU
   KERNEL_DIR: common
   KERNEL_VERSION: 6.1.145
-  CONFIG_FILE: arch/arm64/configs/gki_defconfig
+  CONFIG_FILE: gki_defconfig
   OUT_DIR: out
   BUILD_CLEAN: ${{ github.event.inputs.build_clean || 'always' }}
   RETRY: 3
