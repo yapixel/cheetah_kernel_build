@@ -43,7 +43,7 @@ env:
   # Compiler configuration
   USE_CCACHE: 1
   CCACHE_DIR: ${{ github.workspace }}/.ccache
-  CLANG_VERSION: 18.0.0
+  CLANG_VERSION: 17.0.2
   
   # KernelSU version calculation constants
   KSU_BASE_VERSION: 40000
@@ -277,15 +277,10 @@ jobs:
         cat >> "$CONFIG" << 'EOF'
         CONFIG_LOCALVERSION="${{ env.LOCALVERSION }}"
         CONFIG_LOCALVERSION_AUTO=n
-        CONFIG_KPROBES=y
-        CONFIG_HAVE_KPROBES=y
-        CONFIG_KPROBE_EVENTS=y
         CONFIG_KSU=y
-        CONFIG_KSU_KPROBES_HOOK=y
+        CONFIG_KSU_KPROBES_HOOK=n
+        CONFIG_KSU_MANUAL_HOOK=y
         CONFIG_KSU_DEBUG=n
-        CONFIG_KSU_THRONE_TRACKER_ALWAYS_THREADED=y
-        CONFIG_KSU_ALLOWLIST_WORKAROUND=n
-        CONFIG_KSU_LSM_SECURITY_HOOKS=y
         CONFIG_TMPFS_XATTR=y
         CONFIG_TMPFS_POSIX_ACL=y
         CONFIG_TCP_CONG_ADVANCED=y
