@@ -224,10 +224,10 @@ jobs:
       run: |
           
           echo "Applying core SUSFS patches..."
-          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch ./
+          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./
           cp ../susfs4ksu/kernel_patches/fs/* ./fs/
           cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
-          patch -p1 --forward < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
+          patch -p1 --forward < 50_add_susfs_in_gki-android14-6.1.patch || true
           cp ../kernel_patches/sultan/sys.c_fix.patch ./
           patch -p1 --fuzz=3 < sys.c_fix.patch
           
