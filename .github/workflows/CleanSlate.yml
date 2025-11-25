@@ -117,13 +117,13 @@ jobs:
         key: kernel-build-${{ env.LTO_TYPE }}
         max-size: 5G
 
-    - name: Download and extract GCC 14.2.0 toolchain
+    - name: Download and extract GCC 15.2.0 toolchain
       run: |
-          echo "Downloading GCC 14.2.0..."
-          wget -q https://kernel.org/pub/tools/crosstool/files/bin/x86_64/14.2.0/x86_64-gcc-14.2.0-nolibc-aarch64-linux.tar.gz -O gcc.tar.gz
+          echo "Downloading GCC 15.2.0..."
+          wget -q https://kernel.org/pub/tools/crosstool/files/bin/x86_64/15.2.0/x86_64-gcc-15.2.0-nolibc-aarch64-linux.tar.gz -O gcc.tar.gz
           gunzip gcc.tar.gz
           tar -xf gcc.tar
-          echo "GCC 14.2.0 ready"
+          echo "GCC 15.2.0 ready"
 
     - name: Clone kernel source
       run: |
