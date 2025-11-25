@@ -1,0 +1,104 @@
+name: Build Pixel 8 Pro (husky) Kernel – Android 16
+
+on:
+  push:
+    branches: [ main, husky ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 6 * * 1,4'   # Every Monday & Thursday at 06:00 UTC
+  workflow_dispatch:        # Manual trigger
+
+jobs:
+  build-husky-kernel:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Maximize build space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo df -h
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison flex libssl-dev libelf-dev lz4 zstd cpio \
+                                  python3 python3-pip wget git curl xz-utils
+
+      - name: Create kernel directory
+        run: mkdir -p kernel_husky && cd kernel_husky
+
+      - name: Clone tbalden AOSP common base (husky-compatible)
+        run: |
+          git clone --depth 1 --branch aosp_cleanslate_a16_shusky \
+            https://github.com/tbalden/google_common_aosp_simple.git kernel_source
+
+      - name: Clone Google drivers overlay
+        run: |
+          git clone --depth 1 --branch cleanslate_shusky_a16 \
+            https://github.com/tbalden/google_common_kernel_drivers_simple.git kernel_source/drivers/google
+
+      - name: Download latest AOSP Clang (r522817+ – Android 16)
+        run: |
+          wget -q https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r522817.tar.gz
+          mkdir clang && tar -xzf clang-r522817.tar.gz -C clang
+
+      - name: Download GCC cross-compiler (needed for some drivers)
+        run: |
+          git clone --depth=1 --single-branch \
+            https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 \
+            prebuilts_gcc
+
+      - name: Build kernel (husky only)
+        run: |
+          cd kernel_source
+          export PATH="$(pwd)/../clang/bin:$PATH"
+          export CROSS_COMPILE="$(pwd)/../prebuilts_gcc/bin/aarch64-linux-android-"
+          export ARCH=arm64
+          export CLANG_TRIPLE=aarch64-linux-gnu-
+          export CC=clang
+
+          make O=out CC=clang husky_defconfig
+          make O=out CC=clang -j$(nproc --all)
+
+      - name: Prepare artifacts
+        run: |
+          mkdir -p ../artifacts
+          cp kernel_source/out/arch/arm64/boot/Image ../artifacts/Image-husky
+          cp kernel_source/out/arch/arm64/boot/dtb.img ../artifacts/dtb-husky.img
+          cp kernel_source/out/arch/arm64/boot/dtbo.img ../artifacts/dtbo-husky.img
+
+          cd ../artifacts
+          sha256sum * > sha256sums.txt
+          ls -lh
+
+      - name: Upload kernel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: husky-kernel-android16-${{ github.sha }}
+          path: artifacts/
+          retention-days: 30
+
+      - name: Upload as Release (only on main branch only )
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: husky-nightly-${{ github.run_date || github.run_number }}
+          name: Pixel 8 Pro (husky) Kernel – Nightly Build
+          body: |
+            Automated build from tbalden cleanslate A16 repos
+            Commit: ${{ github.sha }}
+            Built on: ${{ github.run_date }}
+          files: |
+            artifacts/Image-husky
+            artifacts/dtb-husky.img
+            artifacts/dtbo-husky.img
+            artifacts/sha256sums.txt
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
