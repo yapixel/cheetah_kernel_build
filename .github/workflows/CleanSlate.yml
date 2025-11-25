@@ -243,8 +243,9 @@ jobs:
           
         
     - name: Getting KernelSU Version
+      working-directory: ${{ env.KERNEL_DIR }}
       run: |
-          cd "$CONFIG/KernelSU/kernel"
+          cd "KernelSU/kernel"
           BASE_VERSION=40000
           COMMIT_COUNT=$(/usr/bin/git rev-list --count HEAD)
           KSU_VERSION=$(expr $COMMIT_COUNT "+" $BASE_VERSION - 2815)
