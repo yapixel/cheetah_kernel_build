@@ -322,7 +322,7 @@ jobs:
 
     - name: Build the Kernel
       run: |
-          cd "${{ env.kernel_dir }}"
+          cd "${{ env.KERNEL_DIR }}"
 
           export KBUILD_BUILD_USER="build-user"
           export KBUILD_BUILD_HOST="build-host"
