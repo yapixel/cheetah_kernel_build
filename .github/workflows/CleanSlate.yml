@@ -348,11 +348,11 @@ jobs:
         mkdir -p ${{ env.OUT_DIR }}
 
     - name: Build the Kernel
+      working-directory: ${{ env.KERNEL_DIR }}
       env:
           KBUILD_BUILD_USER: build-user
           KBUILD_BUILD_HOST: build-host
       run: |
-          cd "${{ env.KERNEL_DIR }}"
           make LLVM=1 LLVM_IAS=1 ARCH=arm64 \
                CLANG_TRIPLE=aarch64-linux-gnu- \
                CROSS_COMPILE="${{ env.ARM64_TOOLCHAIN }}" \
