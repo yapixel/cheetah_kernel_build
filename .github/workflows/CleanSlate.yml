@@ -220,7 +220,7 @@ jobs:
           
 
     - name: Apply SUSFS Patches
-      working-directory: ${{ env.KERNEL_DIR }}"
+      working-directory: ${{ env.KERNEL_DIR }}
       run: |
           
           echo "Applying core SUSFS patches..."
