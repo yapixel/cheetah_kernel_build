@@ -309,7 +309,7 @@ jobs:
           export KBUILD_BUILD_USER="build-user"
           export KBUILD_BUILD_HOST="build-host"
           make O=out CROSS_COMPILE=$GITHUB_WORKSPACE/gcc-15.2.0-nolibc/aarch64-linux/bin/aarch64-linux- CC=$GITHUB_WORKSPACE/gcc-15.2.0-nolibc/aarch64-linux/bin/aarch64-linux-gcc gki_defconfig
-          make O=out CROSS_COMPILE="ccache $GITHUB_WORKSPACE/gcc-15.2.0-nolibc/aarch64-linux/bin/aarch64-linux-" CC="ccache $GITHUB_WORKSPACE/gcc-15.2.0-nolibc/aarch64-linux/bin/aarch64-linux-gcc" -j$(nproc --all)
+          make O=out CROSS_COMPILE="ccache $GITHUB_WORKSPACE/gcc-15.2.0-nolibc/aarch64-linux/bin/aarch64-linux-" CC="ccache $GITHUB_WORKSPACE/gcc-15.2.0-nolibc/aarch64-linux/bin/aarch64-linux-gcc" KCFLAGS="-fno-ret-poline -mno-retpoline" -j$(nproc --all)
 
     - name: Check build output
       run: |
