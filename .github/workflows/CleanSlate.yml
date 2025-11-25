@@ -1,5 +1,5 @@
 
-name: Build CleanSlate Android Kernel with SukiSU 
+name: Build CleanSlate Android Kernel with xxKSU
 
 on:
   push:
@@ -38,11 +38,11 @@ env:
   BUILD_CLEAN: ${{ github.event.inputs.build_clean || 'always' }}
   RETRY: 3
   REPO_DEPTH: 1
-  KSUN_BRANCH: susfs-main
+  KSUN_BRANCH: master
   ANYKERNEL_DIR: AnyKernel3-p8a
   ANYKERNEL_BRANCH: gki-2.0
-  SUSFS_REPO: https://gitlab.com/pershoot/susfs4ksu.git
-  SUSFS_BRANCH: gki-android14-6.1-dev
+  SUSFS_REPO: https://gitlab.com/simonpunk/susfs4ksu.git
+  SUSFS_BRANCH: gki-android14-6.1
   PATCHES_REPO: https://github.com/yapixel/kernel_patches
   PATCHES_BRANCH: dev
   BUILDS_DIR: builds/6.1.145
@@ -221,11 +221,11 @@ jobs:
           thin) echo "CONFIG_LTO_CLANG_THIN=y" >> "$CONFIG" ;;
           none) echo "CONFIG_LTO_NONE=y" >> "$CONFIG" ;;
         esac
-
-    - name: Install SukiSU
+ 
+    - name: Install KSU
       working-directory: ${{ env.KERNEL_DIR }}
       run: |
-        curl -LSs https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/refs/heads/${{ env.KSUN_BRANCH }}/kernel/setup.sh | bash -s ${{ env.KSUN_BRANCH }}
+        curl -LSs https://raw.githubusercontent.com/backslashxx/kernelSU/refs/heads/${{ env.KSUN_BRANCH }}/kernel/setup.sh | bash -s ${{ env.KSUN_BRANCH }}
 
     - name: Apply Clang 22 patch
       working-directory: ${{ env.KERNEL_DIR }}
@@ -260,7 +260,6 @@ jobs:
         CONFIG_LOCALVERSION_AUTO=n
         CONFIG_KSU=y
         CONFIG_KSU_KPROBES_HOOK=n
-        CONFIG_KSU_MANUAL_HOOK=y
         CONFIG_KSU_DEBUG=n
         CONFIG_KSU_THRONE_TRACKER_ALWAYS_THREADED=y
         CONFIG_KSU_ALLOWLIST_WORKAROUND=n
