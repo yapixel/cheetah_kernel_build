@@ -212,16 +212,16 @@ jobs:
           none) echo "CONFIG_LTO_NONE=y" >> "$CONFIG" ;;
         esac
 
-   - name: Add KernelSU
-     working-directory: ${{ env.KERNEL_DIR }}"
-        run: |
+    - name: Add KernelSU
+      working-directory: ${{ env.KERNEL_DIR }}"
+      run: |
           echo "Adding KernelSU..."
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-main
           
 
-   - name: Apply SUSFS Patches
-     working-directory: ${{ env.KERNEL_DIR }}"
-     run: |
+    - name: Apply SUSFS Patches
+      working-directory: ${{ env.KERNEL_DIR }}"
+      run: |
           
           echo "Applying core SUSFS patches..."
           cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch ./
