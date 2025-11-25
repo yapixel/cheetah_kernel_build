@@ -160,9 +160,9 @@ jobs:
         # Clone susfs4ksu
         echo "Cloning susfs4ksu..."
         git clone -b ${{ env.SUSFS_BRANCH }} ${{ env.SUSFS_REPO }} susfs4ksu
-        cd susfs4ksu
-        git checkout ${{ env.SUSFS_COMMIT }}
-        cd ../
+        #cd susfs4ksu
+        #git checkout ${{ env.SUSFS_COMMIT }}
+        #cd ../
         
         # Clone AnyKernel3
         echo "Cloning AnyKernel3..."
