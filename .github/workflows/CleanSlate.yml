@@ -132,8 +132,8 @@ jobs:
           TC_DIR=$(ls -d arm-gnu-toolchain-*)
           echo "ARM64_TOOLCHAIN=$HOME/toolchains/$TC_DIR/bin/aarch64-none-linux-gnu-" >> $GITHUB_ENV
 
-      - name: Download ARM32 GNU Toolchain 14.3.rel1
-        run: |
+    - name: Download ARM32 GNU Toolchain 14.3.rel1
+      run: |
           cd $HOME/toolchains
           wget -q https://developer.arm.com/-/media/Files/downloads/gnu/14.3.rel1/binrel/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi.tar.xz -O tc-arm.tar.xz
           tar -xJf tc-arm.tar.xz
