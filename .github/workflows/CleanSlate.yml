@@ -366,17 +366,14 @@ jobs:
     - name: Build the Kernel
       working-directory: ${{ env.KERNEL_DIR }}
       run: |
-       export KBUILD_BUILD_USER="build-user"
-       export KBUILD_BUILD_HOST="build-host"
-       export PATH="${{ env.CLANG_PATH }}:$PATH"
+       export PATH="${{ env.CLANG_PATH }}:${{ env.TC_PATH }}:$PATH"
        export CC="ccache clang"
-       export CROSS_COMPILE="aarch64-linux-gnu-"
-       export CROSS_COMPILE_COMPAT="arm-linux-gnueabi-"
-       export LD=aarch64-linux-gnu-ld                  # <-- crucial for LTO config phase
-
-       echo "Building with Clang LTO=${{ env.LTO_TYPE }}"
-       echo "PATH: $PATH"
+       export CROSS_COMPILE=aarch64-linux-gnu-
+       export CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+       export LD=aarch64-linux-gnu-ld
+    
        echo "Using linker: $(which aarch64-linux-gnu-ld)"
+       aarch64-linux-gnu-ld --version
 
        make O=${{ env.OUT_DIR }} \
         ARCH=arm64 \
@@ -385,7 +382,7 @@ jobs:
         LD="$LD" \
         ${{ env.CONFIG_FILE }}
 
-        make -j$(nproc) \
+       make -j$(nproc) \
         O=${{ env.OUT_DIR }} \
         ARCH=arm64 \
         CC="$CC" \
