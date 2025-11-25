@@ -147,7 +147,7 @@ jobs:
         git clone --depth=1 https://github.com/tbalden/google_common_aosp_simple.git -b aosp_cleanslate_a16_shusky ${{ env.KERNEL_DIR }}
         
     - name: Clone Google drivers overlay
-        run: |
+      run: |
           git clone --depth 1 --branch cleanslate_shusky_a16 \
             https://github.com/tbalden/google_common_kernel_drivers_simple.git ${{ env.KERNEL_DIR }}/drivers/google
 
