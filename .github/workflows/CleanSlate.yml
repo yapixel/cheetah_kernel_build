@@ -10,7 +10,7 @@ on:
       lto_type:
         description: 'LTO type (full/thin/none)'
         required: false
-        default: 'thin'
+        default: 'none'
       build_clean:
         description: 'Build clean mode (always/auto/never)'
         required: false
