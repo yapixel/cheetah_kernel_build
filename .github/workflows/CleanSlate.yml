@@ -42,16 +42,80 @@ jobs:
           git clone --depth 1 --branch cleanslate_shusky_a16 \
             https://github.com/tbalden/google_common_kernel_drivers_simple.git kernel_source/drivers/google
 
-      - name: Download latest AOSP Clang (r522817+ – Android 16)
+      - name: Download and setup Clang 22
         run: |
-          wget -q https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r522817.tar.gz
-          mkdir clang && tar -xzf clang-r522817.tar.gz -C clang
+         mkdir -p $HOME/clang
+         cd $HOME/clang
+        
+         # Download Clang 22 from ZyCromerZ
+         wget https://github.com/ZyCromerZ/Clang/releases/download/22.0.0git-20250928-release/Clang-22.0.0git-20250928.tar.gz -O clang.tar.gz
+         tar -xzf clang.tar.gz
+         rm clang.tar.gz
+         
+         echo "CLANG_PATH=$HOME/clang/bin" >> $GITHUB_ENV
+         echo "$HOME/clang/bin" >> $GITHUB_PATH
 
-      - name: Download GCC cross-compiler (needed for some drivers)
+      - name: Download ARM64 GNU Toolchain 14.3.rel1
         run: |
-          git clone --depth=1 --single-branch \
-            https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 \
-            prebuilts_gcc
+          mkdir -p $HOME/toolchains
+          cd $HOME/toolchains
+          wget -q https://developer.arm.com/-/media/Files/downloads/gnu/14.3.rel1/binrel/arm-gnu-toolchain-14.3.rel1-x86_64-aarch64-none-linux-gnu.tar.xz -O tc.tar.xz
+          tar -xJf tc.tar.xz
+          rm tc.tar.xz
+          TC_DIR=$(ls -d arm-gnu-toolchain-*)
+          echo "ARM64_TOOLCHAIN=$HOME/toolchains/$TC_DIR/bin/aarch64-none-linux-gnu-" >> $GITHUB_ENV
+
+      - name: Download ARM32 GNU Toolchain 14.3.rel1
+        run: |
+          cd $HOME/toolchains
+          wget -q https://developer.arm.com/-/media/Files/downloads/gnu/14.3.rel1/binrel/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi.tar.xz -O tc-arm.tar.xz
+          tar -xJf tc-arm.tar.xz
+          rm tc-arm.tar.xz
+          TC_DIR=$(ls -d arm-gnu-toolchain-*arm-none-eabi*)
+          echo "ARM32_TOOLCHAIN=$HOME/toolchains/$TC_DIR/bin/arm-none-eabi-" >> $GITHUB_ENV
+
+      - name: Configure Pixel 8 Pro
+        if: env.PIXEL8A == 'y'
+        working-directory: ${{ env.KERNEL_DIR }}
+        run: |
+         CONFIG="${{ env.CONFIG_FILE }}"
+        
+         # Add Pixel 8a specific configurations
+         cat >> "$CONFIG" << EOF
+         CONFIG_ARM64_CORTEX_X3=y
+         CONFIG_ARM64_CORTEX_A715=y
+         CONFIG_ARM64_CORTEX_A510=y
+         CONFIG_ARM64_VA_BITS=48
+         CONFIG_ARM64_PA_BITS=48
+         CONFIG_ARM64_TAGGED_ADDR_ABI=y
+         CONFIG_ARM64_SVE=y
+         CONFIG_ARM64_BTI=y
+         CONFIG_ARM64_PTR_AUTH=y
+         CONFIG_SCHED_MC=y
+         CONFIG_SCHED_CORE=y
+         CONFIG_ENERGY_MODEL=y
+         CONFIG_UCLAMP_TASK=y
+         CONFIG_UCLAMP_TASK_GROUP=y
+         CONFIG_SCHEDUTIL=y
+         CONFIG_CPU_FREQ=y
+         CONFIG_CPUFREQ_DT=y
+         CONFIG_CPU_FREQ_GOV_SCHEDUTIL=y
+         CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y
+         CONFIG_STACKPROTECTOR=n
+         CONFIG_STACKPROTECTOR_STRONG=n
+         EOF
+
+      - name: Configure LTO
+        working-directory: ${{ env.KERNEL_DIR }}
+        run: |
+         CONFIG="${{ env.CONFIG_FILE }}"
+         sed -i -E '/^CONFIG_LTO_(CLANG_(FULL|THIN)|NONE)=/d' "$CONFIG" || true
+        
+         case "${{ env.LTO_TYPE }}" in
+          full) echo "CONFIG_LTO_CLANG_FULL=y" >> "$CONFIG" ;;
+          thin) echo "CONFIG_LTO_CLANG_THIN=y" >> "$CONFIG" ;;
+          none) echo "CONFIG_LTO_NONE=y" >> "$CONFIG" ;;
+         esac
 
       - name: Build kernel (husky only)
         run: |
