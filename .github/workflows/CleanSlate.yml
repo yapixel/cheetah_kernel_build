@@ -213,7 +213,7 @@ jobs:
         esac
 
     - name: Add KernelSU
-      working-directory: ${{ env.KERNEL_DIR }}"
+      working-directory: ${{ env.KERNEL_DIR }}
       run: |
           echo "Adding KernelSU..."
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-main
