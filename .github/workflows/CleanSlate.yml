@@ -115,17 +115,36 @@ jobs:
 
     
           
-    - name: Download and extract GCC 14.2.0 toolchain
+    - name: Download Clang 17.0.2 (r487747c)
       run: |
-          echo "Downloading GCC 14.2.0 cross-compiler toolchain..."
-          wget https://www.kernel.org/pub/tools/crosstool/files/bin/x86_64/14.2.0/x86_64-gcc-14.2.0-nolibc-aarch64-linux.tar.gz
-          echo "Extracting .gz file..."
-          gunzip x86_64-gcc-14.2.0-nolibc-aarch64-linux.tar.gz
-          echo "Extracting .tar file..."
-          tar -xf x86_64-gcc-14.2.0-nolibc-aarch64-linux.tar
-          echo "GCC 14.2.0 toolchain extracted successfully"
-          
-    
+          mkdir -p $HOME/clang
+          cd $HOME/clang
+          wget -q https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/tags/android-14.0.0_r29/clang-r487747c.tar.gz -O clang.tar.gz
+          tar -xzf clang.tar.gz
+          rm clang.tar.gz
+          $HOME/clang/bin/clang --version | head -1
+          echo "CLANG_PATH=$HOME/clang/bin" >> $GITHUB_ENV
+          echo "$HOME/clang/bin" >> $GITHUB_PATH
+
+    - name: Download ARM64 GNU Toolchain 14.3.rel1
+      run: |
+          mkdir -p $HOME/toolchains
+          cd $HOME/toolchains
+          wget -q https://developer.arm.com/-/media/Files/downloads/gnu/14.3.rel1/binrel/arm-gnu-toolchain-14.3.rel1-x86_64-aarch64-none-linux-gnu.tar.xz -O tc.tar.xz
+          tar -xJf tc.tar.xz
+          rm tc.tar.xz
+          TC_DIR=$(ls -d arm-gnu-toolchain-*)
+          echo "ARM64_TOOLCHAIN=$HOME/toolchains/$TC_DIR/bin/aarch64-none-linux-gnu-" >> $GITHUB_ENV
+
+    - name: Download ARM32 GNU Toolchain 14.3.rel1
+      run: |
+          cd $HOME/toolchains
+          wget -q https://developer.arm.com/-/media/Files/downloads/gnu/14.3.rel1/binrel/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi.tar.xz -O tc-arm.tar.xz
+          tar -xJf tc-arm.tar.xz
+          rm tc-arm.tar.xz
+          TC_DIR=$(ls -d arm-gnu-toolchain-*arm-none-eabi*)
+          echo "ARM32_TOOLCHAIN=$HOME/toolchains/$TC_DIR/bin/arm-none-eabi-" >> $GITHUB_ENV
+
 
     - name: Clone kernel source
       run: |
@@ -329,11 +348,32 @@ jobs:
         mkdir -p ${{ env.OUT_DIR }}
 
     - name: Build the Kernel
-      working-directory: ${{ env.KERNEL_DIR }}
+      env:
+          KBUILD_BUILD_USER: build-user
+          KBUILD_BUILD_HOST: build-host
       run: |
-        make CROSS_COMPILE=$GITHUB_WORKSPACE/gcc-14.2.0-nolibc/aarch64-linux/bin/aarch64-linux- CC=$GITHUB_WORKSPACE/gcc-14.2.0-nolibc/aarch64-linux/bin/aarch64-linux-gcc -j$(nproc --all) gki_defconfig
-        make CROSS_COMPILE=$GITHUB_WORKSPACE/gcc-14.2.0-nolibc/aarch64-linux/bin/aarch64-linux- CC=$GITHUB_WORKSPACE/gcc-14.2.0-nolibc/aarch64-linux/bin/aarch64-linux-gcc -j$(nproc --all)
+          cd "${{ env.KERNEL_DIR }}"
+          make LLVM=1 LLVM_IAS=1 ARCH=arm64 \
+               CLANG_TRIPLE=aarch64-linux-gnu- \
+               CROSS_COMPILE="${{ env.ARM64_TOOLCHAIN }}" \
+               CROSS_COMPILE_COMPAT="${{ env.ARM32_TOOLCHAIN }}" \
+               CC="ccache clang" \
+               LD=ld.lld HOSTLD=ld.lld \
+               O=out \
+               -j$(nproc --all) ${{ env.CONFIG_FILE }}
 
+          make LLVM=1 LLVM_IAS=1 ARCH=arm64 \
+               CLANG_TRIPLE=aarch64-linux-gnu- \
+               CROSS_COMPILE="${{ env.ARM64_TOOLCHAIN }}" \
+               CROSS_COMPILE_COMPAT="${{ env.ARM32_TOOLCHAIN }}" \
+               CC="ccache clang" \
+               LD=ld.lld HOSTLD=ld.lld \
+               O=out \
+               -j$(nproc --all)
+
+          if [[ ! -f "out/arch/arm64/boot/Image.lz4" ]]; then
+            lz4 -z -f -9 out/arch/arm64/boot/Image out/arch/arm64/boot/Image.lz4
+          fi
 
     - name: Check build output
       run: |
