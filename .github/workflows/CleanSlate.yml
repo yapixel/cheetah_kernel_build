@@ -206,11 +206,11 @@ jobs:
       run: |
         curl -LSs https://raw.githubusercontent.com/backslashxx/kernelSU/refs/heads/${{ env.KSUN_BRANCH }}/kernel/setup.sh | bash -s ${{ env.KSUN_BRANCH }}
 
-    - name: Apply Clang 22 patch
-      working-directory: ${{ env.KERNEL_DIR }}
-      run: |
-       cp -fv ../kernel_patches/sukisu/fix-clidr-uninitialized.patch ./
-       patch -p1 < fix-clidr-uninitialized.patch
+  #  - name: Apply Clang 22 patch
+  #    working-directory: ${{ env.KERNEL_DIR }}
+  #    run: |
+  #     cp -fv ../kernel_patches/sukisu/fix-clidr-uninitialized.patch ./
+  #     patch -p1 < fix-clidr-uninitialized.patch
       
     - name: Apply SUSFS patches
       working-directory: ${{ env.KERNEL_DIR }}
@@ -308,8 +308,8 @@ jobs:
           cd "${{ env.KERNEL_DIR }}"
           export KBUILD_BUILD_USER="build-user"
           export KBUILD_BUILD_HOST="build-host"
-          make O=out CROSS_COMPILE=$GITHUB_WORKSPACE/gcc-14.2.0-nolibc/aarch64-linux/bin/aarch64-linux- CC=$GITHUB_WORKSPACE/gcc-14.2.0-nolibc/aarch64-linux/bin/aarch64-linux-gcc gki_defconfig
-          make O=out CROSS_COMPILE="ccache $GITHUB_WORKSPACE/gcc-14.2.0-nolibc/aarch64-linux/bin/aarch64-linux-" CC="ccache $GITHUB_WORKSPACE/gcc-14.2.0-nolibc/aarch64-linux/bin/aarch64-linux-gcc" -j$(nproc --all)
+          make O=out CROSS_COMPILE=$GITHUB_WORKSPACE/gcc-15.2.0-nolibc/aarch64-linux/bin/aarch64-linux- CC=$GITHUB_WORKSPACE/gcc-15.2.0-nolibc/aarch64-linux/bin/aarch64-linux-gcc gki_defconfig
+          make O=out CROSS_COMPILE="ccache $GITHUB_WORKSPACE/gcc-15.2.0-nolibc/aarch64-linux/bin/aarch64-linux-" CC="ccache $GITHUB_WORKSPACE/gcc-15.2.0-nolibc/aarch64-linux/bin/aarch64-linux-gcc" -j$(nproc --all)
 
     - name: Check build output
       run: |
