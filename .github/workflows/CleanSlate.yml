@@ -253,11 +253,7 @@ jobs:
 
 
 
-    - name: Apply Clang 22 patch
-      working-directory: ${{ env.KERNEL_DIR }}
-      run: |
-       cp -fv ../kernel_patches/sukisu/fix-clidr-uninitialized.patch ./
-       patch -p1 < fix-clidr-uninitialized.patch
+    
       
 
     - name: Configure kernel
