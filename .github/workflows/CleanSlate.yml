@@ -1,4 +1,4 @@
-name: Build CleanSlate with SukiSU & Clang22
+name: Build CleanSlate with SukiSU
 
 on:
   
