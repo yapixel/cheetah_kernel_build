@@ -353,36 +353,32 @@ jobs:
     - name: Build the Kernel
       working-directory: ${{ env.KERNEL_DIR }}
       run: |
-        export KBUILD_BUILD_USER="build-user"
-        export KBUILD_BUILD_HOST="build-host"
-        export PATH="${{ env.CLANG_PATH }}:${{ env.GCC_PATH }}:$PATH"
-        export CC="ccache clang"
-        export CROSS_COMPILE="aarch64-linux-"
-        export CROSS_COMPILE_COMPAT="arm-linux-gnueabi-"
-        
-        echo "Building with Clang LTO=${{ env.LTO_TYPE }}"
-        echo "PATH: $PATH"
-        
-        # Configure
-        make O=${{ env.OUT_DIR }} \
-          ARCH=arm64 \
-          CC="$CC" \
-          CROSS_COMPILE="$CROSS_COMPILE" \
-          ${{ env.CONFIG_FILE }}
-        
-        # Build
+       export KBUILD_BUILD_USER="build-user"
+       export KBUILD_BUILD_HOST="build-host"
+       export PATH="${{ env.CLANG_PATH }}:$PATH"
+       export CC="ccache clang"
+       export CROSS_COMPILE="aarch64-linux-gnu-"
+       export CROSS_COMPILE_COMPAT="arm-linux-gnueabi-"
+       export LD=aarch64-linux-gnu-ld                  # <-- crucial for LTO config phase
+
+       echo "Building with Clang LTO=${{ env.LTO_TYPE }}"
+       echo "PATH: $PATH"
+       echo "Using linker: $(which aarch64-linux-gnu-ld)"
+
+       make O=${{ env.OUT_DIR }} \
+        ARCH=arm64 \
+        CC="$CC" \
+        CROSS_COMPILE="$CROSS_COMPILE" \
+        LD="$LD" \
+        ${{ env.CONFIG_FILE }}
+
         make -j$(nproc) \
-          O=${{ env.OUT_DIR }} \
-          ARCH=arm64 \
-          CC="$CC" \
-          CROSS_COMPILE="$CROSS_COMPILE" \
-          2>&1 | tee build.log
-        
-        # Check for errors
-        if [ ${PIPESTATUS[0]} -ne 0 ]; then
-          echo "Build failed! Check build.log for details"
-          exit 1
-        fi
+        O=${{ env.OUT_DIR }} \
+        ARCH=arm64 \
+        CC="$CC" \
+        CROSS_COMPILE="$CROSS_COMPILE" \
+        LD="$LD" \
+        2>&1 | tee build.log
 
     - name: Check build output
       run: |
