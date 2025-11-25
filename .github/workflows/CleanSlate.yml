@@ -129,15 +129,28 @@ jobs:
         echo "CLANG_PATH=$HOME/clang/bin" >> $GITHUB_ENV
         echo "$HOME/clang/bin" >> $GITHUB_PATH
 
-    - name: Download ARM64 GNU Toolchain 14.3.rel1
+    - name: Download and setup ARM64 GNU Toolchain (fixed for LTO)
       run: |
-          mkdir -p $HOME/toolchains
-          cd $HOME/toolchains
-          wget -q https://developer.arm.com/-/media/Files/downloads/gnu/14.3.rel1/binrel/arm-gnu-toolchain-14.3.rel1-x86_64-aarch64-none-linux-gnu.tar.xz -O tc.tar.xz
-          tar -xJf tc.tar.xz
-          rm tc.tar.xz
-          TC_DIR=$(ls -d arm-gnu-toolchain-*)
-          echo "ARM64_TOOLCHAIN=$HOME/toolchains/$TC_DIR/bin/aarch64-none-linux-gnu-" >> $GITHUB_ENV
+       mkdir -p $HOME/toolchains
+       cd $HOME/toolchains
+    
+       wget -q https://developer.arm.com/-/media/Files/downloads/gnu/14.3.rel1/binrel/arm-gnu-toolchain-14.3.rel1-x86_64-aarch64-none-linux-gnu.tar.xz
+       tar -xJf arm-gnu-toolchain-14.3.rel1-x86_64-aarch64-none-linux-gnu.tar.xz
+    
+       # Critical: explicitly set variables and PATH in one go
+       TC_PATH="$HOME/toolchains/arm-gnu-toolchain-14.3.rel1-x86_64-aarch64-none-linux-gnu/bin"
+    
+       echo "TC_PATH=$TC_PATH" >> $GITHUB_ENV
+       echo "$TC_PATH" >> $GITHUB_PATH
+    
+        # Force the correct linker names
+       echo "CROSS_COMPILE=aarch64-linux-gnu-" >> $GITHUB_ENV
+       echo "LD=aarch64-linux-gnu-ld" >> $GITHUB_ENV
+       echo "NM=aarch64-linux-gnu-nm" >> $GITHUB_ENV
+       echo "OBJCOPY=aarch64-linux-gnu-objcopy" >> $GITHUB_ENV
+    
+        # Verify it’s really there
+       "$TC_PATH/aarch64-linux-gnu-ld" --version | head -1
 
     - name: Download ARM32 GNU Toolchain 14.3.rel1
       run: |
