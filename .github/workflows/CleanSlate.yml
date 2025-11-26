@@ -163,7 +163,9 @@ jobs:
       run: |
         # Clone susfs4ksu
         git clone --depth=${{ env.REPO_DEPTH }} -b ${{ env.SUSFS_BRANCH }} ${{ env.SUSFS_REPO }} susfs4ksu
-        
+        cd susfs4ksu
+        git checkout a162e2469d0b472545e5e46457eee171c0975fb0
+        cd ../
         # Clone AnyKernel3
         git clone --depth=${{ env.REPO_DEPTH }} -b ${{ env.ANYKERNEL_BRANCH }} \
           https://github.com/deepongi-labs/${{ env.ANYKERNEL_DIR }} ${{ env.ANYKERNEL_DIR }}
