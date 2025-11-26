@@ -258,16 +258,6 @@ jobs:
         rm -f android/abi_gki_protected_exports_* || true
         # Disable packed hosts to avoid missing binaries
         sed -i 's/^CONFIG_USERLAND_WORKER_PACKED_HOSTS=y/# CONFIG_USERLAND_WORKER_PACKED_HOSTS is not set/' "$CONFIG" || true
-
-
-    - name: Patch userland_worker to disable packed hosts
-      working-directory: ${{ env.KERNEL_DIR }}
-      run: |
-       if [ -f "init/userland_worker.c" ]; then
-        echo "Disabling USE_PACKED_HOSTS in userland_worker.c"
-        sed -i 's/^#define USE_PACKED_HOSTS/\/\/#define USE_PACKED_HOSTS/' init/userland_worker.c
-        sed -i 's/^#define USE_SN_HACK/\/\/#define USE_SN_HACK/' init/userland_worker.c
-       fi
     
         
         # Core kernel configuration
@@ -327,7 +317,14 @@ jobs:
         sed -i '/^CONFIG_DEBUG_INFO_BTF/d' "$CONFIG"
         echo "# CONFIG_DEBUG_INFO_BTF is not set" >> "$CONFIG"
         
-        
+    - name: Patch userland_worker to disable packed hosts
+      working-directory: ${{ env.KERNEL_DIR }}
+      run: |
+       if [ -f "init/userland_worker.c" ]; then
+        echo "Disabling USE_PACKED_HOSTS in userland_worker.c"
+        sed -i 's/^#define USE_PACKED_HOSTS/\/\/#define USE_PACKED_HOSTS/' init/userland_worker.c
+        sed -i 's/^#define USE_SN_HACK/\/\/#define USE_SN_HACK/' init/userland_worker.c
+       fi
 
     - name: Prepare build
       working-directory: ${{ env.KERNEL_DIR }}
