@@ -1,5 +1,5 @@
 
-name: Build CleanSlate Android Kernel with xxKSU
+name: Build CleanSlate Android Kernel with SukiSU
 
 on:
   push:
@@ -226,16 +226,10 @@ jobs:
           none) echo "CONFIG_LTO_NONE=y" >> "$CONFIG" ;;
         esac
  
-    - name: Install KSU
-      working-directory: ${{ env.KERNEL_DIR }}
+    - name: Add SukiSU
       run: |
-        curl -LSs https://raw.githubusercontent.com/backslashxx/kernelSU/refs/heads/${{ env.KSUN_BRANCH }}/kernel/setup.sh | bash -s ${{ env.KSUN_BRANCH }}
-
-  #  - name: Apply Clang 22 patch
-  #    working-directory: ${{ env.KERNEL_DIR }}
-  #    run: |
-  #     cp -fv ../kernel_patches/sukisu/fix-clidr-uninitialized.patch ./
-  #     patch -p1 < fix-clidr-uninitialized.patch
+          working-directory: ${{ env.KERNEL_DIR }}
+          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash -s susfs-main
       
     - name: Apply SUSFS patches
       working-directory: ${{ env.KERNEL_DIR }}
