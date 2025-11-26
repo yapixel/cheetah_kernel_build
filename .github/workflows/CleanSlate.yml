@@ -231,7 +231,7 @@ jobs:
     - name: Add SukiSU
       working-directory: ${{ env.KERNEL_DIR }}
       run: |
-        curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash -s 247f7d4aeede66b40b63957f1a84266180b3da06
+        curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash -s 97e1250d11c2e34ccea25b20d6e56321aa45eff4
       
     - name: Apply SUSFS patches
       working-directory: ${{ env.KERNEL_DIR }}
