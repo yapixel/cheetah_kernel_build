@@ -317,14 +317,19 @@ jobs:
         sed -i '/^CONFIG_DEBUG_INFO_BTF/d' "$CONFIG"
         echo "# CONFIG_DEBUG_INFO_BTF is not set" >> "$CONFIG"
         
-    - name: Patch userland_worker to disable packed hosts
+    - name: Completely disable userland_worker from the build
       working-directory: ${{ env.KERNEL_DIR }}
       run: |
-       if [ -f "init/userland_worker.c" ]; then
-        echo "Disabling USE_PACKED_HOSTS in userland_worker.c"
-        sed -i 's/^#define USE_PACKED_HOSTS/\/\/#define USE_PACKED_HOSTS/' init/userland_worker.c
-        sed -i 's/^#define USE_SN_HACK/\/\/#define USE_SN_HACK/' init/userland_worker.c
-       fi
+       # 1. Remove the line that adds userland_worker.o to the build
+       sed -i '/userland_worker\.o/d' init/Makefile
+
+       # 2. Explicitly undefine the config symbols so the kernel doesn't expect it
+       CONFIG="${{ env.CONFIG_FILE }}"
+       sed -i '/^CONFIG_USERLAND_WORKER/d' "$CONFIG"
+       sed -i '/^CONFIG_USERLAND_WORKER_PACKED_HOSTS/d' "$CONFIG"
+       echo "# CONFIG_USERLAND_WORKER is not set" >> "$CONFIG"
+
+       echo "userland_worker.o has been completely removed from the build"
 
     - name: Prepare build
       working-directory: ${{ env.KERNEL_DIR }}
