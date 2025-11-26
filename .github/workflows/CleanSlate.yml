@@ -109,7 +109,9 @@ jobs:
           device-tree-compiler \
           kmod \
           dwarves \
-          pahole
+          pahole \
+          zlib1g-dev \
+          xxd
 
     - name: Set up ccache
       uses: hendrikmuhs/ccache-action@v1.2
