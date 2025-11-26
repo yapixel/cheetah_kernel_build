@@ -256,6 +256,9 @@ jobs:
         
         # Remove ABI exports that could block linking
         rm -f android/abi_gki_protected_exports_* || true
+        # Disable packed hosts to avoid missing binaries
+        sed -i 's/^CONFIG_USERLAND_WORKER_PACKED_HOSTS=y/# CONFIG_USERLAND_WORKER_PACKED_HOSTS is not set/' "$CONFIG" || true
+    
         
         # Core kernel configuration
         cat >> "$CONFIG" << EOF
