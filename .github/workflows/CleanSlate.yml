@@ -246,6 +246,38 @@ jobs:
         patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
         patch -p1 < scope_min_manual_hooks_v1.6.patch || true
 
+    - name: Upload patch reject files (if any)
+      working-directory: ${{ env.KERNEL_DIR }}
+      if: always()   # runs even if previous steps failed
+      run: |
+        REJ_FILES=$(find . -name "*.rej" -type f)
+        PATCH_FILES=$(find . -name "*.patch" -type f | tail -n 20)  # last 20 patches as context
+        
+        if [ -n "$REJ_FILES" ] || [ -n "$PATCH_FILES" ]; then
+          mkdir -p ../reject_artifacts
+        
+          # Copy all reject files
+          [ -n "$REJ_FILES" ] && cp --parents -v *.rej ../reject_artifacts/ 2>/dev/null || true
+          find . -name "*.rej" -exec cp --parents {} ../reject_artifacts/ \; 2>/dev/null || true
+        
+          # Copy the patches that were applied in this run (helpful for debugging)
+          [ -n "$PATCH_FILES" ] && cp -v $PATCH_FILES ../reject_artifacts/ 2>/dev/null || true
+        
+          echo "Found reject files, uploading as artifact..."
+          echo "Reject files:"
+          ls -laR ../reject_artifacts/
+        else
+          echo "No .rej files found - everything applied cleanly"
+        fi
+    
+    - name: Upload reject artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: patch-rejects-and-sources-${{ github.run_id }}
+        path: reject_artifacts/**
+        retention-days: 14
+
     - name: Configure kernel
       working-directory: ${{ env.KERNEL_DIR }}
       run: |
