@@ -383,8 +383,8 @@ jobs:
           gki_defconfig all
 
     - name: Build Google driver modules
-        working-directory: ${{ env.KERNEL_DIR }}
-        run: |
+      working-directory: ${{ env.KERNEL_DIR }}
+      run: |
           make -j${{ env.THREADS }} \
             LLVM_IAS=1 LLVM=1 ARCH=arm64 \
             CLANG_TRIPLE=aarch64-linux-gnu- \
@@ -394,8 +394,8 @@ jobs:
             LD=ld.lld HOSTLD=ld.lld O="${{ env.OUT_DIR }}" \
             modules
 
-      - name: Package kernel + modules
-        run: |
+    - name: Package kernel + modules
+      run: |
           IMAGE="${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }}/arch/arm64/boot/Image"
           cp -fv "$IMAGE" "${{ env.ANYKERNEL_DIR }}"/
 
@@ -418,15 +418,16 @@ jobs:
           echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
           echo "BUILD_VER=${BUILD_VER}" >> $GITHUB_ENV
 
-      - name: Upload kernel zip
-        uses: actions/upload-artifact@v4
-        with:
+      
+    - name: Upload kernel zip
+      uses: actions/upload-artifact@v4
+      with:
           name: ${{ env.ZIP_NAME }}
           path: ${{ env.BUILDS_DIR }}/${{ env.ZIP_NAME }}
           retention-days: 30
 
-      - name: Generate build info
-        run: |
+    - name: Generate build info
+      run: |
           cat > build_info.txt << EOF
           Build Information
           =================
@@ -440,17 +441,17 @@ jobs:
           EOF
           cat build_info.txt
 
-      - name: Upload build info
-        uses: actions/upload-artifact@v4
-        with:
+    - name: Upload build info
+      uses: actions/upload-artifact@v4
+      with:
           name: build-info
           path: build_info.txt
           retention-days: 30
 
-      - name: Create GitHub Release (on tag)
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
+    - name: Create GitHub Release (on tag)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
+      with:
           files: |
             ${{ env.BUILDS_DIR }}/${{ env.ZIP_NAME }}
             build_info.txt
