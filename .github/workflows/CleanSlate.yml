@@ -30,7 +30,7 @@ env:
   BUILD: dev
   PIXEL8A: ${{ github.event.inputs.pixel8a || 'y' }}
   LTO_TYPE: ${{ github.event.inputs.lto_type || 'thin' }}
-  ZIP_PREFIX: AK3-A14-6.1.145-SukiSU
+  ZIP_PREFIX: AK3-A14-6.1.134-SukiSU
   KERNEL_DIR: common
   CONFIG_FILE: arch/arm64/configs/gki_defconfig
   OUT_DIR: out
@@ -45,7 +45,7 @@ env:
   SUSFS_BRANCH: gki-android14-6.1
   PATCHES_REPO: https://github.com/yapixel/kernel_patches
   PATCHES_BRANCH: dev
-  BUILDS_DIR: builds/6.1.145
+  BUILDS_DIR: builds/6.1.134
   LOCALVERSION:
   
   # Compiler configuration
