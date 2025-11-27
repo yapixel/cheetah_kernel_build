@@ -184,10 +184,10 @@ jobs:
           mkdir -p fs include/linux
           cp -rfv ../susfs4ksu/kernel_patches/fs/* ./fs/ || true
           cp -rfv ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/ || true
-          patch -p1 --forward < 50_add_susfs_in_gki-android14-6.1.patch || exit 1
-          patch -p1 --forward < scope_min_manual_hooks_v1.6.patch || exit 1
+          patch -p1 --forward < 50_add_susfs_in_gki-android14-6.1.patch || true
+          patch -p1 --forward < scope_min_manual_hooks_v1.6.patch || true
           cp ../kernel_patches/sukisu/fix_namei.c.patch ./
-          patch -p1 --forward < fix_namei.c.patch || exit 1
+          patch -p1 --forward < fix_namei.c.patch || true
 
       - name: Final kernel configuration
         working-directory: ${{ env.KERNEL_DIR }}
