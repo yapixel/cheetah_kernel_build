@@ -2,14 +2,6 @@
 name: Build Android Kernel with SukiSU 
 
 on:
-  push:
-    branches:
-      - main
-      - master
-  pull_request:
-    branches:
-      - main
-      - master
   workflow_dispatch:
     inputs:
       pixel8a:
