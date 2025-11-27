@@ -381,110 +381,81 @@ jobs:
           HOSTLD=ld.lld \
           O="${{ env.OUT_DIR }}" \
           gki_defconfig all
-          
-    - name: Check build output
-      run: |
-        if [ ! -f "${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }}/arch/arm64/boot/Image" ]; then
-          echo "Error: Kernel Image not found!"
-          exit 1
-        fi
 
-    - name: Package kernel
-      run: |
-        IMAGE="${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }}/arch/arm64/boot/Image"
-        cp -fv "$IMAGE" "${{ env.ANYKERNEL_DIR }}"/
-        
-        cd "${{ env.ANYKERNEL_DIR }}"
-        rm -rf .git
-        
-        # Get BUILD version from KernelSU
-        if [ -d "../${{ env.KERNEL_DIR }}/KernelSU/.git" ]; then
-          cd "../${{ env.KERNEL_DIR }}/KernelSU"
-          BUILD_COUNT=$(git rev-list --count HEAD 2>/dev/null || echo "1998")
-          BUILD_VER=$((40000 + BUILD_COUNT - 2815))
-        else
-          BUILD_VER="40000"
-        fi
-        
-        cd "${{ github.workspace }}/${{ env.ANYKERNEL_DIR }}"
-        
-        # Create timestamp label
-        TIMESTAMP=$(TZ=UTC date -u +"%Y%m%dT%H%MZ")
-        BUILD_LABEL="${TIMESTAMP}-${{ env.GIT_SHORT_SHA }}"
-        ZIP_NAME="${{ env.ZIP_PREFIX }}-${BUILD_LABEL}-${BUILD_VER}.zip"
-        
-        zip -r "../${ZIP_NAME}" ./*
-        
-        mkdir -p "../${{ env.BUILDS_DIR }}"
-        mv "../${ZIP_NAME}" "../${{ env.BUILDS_DIR }}/"
-        
-        echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
-        echo "BUILD_VER=${BUILD_VER}" >> $GITHUB_ENV
+    - name: Build Google driver modules
+        working-directory: ${{ env.KERNEL_DIR }}
+        run: |
+          make -j${{ env.THREADS }} \
+            LLVM_IAS=1 LLVM=1 ARCH=arm64 \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE_COMPAT="${{ env.ARM32_TOOLCHAIN }}" \
+            CROSS_COMPILE="${{ env.ARM64_TOOLCHAIN }}" \
+            CC="ccache clang" \
+            LD=ld.lld HOSTLD=ld.lld O="${{ env.OUT_DIR }}" \
+            modules
 
-    - name: Upload kernel artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.ZIP_NAME }}
-        path: ${{ env.BUILDS_DIR }}/${{ env.ZIP_NAME }}
-        retention-days: 30
+      - name: Package kernel + modules
+        run: |
+          IMAGE="${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }}/arch/arm64/boot/Image"
+          cp -fv "$IMAGE" "${{ env.ANYKERNEL_DIR }}"/
 
-    - name: Generate build info
-      run: |
-        cd "${{ env.KERNEL_DIR }}"
-        cat > ../build_info.txt << EOF
-        Build Information
-        =================
-        Kernel Version: 6.1.145
-        Build Number: ${{ env.BUILD_VER }}
-        Build Date: $(date -u)
-        Commit SHA: ${{ github.sha }}
-        Short SHA: ${{ env.GIT_SHORT_SHA }}
-        LTO Type: ${{ env.LTO_TYPE }}
-        Pixel 8a Config: ${{ env.PIXEL8A }}
-        
-        Compiler Information
-        ===================
-        Clang Version: $(clang --version | head -n1)
-        
-        Build Configuration
-        ==================
-        KernelSU: Enabled (next-susfs)
-        SuSFS: Enabled
-        Baseband-guard: Enabled
-        BBR TCP: Enabled
-        IPSet: Enabled
-        EOF
-        
-        cat ../build_info.txt
+          mkdir -p "${{ env.ANYKERNEL_DIR }}/modules/system/lib/modules"
+          find ${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }} -name '*.ko' -exec cp {} "${{ env.ANYKERNEL_DIR }}/modules/system/lib/modules/" \;
+          ${{ env.ARM64_TOOLCHAIN }}strip --strip-unneeded "${{ env.ANYKERNEL_DIR }}/modules/system/lib/modules/"*.ko 2>/dev/null || true
 
-    - name: Upload build info
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-info
-        path: build_info.txt
-        retention-days: 30
+          cd "${{ env.ANYKERNEL_DIR }}"
+          rm -rf .git
 
-    - name: Create Release (on tag)
-      if: startsWith(github.ref, 'refs/tags/')
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          ${{ env.BUILDS_DIR }}/${{ env.ZIP_NAME }}
-          build_info.txt
-        body: |
-          ## Kernel Build ${{ github.ref_name }}
-          
-          - **Build Version**: ${{ env.BUILD_VER }}
-          - **Commit**: ${{ github.sha }}
-          - **LTO**: ${{ env.LTO_TYPE }}
-          - **Date**: $(date -u)
-          
-          ### Features
-          - KernelSU-Next (next-susfs branch)
-          - SuSFS patches for android14-6.1
-          - Baseband-guard integration
-          - BBR TCP congestion control
-          - IPSet support
-          - Pixel 8a optimizations
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUILD_VER=$(curl -s https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/version || echo "40000")
+          TIMESTAMP=$(TZ=UTC date -u +"%Y%m%dT%H%MZ")
+          BUILD_LABEL="${TIMESTAMP}-${{ env.GIT_SHORT_SHA }}"
+          ZIP_NAME="${{ env.ZIP_PREFIX }}-${BUILD_LABEL}-${BUILD_VER}.zip"
+
+          zip -r9 "../${ZIP_NAME}" ./*
+          mkdir -p "../${{ env.BUILDS_DIR }}"
+          mv "../${ZIP_NAME}" "../${{ env.BUILDS_DIR }}/"
+
+          echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
+          echo "BUILD_VER=${BUILD_VER}" >> $GITHUB_ENV
+
+      - name: Upload kernel zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ZIP_NAME }}
+          path: ${{ env.BUILDS_DIR }}/${{ env.ZIP_NAME }}
+          retention-days: 30
+
+      - name: Generate build info
+        run: |
+          cat > build_info.txt << EOF
+          Build Information
+          =================
+          Device: Pixel 8 Pro (husky)
+          Kernel Version: 6.1.134
+          Build Number: ${{ env.BUILD_VER }}
+          Build Date: $(date -u)
+          Commit: ${{ github.sha }}
+          LTO: ${{ env.LTO_TYPE }}
+          Features: SukiSU-Ultra + SuSFS + Google modules + BBR + IPSet
+          EOF
+          cat build_info.txt
+
+      - name: Upload build info
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-info
+          path: build_info.txt
+          retention-days: 30
+
+      - name: Create GitHub Release (on tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ env.BUILDS_DIR }}/${{ env.ZIP_NAME }}
+            build_info.txt
+          body: |
+            Pixel 8 Pro (husky) CleanSlate Kernel with SukiSU-Ultra
+            Build: ${{ env.BUILD_VER }} • LTO: ${{ env.LTO_TYPE }}
+
+        
