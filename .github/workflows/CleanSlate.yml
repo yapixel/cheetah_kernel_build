@@ -235,14 +235,14 @@ jobs:
       working-directory: ${{ env.KERNEL_DIR }}
       run: |
         cp -fv ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./
-        cp -fv ../kernel_patches/sukisu/scope_min_manual_hooks_v1.6.patch ./
+        cp -fv ../kernel_patches/sukisu/scope_min_manual_hooks_v1.5.patch ./
         
         mkdir -p fs include/linux
         cp -rfv ../susfs4ksu/kernel_patches/fs/* ./fs/ || true
         cp -rfv ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/ || true
         
         patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
-        patch -p1 < scope_min_manual_hooks_v1.6.patch || true
+        patch -p1 < scope_min_manual_hooks_v1.5.patch || true
 
         cp ../kernel_patches/sukisu/fix_namei.c.patch ./
         patch -p1 < fix_namei.c.patch
