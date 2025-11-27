@@ -182,6 +182,50 @@ jobs:
           patch -p1 < scope_min_manual_hooks_v1.5.patch || true
           patch -p1 < fix_namei.c.patch || true
 
+      - name: Collect and upload patch debugging artifacts
+        if: always()
+        run: |
+          ARTIFACT_DIR="${{ github.workspace }}/patch_debug_artifacts"
+          mkdir -p "$ARTIFACT_DIR"
+
+          echo "=== Collecting patch debugging artifacts ==="
+
+          # 1. All .rej files (with full path preserved)
+          find ${{ github.workspace }} -name "*.rej" -type f -exec cp --parents {} "$ARTIFACT_DIR/" \; 2>/dev/null || true
+
+          # 2. All .orig files created by `patch --reject-format=unified`
+          find ${{ github.workspace }} -name "*.orig" -type f -exec cp --parents {} "$ARTIFACT_DIR/" \; 2>/dev/null || true
+
+          # 3. The actual source files that produced rejects (strip .rej extension)
+          find ${{ github.workspace }} -name "*.rej" -type f | while read rej; do
+           orig_file="${rej%.rej}"
+          if [ -f "$orig_file" ]; then
+            echo "Including partially-patched file: $orig_file"
+            cp --parents "$orig_file" "$ARTIFACT_DIR/" 2>/dev/null || true
+          fi
+          # Also include the pre-patched version if .orig exists
+          orig_version="${orig_file}.orig"
+          if [ -f "$orig_version" ]; then
+            cp --parents "$orig_version" "$ARTIFACT_DIR/" 2>/dev/null || true
+          fi
+          done
+
+          # 4. All patch files used in this build (for reference)
+          find ${{ github.workspace }} -name "*.patch" -type f -exec cp --parents {} "$ARTIFACT_DIR/" \; 2>/dev/null || true
+
+          # 5. Show summary
+          echo "=== Contents of patch_debug_artifacts ==="
+          find "$ARTIFACT_DIR" -type f | sort || echo "No debugging artifacts found"
+
+      - name: Upload patch debugging artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+         name: patch-debug-${{ github.run_id }}-${{ github.run_attempt }}
+         path: ${{ github.workspace }}/patch_debug_artifacts/**
+         retention-days: 14
+         if-no-files-found: ignore
+
       - name: Final kernel config
         working-directory: ${{ env.KERNEL_DIR }}
         run: |
