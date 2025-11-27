@@ -29,7 +29,7 @@ env:
   CONFIG_FILE: arch/arm64/configs/gki_defconfig
   OUT_DIR: out
   BUILD_CLEAN: ${{ github.event.inputs.build_clean || 'always' }}
-  ANYKERNEL_DIR: AnyKernel3-p8p
+  ANYKERNEL_DIR: AnyKernel3-p8a
   ANYKERNEL_BRANCH: gki-2.0
   SUSFS_REPO: https://gitlab.com/simonpunk/susfs4ksu.git
   SUSFS_BRANCH: gki-android14-6.1
