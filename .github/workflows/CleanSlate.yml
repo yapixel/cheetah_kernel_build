@@ -296,26 +296,28 @@ jobs:
 
       - name: Package AnyKernel3 zip (SAFE FILENAME - NO COLON)
         run: |
-          cp -fv ${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }}/arch/arm64/boot/Image ${{ env.ANYKERNEL_DIR }}/
+         cp -fv ${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }}/arch/arm64/boot/Image ${{ env.ANYKERNEL_DIR }}/
 
-          mkdir -p ${{ env.ANYKERNEL_DIR }}/modules/system/lib/modules
-          find ${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }} -name "*.ko" -exec cp {} ${{ env.ANYKERNEL_DIR }}/modules/system/lib/modules/ \;
-          ${{ env.ARM64_TOOLCHAIN }}strip --strip-unneeded ${{ env.ANYKERNEL_DIR }}/modules/system/lib/modules/*.ko 2>/dev/null || true
+         mkdir -p ${{ env.ANYKERNEL_DIR }}/modules/system/lib/modules
+         find ${{ env.KERNEL_DIR }}/${{ env.OUT_DIR }} -name "*.ko" -exec cp {} ${{ env.ANYKERNEL_DIR }}/modules/system/lib/modules/ \;
+         ${{ env.ARM64_TOOLCHAIN }}strip --strip-unneeded ${{ env.ANYKERNEL_DIR }}/modules/system/lib/modules/*.ko 2>/dev/null || true
 
-          cd ${{ env.ANYKERNEL_DIR }}
-          rm -rf .git
+         cd ${{ env.ANYKERNEL_DIR }}
+         rm -rf .git
 
-          BUILD_VER=$(curl -s https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/version || echo "40000")
-          TIMESTAMP=$(date -u +"%Y%m%d-%H%M")                    # SAFE: 20251127-1423
-          ZIP_NAME="${{ env.ZIP_PREFIX }}-${TIMESTAMP}-${{ env.GIT_SHORT_SHA }}-${BUILD_VER}.zip"
+         
 
-          zip -r9 "../${ZIP_NAME}" ./*
-          mkdir -p "../${{ env.BUILDS_DIR }}"
-          mv "../${ZIP_NAME}" "../${{ env.BUILDS_DIR }}/"
+         TIMESTAMP=$(date -u +"%Y%m%d-%H%M")                    # SAFE: 20251127-1423
+         ZIP_NAME="${{ env.ZIP_PREFIX }}-${TIMESTAMP}-${{ env.GIT_SHORT_SHA }}.zip"
 
-          echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
-          echo "BUILD_VER=${BUILD_VER}" >> $GITHUB_ENV
+         zip -r9 "../${ZIP_NAME}" ./*
+         mkdir -p "../${{ env.BUILDS_DIR }}"
+         mv "../${ZIP_NAME}" "../${{ env.BUILDS_DIR }}/"
 
+         echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
+         # Removed BUILD_VER from GITHUB_ENV if you don't need it elsewhere
+         echo "BUILD_VER=${BUILD_VER}" >> $GITHUB_ENV || true
+         
       - name: Upload kernel zip
         uses: actions/upload-artifact@v4
         with:
