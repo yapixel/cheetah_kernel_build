@@ -24,7 +24,7 @@ env:
   BUILD: dev
   PIXEL8PRO: ${{ github.event.inputs.pixel8pro || 'y' }}
   LTO_TYPE: ${{ github.event.inputs.lto_type || 'full' }}
-  ZIP_PREFIX: AK3-A14-6.1.145-SukiSU-husky
+  ZIP_PREFIX: AK3-A14-6.1.134-SukiSU-husky
   KERNEL_DIR: common
   CONFIG_FILE: arch/arm64/configs/gki_defconfig
   OUT_DIR: out
@@ -35,7 +35,7 @@ env:
   SUSFS_BRANCH: gki-android14-6.1
   PATCHES_REPO: https://github.com/yapixel/kernel_patches
   PATCHES_BRANCH: dev
-  BUILDS_DIR: builds/6.1.145
+  BUILDS_DIR: builds/6.1.134
   LOCALVERSION: "-SukiSU-husky"
 
   USE_CCACHE: 1
@@ -306,7 +306,7 @@ jobs:
           Build Information
           =================
           Device: Pixel 8 Pro (husky)
-          Kernel Version: 6.1.145
+          Kernel Version: 6.1.134
           Build Number: ${{ env.BUILD_VER }}
           Build Date: $(date -u)
           Commit: ${{ github.sha }}
