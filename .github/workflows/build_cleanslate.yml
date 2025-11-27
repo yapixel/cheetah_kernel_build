@@ -119,7 +119,7 @@ jobs:
       - name: Setup auxiliary repositories
         run: |
           git clone -b ${{ env.SUSFS_BRANCH }} ${{ env.SUSFS_REPO }} susfs4ksu
-          cd susfs4ksu && git checkout a162e2469d0b472545e5e46457eee171c0975fb0 && cd ..
+          #cd susfs4ksu && git checkout a162e2469d0b472545e5e46457eee171c0975fb0 && cd ..
           git clone --depth=1 -b ${{ env.ANYKERNEL_BRANCH }} \
             https://github.com/deepongi-labs/AnyKernel3-p8a ${{ env.ANYKERNEL_DIR }}
           git clone --depth=1 -b ${{ env.PATCHES_BRANCH }} ${{ env.PATCHES_REPO }} kernel_patches
@@ -174,7 +174,8 @@ jobs:
       - name: Add SukiSU-Ultra
         working-directory: ${{ env.KERNEL_DIR }}
         run: |
-          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s f9f75d73d80200f7924893c0f22c5bffd471e696
+          #curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s f9f75d73d80200f7924893c0f22c5bffd471e696
+          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-main
 
       - name: Apply SuSFS patches
         working-directory: ${{ env.KERNEL_DIR }}
