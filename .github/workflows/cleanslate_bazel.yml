@@ -188,7 +188,7 @@ jobs:
 
           # Optional: Add cache/env flags directly (Kleaf will handle local config)
           echo "build --disk_cache=$HOME/.bazel-cache" >> .bazelrc
-          echo "build --jobs=32" >> .bazelrc
+          echo "build --jobs=4" >> .bazelrc
 
       - name: Build kernel with Bazel
         working-directory: ${{ env.KERNEL_DIR }}
