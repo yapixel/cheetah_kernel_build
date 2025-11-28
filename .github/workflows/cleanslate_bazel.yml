@@ -281,23 +281,28 @@ jobs:
           # Link to common.bazelrc
           ln -sf build/kernel/kleaf/common.bazelrc .bazelrc
 
-      - name: Build kernel with Bazel
+      - name: Build kernel with Bazel (Kleaf – correct 2025 method)
         working-directory: ${{ env.KERNEL_DIR }}
         run: |
-          # Use tools/bazel from the build repo
-          export PATH="$PWD/build:$PATH"
-          
-          # Build the kernel
-          tools/bazel build \
-            --sandbox_writable_path=$HOME/.ccache \
-            --action_env=CCACHE_DIR=$HOME/.ccache \
-            //:cleanslate_kernel
+         # Make Google’s own Bazelisk wrapper executable and use it
+         chmod +x build/kernel/kleaf/tools/bazel
 
-          # Build and install modules
-          tools/bazel build \
-            --sandbox_writable_path=$HOME/.ccache \
-            --action_env=CCACHE_DIR=$HOME/.ccache \
-            //:cleanslate_modules_install
+         # Put it in PATH (this is the correct, officially supported way)
+         export PATH="$PWD/build/kernel/kleaf/tools:$PATH"
+
+         # Verify it works
+         bazel --version
+
+         # Actual build (note the correct target path since 2024)
+         bazel build //common:kernel_aarch64 \
+         --action_env=CCACHE_DIR=$HOME/.ccache \
+         --sandbox_writable_path=$HOME/.ccache \
+         --config=local \
+         --config=fast
+
+         bazel build //common:kernel_aarch64_modules_install \
+         --action_env=CCACHE_DIR=$HOME/.ccache \
+         --config=local
 
       - name: Copy build artifacts
         working-directory: ${{ env.KERNEL_DIR }}
