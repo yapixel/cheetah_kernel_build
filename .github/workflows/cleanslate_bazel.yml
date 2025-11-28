@@ -183,12 +183,9 @@ jobs:
                   export LLVM=1
                   export LLVM_IAS=1
                   
-                  # FIX: Use $$ for shell commands (dirname) and variables (PATH)
-                  # Keep single $ for Bazel variables (location)
                   export PATH="$$(dirname $$(dirname $(location //llvm_toolchain:clang)))/bin:$$PATH"
                   export CC=$$(dirname $$(dirname $(location //llvm_toolchain:clang)))/bin/clang
                   
-                  # FIX: Use $$ for shell commands and awk variables
                   KERNEL_SRC=$$(dirname $$(echo $(SRCS) | awk '{print $$1}'))
                   OUT_DIR=$$(mktemp -d)
                   
@@ -216,7 +213,6 @@ jobs:
                   export LLVM=1
                   export LLVM_IAS=1
                   
-                  # FIX: Use $$ for shell commands and variables
                   export PATH="$$(dirname $$(dirname $(location //llvm_toolchain:clang)))/bin:$$PATH"
                   export CC=$$(dirname $$(dirname $(location //llvm_toolchain:clang)))/bin/clang
                   
@@ -245,6 +241,7 @@ jobs:
           build --action_env=CCACHE_DIR=$HOME/.ccache
           build --action_env=PATH
           EOF
+
 
 
       - name: Setup LLVM toolchain for Bazel
