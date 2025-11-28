@@ -176,27 +176,34 @@ jobs:
       - name: Bootstrap Bazel workspace
         working-directory: ${{ env.KERNEL_DIR }}
         run: |
-          # MODULE.bazel – required for bzlmod (unchanged)
+          # Create MODULE.bazel (required for bzlmod)
           cat > MODULE.bazel << 'EOF'
           module(name = "cleanslate", version = "1.0")
           local_path_override(module_name = "kernel_kleaf", path = "build/kernel/kleaf")
           EOF
 
-          # Correct .bazelrc for this Kleaf branch: ONLY import common.bazelrc
-          # No try-import for non-existent files like bazel.rc or local.bazelrc
-          ln -sf build/kernel/kleaf/common.bazelrc .bazelrc
+          # This is the ONLY correct .bazelrc setup for this Kleaf version
+          cat > .bazelrc << 'EOF'
+          try-import build/kernel/kleaf/common.bazelrc
 
-          # Optional: Add cache/env flags directly (Kleaf will handle local config)
-          echo "build --disk_cache=$HOME/.bazel-cache" >> .bazelrc
-          echo "build --jobs=4" >> .bazelrc
+          # These are the ONLY extra flags you should add
+          build --disk_cache=$HOME/.bazel-cache
+          build --jobs=4
+          build --repo_env=HERMETIC_TOOLCHAIN=0
+          EOF
 
       - name: Build kernel with Bazel
         working-directory: ${{ env.KERNEL_DIR }}
         run: |
-          # Use the Kleaf 'bazel' wrapper – it auto-applies --config=local
-          # (path may be build/bazel or tools/bazel; adjust if needed)
-          ./build/bazel build //common:kernel_aarch64 --action_env=CCACHE_DIR=$HOME/.ccache
-          ./build/bazel build //common:kernel_aarch64_modules_install --action_env=CCACHE_DIR=$HOME/.ccache
+          # DO NOT use --config=local → it does NOT exist in this branch
+          # Just run plain bazel → Kleaf automatically applies the right local config
+          bazel build //common:kernel_aarch64 \
+            --action_env=CCACHE_DIR=$HOME/.ccache \
+            --repo_env=CCACHE_DIR=$HOME/.ccache
+
+          bazel build //common:kernel_aarch64_modules_install \
+            --action_env=CCACHE_DIR=$HOME/.ccache \
+            --repo_env=CCACHE_DIR=$HOME/.ccache
           
       # ─── Package AnyKernel3 ───
       - name: Package AnyKernel3 zip
