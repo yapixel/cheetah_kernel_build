@@ -182,17 +182,21 @@ jobs:
                   export CLANG_TRIPLE=aarch64-linux-gnu-
                   export LLVM=1
                   export LLVM_IAS=1
-                  export PATH="$(dirname $(dirname $(location //llvm_toolchain:clang)))/bin:$PATH"
-                  export CC=$(dirname $(dirname $(location //llvm_toolchain:clang)))/bin/clang
                   
-                  KERNEL_SRC=$(dirname $(echo $(SRCS) | awk '{print $1}'))
-                  OUT_DIR=$(mktemp -d)
+                  # FIX: Use $$ for shell commands (dirname) and variables (PATH)
+                  # Keep single $ for Bazel variables (location)
+                  export PATH="$$(dirname $$(dirname $(location //llvm_toolchain:clang)))/bin:$$PATH"
+                  export CC=$$(dirname $$(dirname $(location //llvm_toolchain:clang)))/bin/clang
                   
-                  make -C $KERNEL_SRC O=$OUT_DIR gki_defconfig
-                  make -C $KERNEL_SRC O=$OUT_DIR -j$(nproc) Image
+                  # FIX: Use $$ for shell commands and awk variables
+                  KERNEL_SRC=$$(dirname $$(echo $(SRCS) | awk '{print $$1}'))
+                  OUT_DIR=$$(mktemp -d)
                   
-                  cp $OUT_DIR/arch/arm64/boot/Image $@
-                  rm -rf $OUT_DIR
+                  make -C $$KERNEL_SRC O=$$OUT_DIR gki_defconfig
+                  make -C $$KERNEL_SRC O=$$OUT_DIR -j$$(nproc) Image
+                  
+                  cp $$OUT_DIR/arch/arm64/boot/Image $@
+                  rm -rf $$OUT_DIR
               """,
               tools = [
                   "//llvm_toolchain:clang",
@@ -211,19 +215,21 @@ jobs:
                   export CLANG_TRIPLE=aarch64-linux-gnu-
                   export LLVM=1
                   export LLVM_IAS=1
-                  export PATH="$(dirname $(dirname $(location //llvm_toolchain:clang)))/bin:$PATH"
-                  export CC=$(dirname $(dirname $(location //llvm_toolchain:clang)))/bin/clang
                   
-                  KERNEL_SRC=$(dirname $(echo $(SRCS) | awk '{print $1}'))
-                  OUT_DIR=$(mktemp -d)
-                  MODULES_OUT=$(mktemp -d)
+                  # FIX: Use $$ for shell commands and variables
+                  export PATH="$$(dirname $$(dirname $(location //llvm_toolchain:clang)))/bin:$$PATH"
+                  export CC=$$(dirname $$(dirname $(location //llvm_toolchain:clang)))/bin/clang
                   
-                  make -C $KERNEL_SRC O=$OUT_DIR gki_defconfig
-                  make -C $KERNEL_SRC O=$OUT_DIR -j$(nproc) modules
-                  make -C $KERNEL_SRC O=$OUT_DIR INSTALL_MOD_PATH=$MODULES_OUT modules_install
+                  KERNEL_SRC=$$(dirname $$(echo $(SRCS) | awk '{print $$1}'))
+                  OUT_DIR=$$(mktemp -d)
+                  MODULES_OUT=$$(mktemp -d)
                   
-                  tar -czf $@ -C $MODULES_OUT .
-                  rm -rf $OUT_DIR $MODULES_OUT
+                  make -C $$KERNEL_SRC O=$$OUT_DIR gki_defconfig
+                  make -C $$KERNEL_SRC O=$$OUT_DIR -j$$(nproc) modules
+                  make -C $$KERNEL_SRC O=$$OUT_DIR INSTALL_MOD_PATH=$$MODULES_OUT modules_install
+                  
+                  tar -czf $@ -C $$MODULES_OUT .
+                  rm -rf $$OUT_DIR $$MODULES_OUT
               """,
               tools = [
                   "//llvm_toolchain:clang",
@@ -239,6 +245,7 @@ jobs:
           build --action_env=CCACHE_DIR=$HOME/.ccache
           build --action_env=PATH
           EOF
+
 
       - name: Setup LLVM toolchain for Bazel
         working-directory: ${{ env.KERNEL_DIR }}
