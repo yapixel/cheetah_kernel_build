@@ -281,28 +281,37 @@ jobs:
           # Link to common.bazelrc
           ln -sf build/kernel/kleaf/common.bazelrc .bazelrc
 
-      - name: Build kernel with Bazel (Kleaf – correct 2025 method)
+      - name: Install Bazelisk (hermetic Bazel for Kleaf 2025+)
+        run: |
+         # Download latest Bazelisk (Linux x64 for Ubuntu 22.04)
+         curl -L -o bazelisk https://github.com/bazelbuild/bazelisk/releases/download/v1.22.0/bazelisk-linux-amd64
+         chmod +x bazelisk
+         sudo mv bazelisk /usr/local/bin/bazel  # Symlink as 'bazel' to match docs
+         bazel --version  # Verify: should show Bazelisk 1.22.0 + Bazel 7.x
+
+      - name: Build kernel with Bazel (Kleaf – hermetic 2025 method)
         working-directory: ${{ env.KERNEL_DIR }}
         run: |
-         # Make Google’s own Bazelisk wrapper executable and use it
-         chmod +x build/kernel/kleaf/tools/bazel
+         # Link common.bazelrc (enables ccache, etc.)
+         ln -sf build/kernel/kleaf/common.bazelrc .bazelrc
 
-         # Put it in PATH (this is the correct, officially supported way)
-         export PATH="$PWD/build/kernel/kleaf/tools:$PATH"
-
-         # Verify it works
+         # Verify setup
          bazel --version
+         bazel clean --expunge  # Clean any partial state
 
-         # Actual build (note the correct target path since 2024)
+         # Build GKI kernel (recommended mixed build per docs)
          bazel build //common:kernel_aarch64 \
          --action_env=CCACHE_DIR=$HOME/.ccache \
          --sandbox_writable_path=$HOME/.ccache \
          --config=local \
-         --config=fast
+         --config=fast \
+         --config=stamp
 
+         # Build modules install (runs depmod)
          bazel build //common:kernel_aarch64_modules_install \
          --action_env=CCACHE_DIR=$HOME/.ccache \
-         --config=local
+         --config=local \
+         --config=fast
 
       - name: Copy build artifacts
         working-directory: ${{ env.KERNEL_DIR }}
