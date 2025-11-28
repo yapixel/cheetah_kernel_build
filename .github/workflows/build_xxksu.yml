@@ -1,4 +1,4 @@
-name: Build xxKSU (GKI & Sultan)
+name: Build (GKI & Sultan) with xxKSU
 
 on:
   workflow_dispatch:
@@ -81,7 +81,6 @@ jobs:
       - name: Apply Sultan Hook Patch (v1.6)
         run: |
           cd ${{ env.kernel_common }}
-          # Applied as per new_kleaf.yml logic for xxKSU
           patch -p1 -F 3 < "${{ env.kernel_root }}/ok_patches/sultan/scope-min-hooks-v1.6.patch"
 
       - name: Setup xxKSU
@@ -92,7 +91,6 @@ jobs:
       - name: Get xxKSU Version
         run: |
           cd ${{ env.kernel_root }}
-          # Using the specific extraction logic for xxKSU from your file
           KSU_VER=$(./sh/extract_ksuver.sh "https://github.com/backslashxx/KernelSU" "kernel/Makefile" "." "master" || echo "unknown")
           echo "KSU_VER=$KSU_VER" >> $GITHUB_ENV
 
@@ -151,16 +149,17 @@ jobs:
           ZIP_NAME="GKI-${{ env.KERNEL_VERSION }}.${{ env.SUB_LEVEL }}-xxKSU-r${{ env.KSU_VER }}.zip"
           
           cd AnyKernel3
-          zip -r9 "../$ZIP_NAME" . -x "*.git*" "README.md"
+          # SAVE ZIP TO GITHUB WORKSPACE (Absolute Path)
+          zip -r9 "${GITHUB_WORKSPACE}/${ZIP_NAME}" . -x "*.git*" "README.md"
           
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
-          echo "ZIP_PATH=$PWD/../$ZIP_NAME" >> $GITHUB_ENV
+          echo "ZIP_PATH=${GITHUB_WORKSPACE}/${ZIP_NAME}" >> $GITHUB_ENV
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ZIP_NAME }}
-          path: ${{ env.kernel_root }}/${{ env.ZIP_NAME }}
+          path: ${{ env.ZIP_PATH }}
 
   # ===========================================================================
   # JOB 2: SULTAN BUILD (GCC/Make)
@@ -197,7 +196,6 @@ jobs:
 
       - name: Get xxKSU Version
         run: |
-          # Using the specific extraction logic for xxKSU from your file
           KSU_VER=$(./sh/extract_ksuver.sh "https://github.com/backslashxx/KernelSU" "kernel/Makefile" "." "master" || echo "unknown")
           echo "KSU_VER=$KSU_VER" >> $GITHUB_ENV
 
@@ -252,10 +250,11 @@ jobs:
           ZIP_NAME="Sultan-${{ env.KERNEL_VERSION }}-xxKSU-r${{ env.KSU_VER }}.zip"
           
           cd AK3
-          zip -r9 "../$ZIP_NAME" . -x "*.git*" "README.md"
+          # SAVE ZIP TO GITHUB WORKSPACE (Absolute Path)
+          zip -r9 "${GITHUB_WORKSPACE}/${ZIP_NAME}" . -x "*.git*" "README.md"
           
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
-          echo "ZIP_PATH=$PWD/../$ZIP_NAME" >> $GITHUB_ENV
+          echo "ZIP_PATH=${GITHUB_WORKSPACE}/${ZIP_NAME}" >> $GITHUB_ENV
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
