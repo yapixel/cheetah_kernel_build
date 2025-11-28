@@ -176,11 +176,17 @@ jobs:
       - name: Bootstrap Bazel workspace
         working-directory: ${{ env.KERNEL_DIR }}
         run: |
-          # Create MODULE.bazel (required for bzlmod)
-          cat > MODULE.bazel << 'EOF'
-          module(name = "cleanslate", version = "1.0")
-          local_path_override(module_name = "kernel_kleaf", path = "build/kernel/kleaf")
-          EOF
+          # Verify Kleaf exists
+          if [ ! -d "build/kernel/kleaf" ]; then
+            echo "ERROR: build/kernel/kleaf not found!"
+            exit 1
+          fi
+
+          # Use the existing BUILD and WORKSPACE from the Kleaf tree
+          # Don't create MODULE.bazel - this version uses WORKSPACE
+          if [ -f "build/kernel/kleaf/WORKSPACE" ]; then
+            ln -sf build/kernel/kleaf/WORKSPACE WORKSPACE
+          fi
 
           # This is the ONLY correct .bazelrc setup for this Kleaf version
           cat > .bazelrc << 'EOF'
