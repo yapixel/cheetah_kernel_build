@@ -87,7 +87,7 @@ jobs:
         run: |
           cd ${{ env.KERNEL_DIR }}
           # Clone the Kleaf build system for Android 14
-          git clone --depth=1 --branch android14-release https://android.googlesource.com/kernel/build build
+          git clone --depth=1 --branch android-gs-shusky-6.1-android16 https://android.googlesource.com/kernel/build build
 
       - name: Clone supporting repos
         run: |
