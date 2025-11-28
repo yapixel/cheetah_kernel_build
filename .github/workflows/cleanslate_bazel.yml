@@ -1,4 +1,4 @@
-name: Build CleanSlate Android Kernel with SukiSU (Bazel)
+name: Build CleanSlate with SukiSU (Pure Bazel)
 
 on:
   push:
@@ -51,7 +51,7 @@ jobs:
             libncurses-dev zip ccache curl git wget cpio python3 device-tree-compiler \
             kmod dwarves pahole zlib1g-dev xxd openjdk-11-jdk
 
-      - name: Install Bazelisk (2025 hermetic)
+      - name: Install Bazelisk
         run: |
           curl -L -o bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.22.0/bazelisk-linux-amd64
           chmod +x bazel
@@ -64,7 +64,6 @@ jobs:
           key: cleanslate-bazel-${{ env.LTO_TYPE }}
           max-size: 6G
 
-      # ─── Your exact original sources ───
       - name: Clone kernel source
         run: |
           git clone --depth=1 https://github.com/tbalden/google_common_aosp_simple.git -b aosp_cleanslate_a16_shusky ${{ env.KERNEL_DIR }}
@@ -74,20 +73,20 @@ jobs:
           git clone --depth=1 --branch cleanslate_shusky_a16 \
             https://github.com/tbalden/google_common_kernel_drivers_simple.git ${{ env.KERNEL_DIR }}/drivers/google
 
-      - name: Clone Kleaf build system
+      - name: Download LLVM/Clang toolchain
         run: |
-          cd ${{ env.KERNEL_DIR }}
-          git clone --depth=1 --branch android-gs-shusky-6.1-android16 \
-            https://android.googlesource.com/kernel/build build
+          mkdir -p toolchain
+          cd toolchain
+          wget -q https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r487747c.tar.gz
+          tar -xzf clang-r487747c.tar.gz
+          rm clang-r487747c.tar.gz
 
-      # ─── YOUR EXACT "Clone supporting repos" STEP – 100% UNTOUCHED ───
       - name: Clone supporting repos
         run: |
           git clone -b ${{ env.SUSFS_BRANCH }} ${{ env.SUSFS_REPO }} susfs4ksu
           git clone --depth=1 -b ${{ env.ANYKERNEL_BRANCH }} https://github.com/deepongi-labs/${{ env.ANYKERNEL_DIR }} ${{ env.ANYKERNEL_DIR }}
           git clone --depth=1 -b ${{ env.PATCHES_BRANCH }} ${{ env.PATCHES_REPO }} kernel_patches
 
-      # ─── YOUR EXACT ORIGINAL SUSFS PATCH STEP – 100% UNTOUCHED ───
       - name: Apply SUSFS patches
         working-directory: ${{ env.KERNEL_DIR }}
         run: |
@@ -102,7 +101,6 @@ jobs:
           patch -p1 < scope_min_manual_hooks_v1.5.patch || true
           patch -p1 < fix_namei.c.patch
 
-      # ─── Your original config steps (minimal fixes only) ───
       - name: Pixel 8a specific config (if enabled)
         if: env.PIXEL8A == 'y'
         working-directory: ${{ env.KERNEL_DIR }}
@@ -163,62 +161,127 @@ jobs:
           # CONFIG_DEBUG_INFO_BTF is not set
           EOF
 
-      - name: Create build.config.gki.aarch64
+      - name: Create Bazel workspace
         working-directory: ${{ env.KERNEL_DIR }}
         run: |
-          cat > build.config.gki.aarch64 << EOF
-          ARCH=arm64
-          DEFCONFIG=gki_defconfig
-          CLANG_VERSION=r487747c
-          LTO=${{ env.LTO_TYPE }}
+          # Create WORKSPACE
+          cat > WORKSPACE << 'EOF'
+          workspace(name = "kernel")
           EOF
 
-      - name: Bootstrap Bazel workspace
-        working-directory: ${{ env.KERNEL_DIR }}
-        run: |
-          # Verify Kleaf exists
-          if [ ! -d "build/kernel/kleaf" ]; then
-            echo "ERROR: build/kernel/kleaf not found!"
-            exit 1
-          fi
+          # Create BUILD.bazel for kernel
+          cat > BUILD.bazel << 'EOF'
+          load("@bazel_skylib//rules:native.bzl", "native_cc_toolchain")
 
-          # Use the existing BUILD and WORKSPACE from the Kleaf tree
-          # Don't create MODULE.bazel - this version uses WORKSPACE
-          if [ -f "build/kernel/kleaf/WORKSPACE" ]; then
-            ln -sf build/kernel/kleaf/WORKSPACE WORKSPACE
-          fi
+          genrule(
+              name = "kernel_image",
+              srcs = glob(["**/*"]),
+              outs = ["Image"],
+              cmd = """
+                  export ARCH=arm64
+                  export SUBARCH=arm64
+                  export CROSS_COMPILE=aarch64-linux-gnu-
+                  export CC=$(location @llvm_toolchain//:bin/clang)
+                  export CLANG_TRIPLE=aarch64-linux-gnu-
+                  export LLVM=1
+                  export LLVM_IAS=1
+                  
+                  make -C $(SRCS_DIR) O=$(GENDIR)/out gki_defconfig
+                  make -C $(SRCS_DIR) O=$(GENDIR)/out -j$$(nproc) Image
+                  
+                  cp $(GENDIR)/out/arch/arm64/boot/Image $@
+              """,
+              tools = [
+                  "@llvm_toolchain//:bin/clang",
+              ],
+              visibility = ["//visibility:public"],
+          )
 
-          # This is the ONLY correct .bazelrc setup for this Kleaf version
+          genrule(
+              name = "kernel_modules",
+              srcs = glob(["**/*"]),
+              outs = ["modules.tar.gz"],
+              cmd = """
+                  export ARCH=arm64
+                  export SUBARCH=arm64
+                  export CROSS_COMPILE=aarch64-linux-gnu-
+                  export CC=$(location @llvm_toolchain//:bin/clang)
+                  export CLANG_TRIPLE=aarch64-linux-gnu-
+                  export LLVM=1
+                  export LLVM_IAS=1
+                  
+                  make -C $(SRCS_DIR) O=$(GENDIR)/out gki_defconfig
+                  make -C $(SRCS_DIR) O=$(GENDIR)/out -j$$(nproc) modules
+                  
+                  mkdir -p $(GENDIR)/modules_out
+                  make -C $(SRCS_DIR) O=$(GENDIR)/out INSTALL_MOD_PATH=$(GENDIR)/modules_out modules_install
+                  
+                  tar -czf $@ -C $(GENDIR)/modules_out .
+              """,
+              tools = [
+                  "@llvm_toolchain//:bin/clang",
+              ],
+              visibility = ["//visibility:public"],
+          )
+          EOF
+
+          # Create .bazelrc
           cat > .bazelrc << 'EOF'
-          try-import build/kernel/kleaf/common.bazelrc
-
-          # These are the ONLY extra flags you should add
           build --disk_cache=$HOME/.bazel-cache
           build --jobs=4
-          build --repo_env=HERMETIC_TOOLCHAIN=0
+          build --action_env=CCACHE_DIR=$HOME/.ccache
+          build --action_env=PATH
+          EOF
+
+      - name: Setup LLVM toolchain for Bazel
+        working-directory: ${{ env.KERNEL_DIR }}
+        run: |
+          mkdir -p llvm_toolchain/bin
+          
+          # Create symlinks to system LLVM
+          TOOLCHAIN_PATH="$(pwd)/../toolchain"
+          
+          for tool in clang clang++ llvm-ar llvm-nm llvm-objcopy llvm-objdump llvm-strip; do
+            if [ -f "$TOOLCHAIN_PATH/bin/$tool" ]; then
+              ln -sf "$TOOLCHAIN_PATH/bin/$tool" "llvm_toolchain/bin/$tool"
+            fi
+          done
+          
+          # Create BUILD file for toolchain
+          cat > llvm_toolchain/BUILD.bazel << 'EOF'
+          filegroup(
+              name = "bin/clang",
+              srcs = ["bin/clang"],
+              visibility = ["//visibility:public"],
+          )
           EOF
 
       - name: Build kernel with Bazel
         working-directory: ${{ env.KERNEL_DIR }}
+        env:
+          CCACHE_DIR: ${{ github.workspace }}/.ccache
         run: |
-          # DO NOT use --config=local → it does NOT exist in this branch
-          # Just run plain bazel → Kleaf automatically applies the right local config
-          bazel build //common:kernel_aarch64 \
-            --action_env=CCACHE_DIR=$HOME/.ccache \
-            --repo_env=CCACHE_DIR=$HOME/.ccache
-
-          bazel build //common:kernel_aarch64_modules_install \
-            --action_env=CCACHE_DIR=$HOME/.ccache \
-            --repo_env=CCACHE_DIR=$HOME/.ccache
+          export PATH="$(pwd)/../toolchain/bin:$PATH"
           
-      # ─── Package AnyKernel3 ───
+          bazel build //:kernel_image --verbose_failures
+          bazel build //:kernel_modules --verbose_failures
+
+      - name: Extract build artifacts
+        working-directory: ${{ env.KERNEL_DIR }}
+        run: |
+          mkdir -p ../${{ env.OUT_DIR }}/arch/arm64/boot
+          mkdir -p ../${{ env.OUT_DIR }}/modules
+          
+          # Copy Image
+          cp bazel-bin/Image ../${{ env.OUT_DIR }}/arch/arm64/boot/
+          
+          # Extract modules
+          cd ../${{ env.OUT_DIR }}/modules
+          tar -xzf ../../${{ env.KERNEL_DIR }}/bazel-bin/modules.tar.gz
+          find . -name "*.ko" -exec cp {} . \;
+
       - name: Package AnyKernel3 zip
         run: |
-          mkdir -p ${{ env.OUT_DIR }}/arch/arm64/boot ${{ env.OUT_DIR }}/modules
-          BAZEL_BIN=$(bazel info bazel-bin)
-          cp $BAZEL_BIN/common/Image* ${{ env.OUT_DIR }}/arch/arm64/boot/ 2>/dev/null || true
-          find $BAZEL_BIN -name "*.ko" -exec cp {} ${{ env.OUT_DIR }}/modules/ \; || true
-
           cp ${{ env.OUT_DIR }}/arch/arm64/boot/Image ${{ env.ANYKERNEL_DIR }}/
           mkdir -p ${{ env.ANYKERNEL_DIR }}/modules/system/lib/modules
           cp ${{ env.OUT_DIR }}/modules/*.ko ${{ env.ANYKERNEL_DIR }}/modules/system/lib/modules/ 2>/dev/null || true
