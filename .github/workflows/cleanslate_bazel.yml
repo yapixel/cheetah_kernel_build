@@ -160,6 +160,15 @@ jobs:
           CONFIG_NET_SCH_FQ=y
           # CONFIG_DEBUG_INFO_BTF is not set
           EOF
+          
+      - name: Disable userland_worker completely
+        working-directory: ${{ env.KERNEL_DIR }}
+        run: |
+          sed -i '/userland_worker\.o/d' init/Makefile
+          CONFIG="${{ env.CONFIG_FILE }}"
+          sed -i '/^CONFIG_USERLAND_WORKER/d' "$CONFIG"
+          echo "# CONFIG_USERLAND_WORKER is not set" >> "$CONFIG"
+          
 
       - name: Create Bazel workspace
         working-directory: ${{ env.KERNEL_DIR }}
