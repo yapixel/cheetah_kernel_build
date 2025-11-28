@@ -170,19 +170,19 @@ jobs:
           echo "# CONFIG_USERLAND_WORKER is not set" >> "$CONFIG"
           
 
-      - name: Create Bazel Build Files (Python)
+      - name: Create Bazel Build Files (Debug Mode)
         working-directory: ${{ env.KERNEL_DIR }}
         shell: python
         run: |
           import os
+          import sys
 
           # 1. Write MODULE.bazel
           with open("MODULE.bazel", "w") as f:
               f.write('module(name = "kernel", version = "1.0")\n')
 
           # 2. Write BUILD.bazel
-          # We use a Python raw string (r''') to ensure exact content writing.
-          # $$ is preserved as $$ for Bazel to interpret.
+          # Using raw string r'' to prevent any escaping confusion
           build_content = r'''
           genrule(
               name = "kernel_image",
@@ -196,11 +196,10 @@ jobs:
                   export LLVM=1
                   export LLVM_IAS=1
                   
-                  # Correctly escape PATH using $$
+                  # PATH setup (Double Dollar $$ is required for shell variables)
                   export PATH="$$(dirname $$(dirname $(location //llvm_toolchain:clang)))/bin:$$PATH"
                   export CC=$$(dirname $$(dirname $(location //llvm_toolchain:clang)))/bin/clang
                   
-                  # Use $$ for awk and shell variables
                   KERNEL_SRC=$$(dirname $$(echo $(SRCS) | awk '{print $$1}'))
                   OUT_DIR=$$(mktemp -d)
                   
@@ -248,16 +247,28 @@ jobs:
           with open("BUILD.bazel", "w") as f:
               f.write(build_content)
 
+          # --- DEBUG SECTION ---
+          print("=== DEBUG: START BUILD.bazel CONTENT ===")
+          with open("BUILD.bazel", "r") as f:
+              content = f.read()
+              print(content)
+          print("=== DEBUG: END BUILD.bazel CONTENT ===")
+
+          # Fail immediately if unescaped HOME is found
+          if "$HOME" in content:
+              print("!!! CRITICAL ERROR: Found unescaped $HOME in BUILD.bazel !!!")
+              sys.exit(1)
+
       - name: Create Bazel RC Config
         working-directory: ${{ env.KERNEL_DIR }}
         run: |
-          # This file is created safely in a separate step
           cat > .bazelrc << 'EOF'
           build --disk_cache=$HOME/.bazel-cache
           build --jobs=4
           build --action_env=CCACHE_DIR=$HOME/.ccache
           build --action_env=PATH
           EOF
+
 
 
 
