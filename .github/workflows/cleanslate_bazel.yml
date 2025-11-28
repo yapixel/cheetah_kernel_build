@@ -170,19 +170,23 @@ jobs:
           echo "# CONFIG_USERLAND_WORKER is not set" >> "$CONFIG"
           
 
-      - name: Create Bazel Build Files (Debug Mode)
+      - name: Create Bazel Workspace (Sanitized)
         working-directory: ${{ env.KERNEL_DIR }}
         shell: python
         run: |
           import os
-          import sys
+
+          # Get absolute path to HOME (e.g., /home/runner)
+          home_dir = os.environ.get("HOME")
+          
+          print(f"DEBUG: Resolving HOME to: {home_dir}")
 
           # 1. Write MODULE.bazel
           with open("MODULE.bazel", "w") as f:
               f.write('module(name = "kernel", version = "1.0")\n')
 
           # 2. Write BUILD.bazel
-          # Using raw string r'' to prevent any escaping confusion
+          # We use raw string r'' for the content to protect $$
           build_content = r'''
           genrule(
               name = "kernel_image",
@@ -196,7 +200,7 @@ jobs:
                   export LLVM=1
                   export LLVM_IAS=1
                   
-                  # PATH setup (Double Dollar $$ is required for shell variables)
+                  # PATH setup
                   export PATH="$$(dirname $$(dirname $(location //llvm_toolchain:clang)))/bin:$$PATH"
                   export CC=$$(dirname $$(dirname $(location //llvm_toolchain:clang)))/bin/clang
                   
@@ -247,31 +251,19 @@ jobs:
           with open("BUILD.bazel", "w") as f:
               f.write(build_content)
 
-          # --- DEBUG SECTION ---
-          print("=== DEBUG: START BUILD.bazel CONTENT ===")
-          with open("BUILD.bazel", "r") as f:
-              content = f.read()
-              print(content)
-          print("=== DEBUG: END BUILD.bazel CONTENT ===")
-
-          # Fail immediately if unescaped HOME is found
-          if "$HOME" in content:
-              print("!!! CRITICAL ERROR: Found unescaped $HOME in BUILD.bazel !!!")
-              sys.exit(1)
-
-      - name: Create Bazel RC Config
-        working-directory: ${{ env.KERNEL_DIR }}
-        run: |
-          cat > .bazelrc << 'EOF'
-          build --disk_cache=$HOME/.bazel-cache
+          # 3. Write .bazelrc with ABSOLUTE PATHS
+          # We inject the python 'home_dir' variable so '$HOME' is not used in the file text
+          rc_content = f"""
+          build --disk_cache={home_dir}/.bazel-cache
           build --jobs=4
-          build --action_env=CCACHE_DIR=$HOME/.ccache
+          build --action_env=CCACHE_DIR={home_dir}/.ccache
           build --action_env=PATH
-          EOF
-
-
-
-
+          """
+          
+          with open(".bazelrc", "w") as f:
+              f.write(rc_content)
+              
+          print("SUCCESS: Generated Bazel files with absolute paths.")
 
 
 
