@@ -1,4 +1,4 @@
-name: Build CleanSlate with SukiSU (Pure Bazel)
+name: Build CleanSlate Android Kernel with SukiSU (Pure Bazel)
 
 on:
   push:
@@ -73,12 +73,11 @@ jobs:
           git clone --depth=1 --branch cleanslate_shusky_a16 \
             https://github.com/tbalden/google_common_kernel_drivers_simple.git ${{ env.KERNEL_DIR }}/drivers/google
 
-
       - name: Download LLVM/Clang toolchain
         run: |
           mkdir -p toolchain
           cd toolchain
-          wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android14-release/clang-r487747c.tar.gz 
+          wget -q https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r487747c.tar.gz
           tar -xzf clang-r487747c.tar.gz
           rm clang-r487747c.tar.gz
 
@@ -165,62 +164,69 @@ jobs:
       - name: Create Bazel workspace
         working-directory: ${{ env.KERNEL_DIR }}
         run: |
-          # Create WORKSPACE
-          cat > WORKSPACE << 'EOF'
-          workspace(name = "kernel")
+          # Create MODULE.bazel (required for Bazel 8+)
+          cat > MODULE.bazel << 'EOF'
+          module(name = "kernel", version = "1.0")
           EOF
 
           # Create BUILD.bazel for kernel
           cat > BUILD.bazel << 'EOF'
-          load("@bazel_skylib//rules:native.bzl", "native_cc_toolchain")
-
           genrule(
               name = "kernel_image",
-              srcs = glob(["**/*"]),
+              srcs = glob(["**/*"], exclude=["bazel-*/**"]),
               outs = ["Image"],
               cmd = """
                   export ARCH=arm64
                   export SUBARCH=arm64
                   export CROSS_COMPILE=aarch64-linux-gnu-
-                  export CC=$(location @llvm_toolchain//:bin/clang)
                   export CLANG_TRIPLE=aarch64-linux-gnu-
                   export LLVM=1
                   export LLVM_IAS=1
+                  export PATH="$(dirname $(dirname $(location //llvm_toolchain:clang)))/bin:$PATH"
+                  export CC=$(dirname $(dirname $(location //llvm_toolchain:clang)))/bin/clang
                   
-                  make -C $(SRCS_DIR) O=$(GENDIR)/out gki_defconfig
-                  make -C $(SRCS_DIR) O=$(GENDIR)/out -j$$(nproc) Image
+                  KERNEL_SRC=$(dirname $(echo $(SRCS) | awk '{print $1}'))
+                  OUT_DIR=$(mktemp -d)
                   
-                  cp $(GENDIR)/out/arch/arm64/boot/Image $@
+                  make -C $KERNEL_SRC O=$OUT_DIR gki_defconfig
+                  make -C $KERNEL_SRC O=$OUT_DIR -j$(nproc) Image
+                  
+                  cp $OUT_DIR/arch/arm64/boot/Image $@
+                  rm -rf $OUT_DIR
               """,
               tools = [
-                  "@llvm_toolchain//:bin/clang",
+                  "//llvm_toolchain:clang",
               ],
               visibility = ["//visibility:public"],
           )
 
           genrule(
               name = "kernel_modules",
-              srcs = glob(["**/*"]),
+              srcs = glob(["**/*"], exclude=["bazel-*/**"]),
               outs = ["modules.tar.gz"],
               cmd = """
                   export ARCH=arm64
                   export SUBARCH=arm64
                   export CROSS_COMPILE=aarch64-linux-gnu-
-                  export CC=$(location @llvm_toolchain//:bin/clang)
                   export CLANG_TRIPLE=aarch64-linux-gnu-
                   export LLVM=1
                   export LLVM_IAS=1
+                  export PATH="$(dirname $(dirname $(location //llvm_toolchain:clang)))/bin:$PATH"
+                  export CC=$(dirname $(dirname $(location //llvm_toolchain:clang)))/bin/clang
                   
-                  make -C $(SRCS_DIR) O=$(GENDIR)/out gki_defconfig
-                  make -C $(SRCS_DIR) O=$(GENDIR)/out -j$$(nproc) modules
+                  KERNEL_SRC=$(dirname $(echo $(SRCS) | awk '{print $1}'))
+                  OUT_DIR=$(mktemp -d)
+                  MODULES_OUT=$(mktemp -d)
                   
-                  mkdir -p $(GENDIR)/modules_out
-                  make -C $(SRCS_DIR) O=$(GENDIR)/out INSTALL_MOD_PATH=$(GENDIR)/modules_out modules_install
+                  make -C $KERNEL_SRC O=$OUT_DIR gki_defconfig
+                  make -C $KERNEL_SRC O=$OUT_DIR -j$(nproc) modules
+                  make -C $KERNEL_SRC O=$OUT_DIR INSTALL_MOD_PATH=$MODULES_OUT modules_install
                   
-                  tar -czf $@ -C $(GENDIR)/modules_out .
+                  tar -czf $@ -C $MODULES_OUT .
+                  rm -rf $OUT_DIR $MODULES_OUT
               """,
               tools = [
-                  "@llvm_toolchain//:bin/clang",
+                  "//llvm_toolchain:clang",
               ],
               visibility = ["//visibility:public"],
           )
@@ -237,25 +243,32 @@ jobs:
       - name: Setup LLVM toolchain for Bazel
         working-directory: ${{ env.KERNEL_DIR }}
         run: |
-          mkdir -p llvm_toolchain/bin
-          
-          # Create symlinks to system LLVM
-          TOOLCHAIN_PATH="$(pwd)/../toolchain"
-          
-          for tool in clang clang++ llvm-ar llvm-nm llvm-objcopy llvm-objdump llvm-strip; do
-            if [ -f "$TOOLCHAIN_PATH/bin/$tool" ]; then
-              ln -sf "$TOOLCHAIN_PATH/bin/$tool" "llvm_toolchain/bin/$tool"
-            fi
-          done
+          mkdir -p llvm_toolchain
           
           # Create BUILD file for toolchain
           cat > llvm_toolchain/BUILD.bazel << 'EOF'
-          filegroup(
-              name = "bin/clang",
-              srcs = ["bin/clang"],
-              visibility = ["//visibility:public"],
-          )
+          exports_files([
+              "clang",
+              "clang++",
+              "llvm-ar",
+              "llvm-nm",
+              "llvm-objcopy",
+              "llvm-objdump",
+              "llvm-strip",
+          ])
           EOF
+          
+          # Copy toolchain binaries
+          TOOLCHAIN_PATH="$(pwd)/../toolchain"
+          cp -L "$TOOLCHAIN_PATH/bin/clang" llvm_toolchain/
+          cp -L "$TOOLCHAIN_PATH/bin/clang++" llvm_toolchain/ || true
+          cp -L "$TOOLCHAIN_PATH/bin/llvm-ar" llvm_toolchain/ || true
+          cp -L "$TOOLCHAIN_PATH/bin/llvm-nm" llvm_toolchain/ || true
+          cp -L "$TOOLCHAIN_PATH/bin/llvm-objcopy" llvm_toolchain/ || true
+          cp -L "$TOOLCHAIN_PATH/bin/llvm-objdump" llvm_toolchain/ || true
+          cp -L "$TOOLCHAIN_PATH/bin/llvm-strip" llvm_toolchain/ || true
+          
+          chmod +x llvm_toolchain/*
 
       - name: Build kernel with Bazel
         working-directory: ${{ env.KERNEL_DIR }}
