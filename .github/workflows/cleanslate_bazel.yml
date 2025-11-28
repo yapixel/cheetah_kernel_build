@@ -170,18 +170,20 @@ jobs:
           echo "# CONFIG_USERLAND_WORKER is not set" >> "$CONFIG"
           
 
-      - name: Create Bazel workspace
+      - name: Create Bazel Build Files (Python)
         working-directory: ${{ env.KERNEL_DIR }}
+        shell: python
         run: |
-          # 1. Create MODULE.bazel
-          cat > MODULE.bazel << 'ZEUS_MODULE'
-          module(name = "kernel", version = "1.0")
-          ZEUS_MODULE
+          import os
 
-          # 2. Create BUILD.bazel
-          # We use a unique delimiter (ZEUS_BUILD) to avoid EOF conflicts.
-          # We strictly use $$ for shell variables and $ for Bazel variables.
-          cat > BUILD.bazel << 'ZEUS_BUILD'
+          # 1. Write MODULE.bazel
+          with open("MODULE.bazel", "w") as f:
+              f.write('module(name = "kernel", version = "1.0")\n')
+
+          # 2. Write BUILD.bazel
+          # We use a Python raw string (r''') to ensure exact content writing.
+          # $$ is preserved as $$ for Bazel to interpret.
+          build_content = r'''
           genrule(
               name = "kernel_image",
               srcs = glob(["**/*"], exclude=["bazel-*/**"]),
@@ -194,25 +196,21 @@ jobs:
                   export LLVM=1
                   export LLVM_IAS=1
                   
-                  # PATH and CC setup
+                  # Correctly escape PATH using $$
                   export PATH="$$(dirname $$(dirname $(location //llvm_toolchain:clang)))/bin:$$PATH"
                   export CC=$$(dirname $$(dirname $(location //llvm_toolchain:clang)))/bin/clang
                   
-                  # Directory setup
+                  # Use $$ for awk and shell variables
                   KERNEL_SRC=$$(dirname $$(echo $(SRCS) | awk '{print $$1}'))
                   OUT_DIR=$$(mktemp -d)
                   
-                  # Build Command
                   make -C $$KERNEL_SRC O=$$OUT_DIR gki_defconfig
                   make -C $$KERNEL_SRC O=$$OUT_DIR -j$$(nproc) Image
                   
-                  # Artifact handling
                   cp $$OUT_DIR/arch/arm64/boot/Image $@
                   rm -rf $$OUT_DIR
               """,
-              tools = [
-                  "//llvm_toolchain:clang",
-              ],
+              tools = ["//llvm_toolchain:clang"],
               visibility = ["//visibility:public"],
           )
 
@@ -235,38 +233,32 @@ jobs:
                   OUT_DIR=$$(mktemp -d)
                   MODULES_OUT=$$(mktemp -d)
                   
-                  # Build Modules
                   make -C $$KERNEL_SRC O=$$OUT_DIR gki_defconfig
                   make -C $$KERNEL_SRC O=$$OUT_DIR -j$$(nproc) modules
                   make -C $$KERNEL_SRC O=$$OUT_DIR INSTALL_MOD_PATH=$$MODULES_OUT modules_install
                   
-                  # Package Modules
                   tar -czf $@ -C $$MODULES_OUT .
                   rm -rf $$OUT_DIR $$MODULES_OUT
               """,
-              tools = [
-                  "//llvm_toolchain:clang",
-              ],
+              tools = ["//llvm_toolchain:clang"],
               visibility = ["//visibility:public"],
           )
-          ZEUS_BUILD
+          '''
+          
+          with open("BUILD.bazel", "w") as f:
+              f.write(build_content)
 
-          # 3. Create .bazelrc
-          # We use a different delimiter (ZEUS_RC) just to be safe.
-          cat > .bazelrc << 'ZEUS_RC'
+      - name: Create Bazel RC Config
+        working-directory: ${{ env.KERNEL_DIR }}
+        run: |
+          # This file is created safely in a separate step
+          cat > .bazelrc << 'EOF'
           build --disk_cache=$HOME/.bazel-cache
           build --jobs=4
           build --action_env=CCACHE_DIR=$HOME/.ccache
           build --action_env=PATH
-          ZEUS_RC
+          EOF
 
-      - name: DEBUG - Verify BUILD.bazel content
-        if: always()
-        working-directory: ${{ env.KERNEL_DIR }}
-        run: |
-          echo "=== START BUILD.bazel ==="
-          cat BUILD.bazel
-          echo "=== END BUILD.bazel ==="
 
 
 
