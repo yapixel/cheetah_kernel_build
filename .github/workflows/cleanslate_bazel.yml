@@ -73,11 +73,12 @@ jobs:
           git clone --depth=1 --branch cleanslate_shusky_a16 \
             https://github.com/tbalden/google_common_kernel_drivers_simple.git ${{ env.KERNEL_DIR }}/drivers/google
 
+
       - name: Download LLVM/Clang toolchain
         run: |
           mkdir -p toolchain
           cd toolchain
-          wget -q https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r487747c.tar.gz
+          wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android14-release/clang-r487747c.tar.gz 
           tar -xzf clang-r487747c.tar.gz
           rm clang-r487747c.tar.gz
 
