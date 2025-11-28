@@ -181,7 +181,18 @@ jobs:
           module(name = "cleanslate", version = "1.0")
           local_path_override(module_name = "kernel_kleaf", path = "build/kernel/kleaf")
           EOF
-          ln -sf build/kernel/kleaf/common.bazelrc .bazelrc
+
+          # This is the correct .bazelrc setup for Kleaf 2024–2025
+          cat > .bazelrc << 'EOF'
+          # Pull in Kleaf's common settings
+          try-import build/kernel/kleaf/common.bazelrc
+
+          # Pull in the crucial config definitions (including --config=local)
+          try-import build/kernel/kleaf/bazel.rc
+
+          # Optional: you can still add your own flags here
+          build --disk_cache=$HOME/.bazel-cache
+          EOF
 
       # ─── Build with Bazel ───
       - name: Build kernel with Bazel
