@@ -173,12 +173,17 @@ jobs:
       - name: Create Bazel workspace
         working-directory: ${{ env.KERNEL_DIR }}
         run: |
-          # Create MODULE.bazel (required for Bazel 8+)
+          # 1. Create MODULE.bazel
           cat > MODULE.bazel << 'EOF'
           module(name = "kernel", version = "1.0")
           EOF
 
-          # Create BUILD.bazel for kernel
+          # 2. Create BUILD.bazel
+          # WE USE 'EOF' (quoted) TO PREVENT SHELL EXPANSION WHEN WRITING THE FILE.
+          # INSIDE THE FILE:
+          # - Use $$ for Shell variables (e.g. $$PATH, $$OUT_DIR).
+          # - Use $ for Bazel variables (e.g. $(location ...)).
+          # - DO NOT use $HOME inside the cmd block directly.
           cat > BUILD.bazel << 'EOF'
           genrule(
               name = "kernel_image",
@@ -192,9 +197,11 @@ jobs:
                   export LLVM=1
                   export LLVM_IAS=1
                   
+                  # Correctly escape PATH using $$
                   export PATH="$$(dirname $$(dirname $(location //llvm_toolchain:clang)))/bin:$$PATH"
                   export CC=$$(dirname $$(dirname $(location //llvm_toolchain:clang)))/bin/clang
                   
+                  # Use $$ for awk and shell variables
                   KERNEL_SRC=$$(dirname $$(echo $(SRCS) | awk '{print $$1}'))
                   OUT_DIR=$$(mktemp -d)
                   
@@ -243,13 +250,15 @@ jobs:
           )
           EOF
 
-          # Create .bazelrc
+          # 3. Create .bazelrc
+          # This file IS allowed to have $HOME because it is read by the Bazel client, not the genrule.
           cat > .bazelrc << 'EOF'
           build --disk_cache=$HOME/.bazel-cache
           build --jobs=4
           build --action_env=CCACHE_DIR=$HOME/.ccache
           build --action_env=PATH
           EOF
+
 
 
 
