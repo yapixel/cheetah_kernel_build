@@ -176,35 +176,28 @@ jobs:
       - name: Bootstrap Bazel workspace
         working-directory: ${{ env.KERNEL_DIR }}
         run: |
-          # MODULE.bazel – required for bzlmod
+          # MODULE.bazel – required for bzlmod (unchanged)
           cat > MODULE.bazel << 'EOF'
           module(name = "cleanslate", version = "1.0")
           local_path_override(module_name = "kernel_kleaf", path = "build/kernel/kleaf")
           EOF
 
-          # Correct .bazelrc for Kleaf android16 (2025)
-          cat > .bazelrc << 'EOF'
-          # Common Kleaf settings
-          try-import build/kernel/kleaf/common.bazelrc
+          # Correct .bazelrc for this Kleaf branch: ONLY import common.bazelrc
+          # No try-import for non-existent files like bazel.rc or local.bazelrc
+          ln -sf build/kernel/kleaf/common.bazelrc .bazelrc
 
-          # This file now contains --config=local definition (android16+)
-          try-import build/kernel/kleaf/local.bazelrc
+          # Optional: Add cache/env flags directly (Kleaf will handle local config)
+          echo "build --disk_cache=$HOME/.bazel-cache" >> .bazelrc
+          echo "build --jobs=32" >> .bazelrc
 
-          # Fallback for older branches (harmless if not present)
-          try-import build/kernel/kleaf/bazel.rc
-
-          # Optional performance tweaks
-          build --disk_cache=$HOME/.bazel-cache
-          build --jobs=4
-          EOF
-
-      # ─── Build with Bazel ───
       - name: Build kernel with Bazel
         working-directory: ${{ env.KERNEL_DIR }}
         run: |
-          bazel build //common:kernel_aarch64 --config=local --action_env=CCACHE_DIR=$HOME/.ccache
-          bazel build //common:kernel_aarch64_modules_install --config=local
-
+          # Use the Kleaf 'bazel' wrapper – it auto-applies --config=local
+          # (path may be build/bazel or tools/bazel; adjust if needed)
+          ./build/bazel build //common:kernel_aarch64 --action_env=CCACHE_DIR=$HOME/.ccache
+          ./build/bazel build //common:kernel_aarch64_modules_install --action_env=CCACHE_DIR=$HOME/.ccache
+          
       # ─── Package AnyKernel3 ───
       - name: Package AnyKernel3 zip
         run: |
