@@ -1,4 +1,4 @@
-name: Build CleanSlate Android Kernel with SukiSU (Pure Bazel)
+name: Build CleanSlate with SukiSU (Pure Bazel)
 
 on:
   push:
