@@ -173,25 +173,29 @@ jobs:
           LTO=${{ env.LTO_TYPE }}
           EOF
 
-      # ─── Minimal Bazel workspace fix (only thing needed) ───
       - name: Bootstrap Bazel workspace
         working-directory: ${{ env.KERNEL_DIR }}
         run: |
+          # MODULE.bazel – required for bzlmod
           cat > MODULE.bazel << 'EOF'
           module(name = "cleanslate", version = "1.0")
           local_path_override(module_name = "kernel_kleaf", path = "build/kernel/kleaf")
           EOF
 
-          # This is the correct .bazelrc setup for Kleaf 2024–2025
+          # Correct .bazelrc for Kleaf android16 (2025)
           cat > .bazelrc << 'EOF'
-          # Pull in Kleaf's common settings
+          # Common Kleaf settings
           try-import build/kernel/kleaf/common.bazelrc
 
-          # Pull in the crucial config definitions (including --config=local)
+          # This file now contains --config=local definition (android16+)
+          try-import build/kernel/kleaf/local.bazelrc
+
+          # Fallback for older branches (harmless if not present)
           try-import build/kernel/kleaf/bazel.rc
 
-          # Optional: you can still add your own flags here
+          # Optional performance tweaks
           build --disk_cache=$HOME/.bazel-cache
+          build --jobs=4
           EOF
 
       # ─── Build with Bazel ───
