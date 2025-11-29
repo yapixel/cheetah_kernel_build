@@ -418,31 +418,13 @@ jobs:
           # Build
           make O=out CROSS_COMPILE=${{ env.GCC_PATH }} CC=${{ env.GCC_PATH }}gcc -j$(nproc --all)
 
-      - name: Package
-        run: |
-          cp ${{ env.kernel_dir }}/out/arch/arm64/boot/Image.lz4 AK3/Image.lz4
-          cat ${{ env.kernel_dir }}/out/google-devices/zuma/dts/*.dtb > AK3/dtb
-          
-          ZIP_NAME="Sultan-${{ env.KERNEL_VERSION }}-xxKSU-r${{ env.KSU_VER }}-susfs.zip"
-          
-          cd AK3
-          # SAVE ZIP TO GITHUB WORKSPACE (Absolute Path)
-          zip -r9 "${GITHUB_WORKSPACE}/${ZIP_NAME}" . -x "*.git*" "README.md"
-          
-          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
-          echo "ZIP_PATH=${GITHUB_WORKSPACE}/${ZIP_NAME}" >> $GITHUB_ENV
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.ZIP_NAME }}
-          path: ${{ env.ZIP_PATH }}          
 
   # ===========================================================================
-  # JOB 4: RELEASE
+  # JOB 3: RELEASE
   # ===========================================================================
   release:
-    needs: [build-gki, build-sultan, build-sultan-susfs]
+    needs: [build-gki, build-sultan]
     runs-on: ubuntu-latest
     permissions:
       contents: write
