@@ -443,7 +443,7 @@ jobs:
   # JOB 4: RELEASE
   # ===========================================================================
   release:
-    needs: [build-gki, build-sultan]
+    needs: [build-gki, build-sultan, build-sultan-susfs]
     runs-on: ubuntu-latest
     permissions:
       contents: write
