@@ -310,8 +310,6 @@ jobs:
           # Apply Sultan Hook Patch (v1.6)
           patch -p1 -F 3 < "${{ env.ok_dir }}/sultan/scope-min-hooks-v1.6.patch"
           
-          # Add KSU Config
-          echo "CONFIG_KSU=y" >> $DEFCONFIG
           
           # Set Local Version
           sed -i 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
@@ -325,7 +323,7 @@ jobs:
       - name: Apply SUSFS Patches
         run: |
           echo "Changing to configuration directory: $CONFIG..."
-          cd "$CONFIG"
+          cd ${{ env.kernel_dir }}
           echo "Applying core SUSFS patches..."
           # Apply Sultan Hook Patch (v1.6)
           patch -p1 -F 3 < "${{ env.ok_dir }}/sultan/scope-min-hooks-v1.6.patch"
@@ -347,14 +345,14 @@ jobs:
       - name: Apply Hide Stuff Patches
         run: |
           echo "Changing to configuration directory: $CONFIG..."
-          cd "$CONFIG"
+          cd ${{ env.kernel_dir }}
           cp ../kernel_patches/69_hide_stuff.patch ./
           patch -p1 -F 3 < 69_hide_stuff.patch 
 
       - name: Add SUSFS Configuration Settings
         run: |
           echo "Changing to configuration directory: $CONFIG..."
-          cd "$CONFIG"
+          cd ${{ env.kernel_dir }}
           echo "CONFIG_KSU=y" >> ./arch/arm64/configs/zuma_defconfig
           echo "CONFIG_KSU_KPROBES_HOOK=n" >> ./arch/arm64/configs/zuma_defconfig
           echo "CONFIG_KSU_SUSFS=y" >> ./arch/arm64/configs/zuma_defconfig
