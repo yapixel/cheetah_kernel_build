@@ -310,6 +310,7 @@ jobs:
           # Apply Sultan Hook Patch (v1.6)
           patch -p1 -F 3 < "${{ env.ok_dir }}/sultan/scope-min-hooks-v1.6.patch"
           
+          DEFCONFIG="arch/arm64/configs/zuma_defconfig"
           
           # Set Local Version
           sed -i 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
