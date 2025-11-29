@@ -326,10 +326,7 @@ jobs:
           echo "Changing to configuration directory: $CONFIG..."
           cd ${{ env.kernel_dir }}
           echo "Applying core SUSFS patches..."
-          # Apply Sultan Hook Patch (v1.6)
-          patch -p1 -F 3 < "${{ env.ok_dir }}/sultan/scope-min-hooks-v1.6.patch"
           cp ../"${{ env.yp_dir }}"/kowsu/50_add_susfs_in_gki-android14-6.1.patch ./
-          
           cp ../susfs4ksu/kernel_patches/fs/* ./fs/
           cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
           patch -p1 --forward < 50_add_susfs_in_gki-android14-6.1.patch || true
