@@ -262,8 +262,188 @@ jobs:
           name: ${{ env.ZIP_NAME }}
           path: ${{ env.ZIP_PATH }}
 
+
+# ===========================================================================
+  # JOB 3: SULTAN BUILD with SUSFS (GCC/Make)
   # ===========================================================================
-  # JOB 3: RELEASE
+  build-sultan-susfs:
+    runs-on: ubuntu-latest
+    name: KowSU | Sultan
+    
+    env:
+      KERNEL_CODENAME: "zuma"
+      KERNEL_VERSION: "6.1.134"
+      
+    steps:
+      - name: Download GCC 14.2.0
+        run: |
+          wget -q https://kernel.org/pub/tools/crosstool/files/bin/x86_64/14.2.0/x86_64-gcc-14.2.0-nolibc-aarch64-linux.tar.gz -O gcc.tar.gz
+          tar -xf gcc.tar.gz
+          echo "GCC_PATH=$PWD/gcc-14.2.0-nolibc/aarch64-linux/bin/aarch64-linux-" >> $GITHUB_ENV
+
+      - name: Clone Source & Deps
+        run: |
+          # Kernel
+          git clone --depth=1 https://github.com/kerneltoast/android_kernel_google_zuma sultan
+          
+          # Deps
+          git clone --depth=1 https://github.com/TheWildJames/AnyKernel3.git -b "sultan-zuma" AK3
+          git clone --depth=1 https://github.com/TheSillyOk/kernel_ls_patches ok_patches
+          git clone --depth=1 https://github.com/yapixel/kernel_patches yp_patches
+          
+          # Version Extraction Scripts
+          git clone --depth=1 https://github.com/TheSillyOk/sh sh
+          
+          echo "kernel_dir=$PWD/sultan" >> $GITHUB_ENV
+          echo "ok_dir=$PWD/ok_patches" >> $GITHUB_ENV
+          echo "yp_dir=$PWD/yp_patches" >> $GITHUB_ENV
+
+      - name: Get KowSU Version
+        run: |
+          KSU_VER=$(./sh/get_ksuver.sh "KOWX712" "KernelSU" "master" || echo "unknown")
+          echo "KSU_VER=$KSU_VER" >> $GITHUB_ENV
+
+      - name: Setup Configs & Patches
+        run: |
+          cd ${{ env.kernel_dir }}
+          
+          # Apply Sultan Hook Patch (v1.6)
+          patch -p1 -F 3 < "${{ env.ok_dir }}/sultan/scope-min-hooks-v1.6.patch"
+          
+          # Add KSU Config
+          echo "CONFIG_KSU=y" >> $DEFCONFIG
+          
+          # Set Local Version
+          sed -i 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
+          sed -i 's/CONFIG_LOCALVERSION="-Sultan"/CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"/' $DEFCONFIG
+
+      - name: Add KowSU
+        run: |
+          cd ${{ env.kernel_dir }}
+          curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/master/kernel/setup.sh" | bash -s master
+      
+      - name: Apply SUSFS Patches
+        run: |
+          echo "Changing to configuration directory: $CONFIG..."
+          cd "$CONFIG"
+          echo "Applying core SUSFS patches..."
+          # Apply Sultan Hook Patch (v1.6)
+          patch -p1 -F 3 < "${{ env.ok_dir }}/sultan/scope-min-hooks-v1.6.patch"
+          cp ../"${{ env.yp_dir }}"/kowsu/50_add_susfs_in_gki-android14-6.1.patch ./
+          
+          cp ../susfs4ksu/kernel_patches/fs/* ./fs/
+          cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
+          patch -p1 --forward < 50_add_susfs_in_gki-android14-6.1.patch || true
+          
+          cp ../kernel_patches/sultan/sys.c_fix.patch ./
+          patch -p1 --fuzz=3 < sys.c_fix.patch
+
+          # Apply KSU integration patches
+          cd ./KernelSU
+          cp ../../"${{ env.yp_dir }}"/kowsu/10_enable_susfs_for_ksu.patch ./
+          patch -p1 --forward < 10_enable_susfs_for_ksu.patch
+      
+      
+      - name: Apply Hide Stuff Patches
+        run: |
+          echo "Changing to configuration directory: $CONFIG..."
+          cd "$CONFIG"
+          cp ../kernel_patches/69_hide_stuff.patch ./
+          patch -p1 -F 3 < 69_hide_stuff.patch 
+
+      - name: Add SUSFS Configuration Settings
+        run: |
+          echo "Changing to configuration directory: $CONFIG..."
+          cd "$CONFIG"
+          echo "Adding configuration settings to ${{ KERNEL_CODENAME }}_defconfig..."
+          echo "CONFIG_KSU=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_KSU_KPROBES_HOOK=n" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_KSU_SUSFS=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_KSU_LSM_SECURITY_HOOKS=n" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_TMPFS_XATTR=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_TMPFS_POSIX_ACL=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_IP_NF_TARGET_TTL=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig 
+          echo "CONFIG_TCP_CONG_BBR=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_NET_SCH_FQ=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_TCP_CONG_BIC=n" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_TCP_CONG_WESTWOOD=n" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_TCP_CONG_HTCP=n" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_BPF_STREAM_PARSER=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_NETFILTER_XT_SET=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_IP_SET=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_IP_SET_MAX=65534" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_IP_SET_BITMAP_IP=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_IP_SET_BITMAP_IPMAC=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_IP_SET_BITMAP_PORT=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_IP_SET_HASH_IP=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_IP_SET_HASH_IPMARK=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_IP_SET_HASH_IPPORT=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_IP_SET_HASH_IPPORTIP=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_IP_SET_HASH_IPPORTNET=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_IP_SET_HASH_IPMAC=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_IP_SET_HASH_MAC=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_IP_SET_HASH_NETPORTNET=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_IP_SET_HASH_NET=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_IP_SET_HASH_NETNET=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_IP_SET_HASH_NETPORT=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_IP_SET_HASH_NETIFACE=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_IP_SET_LIST_SET=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_IP6_NF_NAT=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+          echo "CONFIG_IP6_NF_TARGET_MASQUERADE=y" >> ./arch/arm64/configs/${{ KERNEL_CODENAME }}_defconfig
+
+      - name: Build Kernel
+        run: |
+          cd ${{ env.kernel_dir }}
+          export KBUILD_BUILD_USER="build-user"
+          export KBUILD_BUILD_HOST="build-host"
+          
+          # Defconfig
+          make O=out CROSS_COMPILE=${{ env.GCC_PATH }} CC=${{ env.GCC_PATH }}gcc zuma_defconfig
+          
+          # Build
+          make O=out CROSS_COMPILE=${{ env.GCC_PATH }} CC=${{ env.GCC_PATH }}gcc -j$(nproc --all)
+
+      - name: Package
+        run: |
+          cp ${{ env.kernel_dir }}/out/arch/arm64/boot/Image.lz4 AK3/Image.lz4
+          cat ${{ env.kernel_dir }}/out/google-devices/zuma/dts/*.dtb > AK3/dtb
+          
+          ZIP_NAME="Sultan-${{ env.KERNEL_VERSION }}-xxKSU-r${{ env.KSU_VER }}-susfs.zip"
+          
+          cd AK3
+          # SAVE ZIP TO GITHUB WORKSPACE (Absolute Path)
+          zip -r9 "${GITHUB_WORKSPACE}/${ZIP_NAME}" . -x "*.git*" "README.md"
+          
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+          echo "ZIP_PATH=${GITHUB_WORKSPACE}/${ZIP_NAME}" >> $GITHUB_ENV
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ZIP_NAME }}
+          path: ${{ env.ZIP_PATH }}          
+
+  # ===========================================================================
+  # JOB 4: RELEASE
   # ===========================================================================
   release:
     needs: [build-gki, build-sultan]
