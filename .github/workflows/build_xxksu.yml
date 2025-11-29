@@ -293,6 +293,9 @@ jobs:
           
           # Version Extraction Scripts
           git clone --depth=1 https://github.com/TheSillyOk/sh sh
+          #susfs4ksu
+          SUSFS_BRANCH="gki-android14-6.1"
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
           
           echo "kernel_dir=$PWD/sultan" >> $GITHUB_ENV
           echo "ok_dir=$PWD/ok_patches" >> $GITHUB_ENV
