@@ -335,7 +335,7 @@ jobs:
       - name: Apply SUSFS Patches
         run: |
           echo "Changing to configuration directory: $CONFIG..."
-          cd "$CONFIG"
+          cd ${{ env.kernel_dir }}
           echo "Applying core SUSFS patches..."
           # Apply Sultan Hook Patch (v1.6)
           #patch -p1 -F 3 < "${{ env.ok_dir }}/sultan/scope-min-hooks-v1.6.patch"
