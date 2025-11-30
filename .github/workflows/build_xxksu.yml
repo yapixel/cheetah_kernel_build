@@ -289,6 +289,8 @@ jobs:
           git clone --depth=1 https://github.com/TheWildJames/AnyKernel3.git -b "sultan-zuma" AK3
           git clone --depth=1 https://github.com/TheSillyOk/kernel_ls_patches ok_patches
           git clone --depth=1 https://github.com/yapixel/kernel_patches yp_patches
+          SUSFS_BRANCH="gki-android14-6.1-dev"
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
           
           # Version Extraction Scripts
           git clone --depth=1 https://github.com/TheSillyOk/sh sh
