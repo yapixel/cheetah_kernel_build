@@ -261,7 +261,130 @@ jobs:
         with:
           name: ${{ env.ZIP_NAME }}
           path: ${{ env.ZIP_PATH }}
+   # ===========================================================================
+  # JOB 3: SULTAN BUILD with SUSFS (GCC/Make)
+  # ===========================================================================
+  build-sultan-susfs:
+    runs-on: ubuntu-latest
+    name: KowSU | Sultan
+    
+    env:
+      KERNEL_CODENAME: "zuma"
+      KERNEL_VERSION: "6.1.134"
+      
+    steps:
+      - name: Download GCC 14.2.0
+        run: |
+          wget -q https://kernel.org/pub/tools/crosstool/files/bin/x86_64/14.2.0/x86_64-gcc-14.2.0-nolibc-aarch64-linux.tar.gz -O gcc.tar.gz
+          tar -xf gcc.tar.gz
+          echo "GCC_PATH=$PWD/gcc-14.2.0-nolibc/aarch64-linux/bin/aarch64-linux-" >> $GITHUB_ENV
 
+      - name: Clone Source & Deps
+        run: |
+          # Kernel
+          git clone --depth=1 https://github.com/kerneltoast/android_kernel_google_zuma sultan
+          
+          # Deps
+          git clone --depth=1 https://github.com/TheWildJames/AnyKernel3.git -b "sultan-zuma" AK3
+          git clone --depth=1 https://github.com/TheSillyOk/kernel_ls_patches ok_patches
+          git clone --depth=1 https://github.com/yapixel/kernel_patches yp_patches
+          
+          # Version Extraction Scripts
+          git clone --depth=1 https://github.com/TheSillyOk/sh sh
+          
+          echo "kernel_dir=$PWD/sultan" >> $GITHUB_ENV
+          echo "ok_dir=$PWD/ok_patches" >> $GITHUB_ENV
+          echo "yp_dir=$PWD/yp_patches" >> $GITHUB_ENV
+
+      - name: Get KowSU Version
+        run: |
+          KSU_VER=$(./sh/get_ksuver.sh "KOWX712" "KernelSU" "master" || echo "unknown")
+          echo "KSU_VER=$KSU_VER" >> $GITHUB_ENV
+
+      - name: Setup Configs & Patches
+        run: |
+          cd ${{ env.kernel_dir }}
+          
+          # Apply Sultan Hook Patch (v1.6)
+          patch -p1 -F 3 < "${{ env.ok_dir }}/sultan/scope-min-hooks-v1.6.patch"
+          
+          
+          
+          # Apply configs from build_kernels.yml
+          configs="CONFIG_TMPFS_XATTR=y CONFIG_TMPFS_POSIX_ACL=y CONFIG_IP_NF_TARGET_TTL=y CONFIG_IP6_NF_TARGET_HL=y CONFIG_IP6_NF_MATCH_HL=y CONFIG_TCP_CONG_ADVANCED=y CONFIG_TCP_CONG_BBR=y CONFIG_NET_SCH_FQ=y CONFIG_TCP_CONG_BIC=n CONFIG_TCP_CONG_WESTWOOD=n CONFIG_TCP_CONG_HTCP=n CONFIG_DEFAULT_BBR=y CONFIG_BPF_STREAM_PARSER=y CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y CONFIG_NETFILTER_XT_SET=y CONFIG_IP_SET=y CONFIG_IP_SET_MAX=65534 CONFIG_IP_SET_BITMAP_IP=y CONFIG_IP_SET_BITMAP_IPMAC=y CONFIG_IP_SET_BITMAP_PORT=y CONFIG_IP_SET_HASH_IP=y CONFIG_IP_SET_HASH_IPMARK=y CONFIG_IP_SET_HASH_IPPORT=y CONFIG_IP_SET_HASH_IPPORTIP=y CONFIG_IP_SET_HASH_IPPORTNET=y CONFIG_IP_SET_HASH_IPMAC=y CONFIG_IP_SET_HASH_MAC=y CONFIG_IP_SET_HASH_NETPORTNET=y CONFIG_IP_SET_HASH_NET=y CONFIG_IP_SET_HASH_NETNET=y CONFIG_IP_SET_HASH_NETPORT=y CONFIG_IP_SET_HASH_NETIFACE=y CONFIG_IP_SET_LIST_SET=y CONFIG_IP6_NF_NAT=y CONFIG_IP6_NF_TARGET_MASQUERADE=y"
+          
+          for config in $configs; do
+            name=$(echo "$config" | cut -d'=' -f1)
+            sed -i -E "s/.*($name=.*)/# \1 is not set/gi" $DEFCONFIG
+            echo "$config" >> $DEFCONFIG
+          done
+          
+          # Add KSU Config
+          echo "CONFIG_KSU=y" >> $DEFCONFIG
+          
+          # Set Local Version
+          sed -i 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
+          sed -i 's/CONFIG_LOCALVERSION="-Sultan"/CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"/' $DEFCONFIG
+
+      - name: Add KowSU
+        run: |
+          cd ${{ env.kernel_dir }}
+          curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/master/kernel/setup.sh" | bash -s -- master
+      
+      - name: Apply SUSFS Patches
+        run: |
+          echo "Changing to configuration directory: $CONFIG..."
+          cd "$CONFIG"
+          echo "Applying core SUSFS patches..."
+          # Apply Sultan Hook Patch (v1.6)
+          patch -p1 -F 3 < "${{ env.ok_dir }}/sultan/scope-min-hooks-v1.6.patch"
+          cp ../"${{ env.yp_dir }}"/kowsu/50_add_susfs_in_gki-android14-6.1.patch ./
+          
+          cp ../susfs4ksu/kernel_patches/fs/* ./fs/
+          cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
+          patch -p1 --forward < 50_add_susfs_in_gki-android14-6.1.patch || true
+          
+          cp ../kernel_patches/sultan/sys.c_fix.patch ./
+          patch -p1 --fuzz=3 < sys.c_fix.patch
+
+          # Apply KSU integration patches
+          cd ./KernelSU
+          cp ../../"${{ env.yp_dir }}"/kowsu/10_enable_susfs_for_ksu.patch ./
+          patch -p1 --forward < 10_enable_susfs_for_ksu.patch
+      
+      
+
+      - name: Build Kernel
+        run: |
+          cd ${{ env.kernel_dir }}
+          export KBUILD_BUILD_USER="build-user"
+          export KBUILD_BUILD_HOST="build-host"
+          
+          # Defconfig
+          make O=out CROSS_COMPILE=${{ env.GCC_PATH }} CC=${{ env.GCC_PATH }}gcc zuma_defconfig
+          
+          # Build
+          make O=out CROSS_COMPILE=${{ env.GCC_PATH }} CC=${{ env.GCC_PATH }}gcc -j$(nproc --all)
+
+      - name: Package
+        run: |
+          cp ${{ env.kernel_dir }}/out/arch/arm64/boot/Image.lz4 AK3/Image.lz4
+          cat ${{ env.kernel_dir }}/out/google-devices/zuma/dts/*.dtb > AK3/dtb
+          
+          ZIP_NAME="Sultan-${{ env.KERNEL_VERSION }}-KowSU-r${{ env.KSU_VER }}-susfs.zip"
+          
+          cd AK3
+          # SAVE ZIP TO GITHUB WORKSPACE (Absolute Path)
+          zip -r9 "${GITHUB_WORKSPACE}/${ZIP_NAME}" . -x "*.git*" "README.md"
+          
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+          echo "ZIP_PATH=${GITHUB_WORKSPACE}/${ZIP_NAME}" >> $GITHUB_ENV
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ZIP_NAME }}
+          path: ${{ env.ZIP_PATH }}          
 
   # ===========================================================================
   # JOB 3: RELEASE
