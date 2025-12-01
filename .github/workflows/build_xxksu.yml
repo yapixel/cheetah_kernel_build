@@ -1,4 +1,4 @@
-name: Build (GKI & Sultan) with xxKSU
+name: Build (GKI & Sultan) with KSU variants
 
 on:
   workflow_dispatch:
