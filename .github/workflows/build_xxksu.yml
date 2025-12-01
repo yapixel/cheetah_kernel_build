@@ -345,7 +345,12 @@ jobs:
           
           cp "${{ env.yp_dir }}"/sultan/sys.c_fix.patch ./
           patch -p1 --fuzz=3 < sys.c_fix.patch
+          
+          cp "${{ env.yp_dir }}"/sultan/base.c_fix.patch ./
+          patch -p1 --fuzz=3 < base.c_fix.patch
+          
 
+          
           # Apply KSU integration patches
           cd ./KernelSU
           cp "${{ env.yp_dir }}"/kowsu/10_enable_susfs_for_ksu.patch ./
