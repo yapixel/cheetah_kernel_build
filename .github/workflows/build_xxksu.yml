@@ -267,7 +267,7 @@ jobs:
   # ===========================================================================
   build-sultan-susfs:
     runs-on: ubuntu-latest
-    name: KowSU | Sultan
+    name: KowSU | Sultan | susfs
     
     env:
       KERNEL_CODENAME: "zuma"
