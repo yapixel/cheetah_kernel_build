@@ -300,10 +300,11 @@ jobs:
           CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
           CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
           CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
-
-
           EOF
           
+      - name: Set Local Version
+        run: |
+          cd ${{ env.kernel_common }}
           # Set Local Version
           sed -i 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
           echo "CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739" >> gki_fragment.config
