@@ -306,7 +306,7 @@ jobs:
           
           # Set Local Version
           sed -i 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
-          sed -i 's/CONFIG_LOCALVERSION="-Sultan"/CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"/' $DEFCONFIG
+          sed -i 's/CONFIG_LOCALVERSION="-Sultan"/CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"/' gki_fragment.config
 
       - name: Apply SUSFS Patches
         run: |
