@@ -307,7 +307,7 @@ jobs:
           cd ${{ env.kernel_common }}
           # Set Local Version
           sed -i 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
-          echo "CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739" >> gki_fragment.config
+          echo "CONFIG_LOCALVERSION"="-android14-11-g66e758f7d0c0-ab13748739" >> gki_fragment.config
 
       - name: Apply SUSFS Patches
         run: |
