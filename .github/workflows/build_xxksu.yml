@@ -163,7 +163,7 @@ jobs:
   # ===========================================================================
   # JOB 2: GKI BUILD (Kleaf) with kowsu and susfs 
   # ===========================================================================
-  build-gki:
+  build-gki-kowsu-susfs:
    runs-on: ubuntu-latest
    name: KowSU | GKI Kleaf | susfs
     
@@ -174,7 +174,7 @@ jobs:
     OS_PATCH_LEVEL: "2025-05"
     BUILD_CONFIG: "common/build.config.gki.aarch64"
       
-    steps:
+   steps:
       - name: Free Disk Space
         run: |
           curl -L -o util_free_space.sh https://raw.githubusercontent.com/yapixel/kernel_patches/refs/heads/dev/util_free_space.sh
