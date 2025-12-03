@@ -233,6 +233,13 @@ jobs:
         patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
         patch -p1 < scope_min_manual_hooks_v1.6.patch || true
 
+    - name: Apply base.c fix patches
+      working-directory: ${{ env.KERNEL_DIR }}
+      run: |
+       echo "Applying base.c fix patch"
+       cp ../kernel_patches/sultan/base.c_fix.patch ./
+       patch -p1 --forward < base.c_fix.patch
+
     - name: Configure kernel
       working-directory: ${{ env.KERNEL_DIR }}
       run: |
