@@ -34,7 +34,7 @@ env:
   ANYKERNEL_DIR: AnyKernel3-p8a
   ANYKERNEL_BRANCH: gki-2.0
   SUSFS_REPO: https://gitlab.com/pershoot/susfs4ksu.git
-  SUSFS_BRANCH: gki-android14-6.1
+  SUSFS_BRANCH: gki-android14-6.1-dev
   PATCHES_REPO: https://github.com/yapixel/kernel_patches
   PATCHES_BRANCH: dev
   BUILDS_DIR: builds/6.1.157
@@ -151,6 +151,9 @@ jobs:
       run: |
         # Clone susfs4ksu
         git clone --depth=${{ env.REPO_DEPTH }} -b ${{ env.SUSFS_BRANCH }} ${{ env.SUSFS_REPO }} susfs4ksu
+        cd susfs4ksu 
+        git checkout 61622d29b8223c84a501e82d9f73973866cc012d
+        cd ../
         
         # Clone AnyKernel3
         git clone --depth=${{ env.REPO_DEPTH }} -b ${{ env.ANYKERNEL_BRANCH }} \
