@@ -1,5 +1,5 @@
 
-name: Build Android Kernel with SukiSU 
+name: Build Android Kernel with KowSU 
 
 on:
   workflow_dispatch:
@@ -22,7 +22,7 @@ env:
   BUILD: dev
   PIXEL8A: ${{ github.event.inputs.pixel8a || 'y' }}
   LTO_TYPE: ${{ github.event.inputs.lto_type || 'thin' }}
-  ZIP_PREFIX: AK3-A14-6.1.157-SukiSU
+  ZIP_PREFIX: AK3-A16-6.1.157-KowSU
   KERNEL_DIR: common
   CONFIG_FILE: arch/arm64/configs/gki_defconfig
   OUT_DIR: out
@@ -30,7 +30,7 @@ env:
   BUILD_CLEAN: ${{ github.event.inputs.build_clean || 'always' }}
   RETRY: 3
   REPO_DEPTH: 1
-  KSUN_BRANCH: susfs-main
+  KSUN_BRANCH: master
   ANYKERNEL_DIR: AnyKernel3-p8a
   ANYKERNEL_BRANCH: gki-2.0
   SUSFS_REPO: https://gitlab.com/pershoot/susfs4ksu.git
@@ -164,7 +164,7 @@ jobs:
       run: |
         git clean -fdx || true
         # Using latest commit from branch (reset commit disabled)
-        rm -rf KernelSU-Next || true
+        rm -rf KernelSU || true
 
     - name: Configure Pixel 8 Pro
       if: env.PIXEL8A == 'y'
@@ -209,10 +209,10 @@ jobs:
           none) echo "CONFIG_LTO_NONE=y" >> "$CONFIG" ;;
         esac
 
-    - name: Install SukiSU
+    - name: Install KowSU
       working-directory: ${{ env.KERNEL_DIR }}
       run: |
-        curl -LSs https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/refs/heads/${{ env.KSUN_BRANCH }}/kernel/setup.sh | bash -s ${{ env.KSUN_BRANCH }}
+        curl -LSs https://raw.githubusercontent.com/KOWX712/KernelSU/refs/heads/${{ env.KSUN_BRANCH }}/kernel/setup.sh | bash -s ${{ env.KSUN_BRANCH }}
 
     - name: Apply Clang 22 patch
       working-directory: ${{ env.KERNEL_DIR }}
@@ -223,15 +223,21 @@ jobs:
     - name: Apply SUSFS patches
       working-directory: ${{ env.KERNEL_DIR }}
       run: |
-        cp -fv ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./
-        cp -fv ../kernel_patches/sukisu/scope_min_manual_hooks_v1.6.patch ./
+        cp -fv ../kernel_patches/kowsu/50_add_susfs_in_gki-android14-6.1.patch ./
         
         mkdir -p fs include/linux
         cp -rfv ../susfs4ksu/kernel_patches/fs/* ./fs/ || true
         cp -rfv ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/ || true
         
         patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
-        patch -p1 < scope_min_manual_hooks_v1.6.patch || true
+        
+
+    - name: Apply KSU patch
+      working-directory: ${{ env.KERNEL_DIR }}
+      run: |
+       cd KernelSU
+       cp -fv ../kernel_patches/kowsu/10_enable_susfs_for_ksu.patch ./
+       patch -p1 < 10_enable_susfs_for_ksu.patch || true
 
     - name: Apply base.c fix patches
       working-directory: ${{ env.KERNEL_DIR }}
@@ -355,9 +361,9 @@ jobs:
         if [ -d "../${{ env.KERNEL_DIR }}/KernelSU/.git" ]; then
           cd "../${{ env.KERNEL_DIR }}/KernelSU"
           BUILD_COUNT=$(git rev-list --count HEAD 2>/dev/null || echo "1998")
-          BUILD_VER=$((40000 + BUILD_COUNT - 2815))
+          BUILD_VER=$((20000 + BUILD_COUNT))
         else
-          BUILD_VER="40000"
+          BUILD_VER="30000"
         fi
         
         cd "${{ github.workspace }}/${{ env.ANYKERNEL_DIR }}"
