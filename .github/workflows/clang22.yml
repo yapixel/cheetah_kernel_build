@@ -33,7 +33,7 @@ env:
   KSUN_BRANCH: master
   ANYKERNEL_DIR: AnyKernel3-p8a
   ANYKERNEL_BRANCH: gki-2.0
-  SUSFS_REPO: https://gitlab.com/pershoot/susfs4ksu.git
+  SUSFS_REPO: https://gitlab.com/simonpunk/susfs4ksu.git
   SUSFS_BRANCH: gki-android14-6.1-dev
   PATCHES_REPO: https://github.com/yapixel/kernel_patches
   PATCHES_BRANCH: dev
