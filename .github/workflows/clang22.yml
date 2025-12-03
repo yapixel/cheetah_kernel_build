@@ -363,7 +363,7 @@ jobs:
         if [ -d "../${{ env.KERNEL_DIR }}/KernelSU/.git" ]; then
           cd "../${{ env.KERNEL_DIR }}/KernelSU"
           BUILD_COUNT=$(git rev-list --count HEAD 2>/dev/null || echo "1998")
-          BUILD_VER=$((20000 + BUILD_COUNT))
+          BUILD_VER=$((30000 + BUILD_COUNT))
         else
           BUILD_VER="30000"
         fi
@@ -396,7 +396,7 @@ jobs:
         cat > ../build_info.txt << EOF
         Build Information
         =================
-        Kernel Version: 6.1.145
+        Kernel Version: 6.1.157
         Build Number: ${{ env.BUILD_VER }}
         Build Date: $(date -u)
         Commit SHA: ${{ github.sha }}
