@@ -273,7 +273,7 @@ jobs:
           # Apply KSU integration patches
           cd ./KernelSU
           cp ../../yapixel_patches/kowsu/10_enable_susfs_for_ksu.patch ./
-          patch -p1 --forward < 10_enable_susfs_for_ksu.patch
+          patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
 
       - name: Build with Official Script
         env:
