@@ -239,12 +239,12 @@ jobs:
        cp -fv ../../kernel_patches/kowsu/10_enable_susfs_for_ksu.patch ./
        patch -p1 < 10_enable_susfs_for_ksu.patch || true
 
-    - name: Apply base.c fix patches
-      working-directory: ${{ env.KERNEL_DIR }}
-      run: |
-       echo "Applying base.c fix patch"
-       cp ../kernel_patches/sultan/base.c_fix.patch ./
-       patch -p1 --forward < base.c_fix.patch
+  #  - name: Apply base.c fix patches
+  #    working-directory: ${{ env.KERNEL_DIR }}
+  #    run: |
+  #     echo "Applying base.c fix patch"
+  #     cp ../kernel_patches/sultan/base.c_fix.patch ./
+  #     patch -p1 --forward < base.c_fix.patch
 
     - name: Configure kernel
       working-directory: ${{ env.KERNEL_DIR }}
