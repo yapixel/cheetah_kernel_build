@@ -236,7 +236,7 @@ jobs:
       working-directory: ${{ env.KERNEL_DIR }}
       run: |
        cd KernelSU
-       cp -fv ../kernel_patches/kowsu/10_enable_susfs_for_ksu.patch ./
+       cp -fv ../../kernel_patches/kowsu/10_enable_susfs_for_ksu.patch ./
        patch -p1 < 10_enable_susfs_for_ksu.patch || true
 
     - name: Apply base.c fix patches
