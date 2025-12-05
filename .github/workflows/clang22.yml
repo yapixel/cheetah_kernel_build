@@ -22,7 +22,7 @@ env:
   BUILD: dev
   PIXEL8A: ${{ github.event.inputs.pixel8a || 'y' }}
   LTO_TYPE: ${{ github.event.inputs.lto_type || 'thin' }}
-  ZIP_PREFIX: AK3-A16-6.1.157-KowSU
+  ZIP_PREFIX: AK3-A16-6.1.145-KowSU
   KERNEL_DIR: common
   CONFIG_FILE: arch/arm64/configs/gki_defconfig
   OUT_DIR: out
@@ -37,7 +37,7 @@ env:
   SUSFS_BRANCH: gki-android14-6.1-dev
   PATCHES_REPO: https://github.com/yapixel/kernel_patches
   PATCHES_BRANCH: dev
-  BUILDS_DIR: builds/6.1.157
+  BUILDS_DIR: builds/6.1.145
   LOCALVERSION:
   
   # Compiler configuration
@@ -145,7 +145,7 @@ jobs:
 
     - name: Clone kernel source
       run: |
-        git clone --depth=1 https://android.googlesource.com/kernel/common -b android14-6.1-2025-12 ${{ env.KERNEL_DIR }}
+        git clone --depth=1 https://android.googlesource.com/kernel/common -b android14-6.1-2025-09 ${{ env.KERNEL_DIR }}
 
     - name: Setup repositories
       run: |
