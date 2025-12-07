@@ -151,9 +151,9 @@ jobs:
       run: |
         # Clone susfs4ksu
         git clone  -b ${{ env.SUSFS_BRANCH }} ${{ env.SUSFS_REPO }} susfs4ksu
-        cd susfs4ksu 
-        git checkout 61622d29b8223c84a501e82d9f73973866cc012d
-        cd ../
+        #cd susfs4ksu 
+        #git checkout 61622d29b8223c84a501e82d9f73973866cc012d
+        #cd ../
         
         # Clone AnyKernel3
         git clone --depth=${{ env.REPO_DEPTH }} -b ${{ env.ANYKERNEL_BRANCH }} \
