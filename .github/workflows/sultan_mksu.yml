@@ -171,12 +171,12 @@ jobs:
 
       - name: Run sed and perl Commands
         run: |
+          DEFCONFIG="${{ inputs.codename }}_defconfig"
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
           sed -i 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
-          sed -i 's/CONFIG_LOCALVERSION="-Sultan"/CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"/' ${{ inputs.codename }}_defconfig
+          sed -i 's/CONFIG_LOCALVERSION="-Sultan"/CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"/' arch/arm64/configs/$DEFCONFIG
           perl -pi -e "s/build-timestamp = \\$\(or \\$\(KBUILD_BUILD_TIMESTAMP\), \\$\(build-timestamp-auto\)\\)/build-timestamp = \"${{ env.build_date }}\"/" init/Makefile
-
 
       
       - name: Build the Kernel
