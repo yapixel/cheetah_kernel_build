@@ -25,6 +25,8 @@ on:
 jobs:
   build-kernel-sultan-mksu-susfs:
     runs-on: ubuntu-latest
+    env:
+     build_date: "Tue Dec 3 09:17:32 UTC 2025"
     steps:
       - name: Installing dependencies
         run: |
