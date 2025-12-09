@@ -68,7 +68,7 @@ jobs:
         run: |
           LATEST_TAG=$(gh api repos/$REPO_OWNER/$REPO_NAME/tags --jq '.[0].name' 2>/dev/null || echo "")
           if [ -z "$LATEST_TAG" ]; then
-            LATEST_TAG="v1.5.12-r0"
+            LATEST_TAG="v2.0.0-r0"
           fi
 
           NEW_TAG=$(echo "$LATEST_TAG" | awk -F'-r' '{suffix=$2+1; printf "%s-r%d", $1, suffix}')
