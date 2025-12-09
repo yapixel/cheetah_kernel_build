@@ -25,8 +25,6 @@ on:
 jobs:
   build-kernel-sultan-mksu-susfs:
     runs-on: ubuntu-latest
-    env:
-     build_date: "Mon Oct 6 16:50:48 UTC 2025"
     steps:
       - name: Download GCC 13.3.0
         run: |
@@ -172,16 +170,6 @@ jobs:
           echo "CONFIG_IP_SET_LIST_SET=y" >> ./arch/arm64/configs/${{ inputs.codename }}_defconfig
           echo "CONFIG_IP6_NF_NAT=y" >> ./arch/arm64/configs/${{ inputs.codename }}_defconfig
           echo "CONFIG_IP6_NF_TARGET_MASQUERADE=y" >> ./arch/arm64/configs/${{ inputs.codename }}_defconfig
-
-      - name: Run sed and perl Commands
-        run: |
-          DEFCONFIG="${{ inputs.codename }}_defconfig"
-          echo "Changing to configuration directory: $CONFIG..."
-          cd "$CONFIG"
-          sed -i 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
-          sed -i 's/CONFIG_LOCALVERSION="-Sultan"/CONFIG_LOCALVERSION="-android14-11-a834abb484ccc-ab14524903"/' arch/arm64/configs/$DEFCONFIG
-          perl -pi -e "s/build-timestamp = \\$\(or \\$\(KBUILD_BUILD_TIMESTAMP\), \\$\(build-timestamp-auto\)\\)/build-timestamp = \"${{ env.build_date }}\"/" init/Makefile
-
       
       - name: Build Kernel
         run: |
