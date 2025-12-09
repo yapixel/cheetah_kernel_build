@@ -26,7 +26,7 @@ jobs:
   build-kernel-sultan-ksu-susfs:
     runs-on: ubuntu-latest
     env:
-     build_date: "Tue Dec 3 09:17:32 UTC 2025"
+     build_date: "Mon Oct 6 16:50:48 UTC 2025"
     steps:
       - name: Download GCC 13.3.0
         run: |
