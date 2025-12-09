@@ -3,7 +3,6 @@ name: Build and Release Sultan Kernels
 permissions:
   contents: write   # Allow writing to repository contents (for pushing tags)
   actions: write    # Allows downloading artifacts
-  
 
 on:
   workflow_dispatch:
@@ -15,7 +14,7 @@ on:
         default: true
 
 jobs:
-  # Build all kernels first — dummy tag to satisfy required input
+  # Build all kernels first
  # build-kernel-zuma-xxksu:
  #   uses: ./.github/workflows/sultan_xxksu.yml
  #   secrets: inherit
@@ -24,7 +23,6 @@ jobs:
  #     repo: "android_kernel_google_zuma"
  #     android_version: "android14"
  #     kernel_version: "6.1"
- #     release_tag: "temp-${{ github.run_id }}"
 
   build-kernel-zuma-ksu:
     uses: ./.github/workflows/sultan_ksu.yml
@@ -34,7 +32,6 @@ jobs:
       repo: "android_kernel_google_zuma"
       android_version: "android14"
       kernel_version: "6.1"
-      release_tag: "temp-${{ github.run_id }}"
 
   build-kernel-zuma-mksu:
     uses: ./.github/workflows/sultan_mksu.yml
@@ -44,7 +41,6 @@ jobs:
       repo: "android_kernel_google_zuma"
       android_version: "android14"
       kernel_version: "6.1"
-      release_tag: "temp-${{ github.run_id }}"
 
   # Only runs after ALL builds succeed
   generate-tag-and-release:
