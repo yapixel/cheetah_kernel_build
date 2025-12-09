@@ -62,31 +62,35 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+         fetch-depth: 0
+         token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate New Tag & Push
         id: generate-tag
         run: |
-          LATEST_TAG=$(gh api repos/$REPO_OWNER/$REPO_NAME/tags --jq '.[0].name' 2>/dev/null || echo "")
-          if [ -z "$LATEST_TAG" ]; then
-          LATEST_TAG="v2.0.0-r0"
-           fi
+         LATEST_TAG=$(gh api repos/$REPO_OWNER/$REPO_NAME/tags --jq '.[0].name' 2>/dev/null || echo "")
+         if [ -z "$LATEST_TAG" ]; then
+         LATEST_TAG="v2.0.0-r0"
+         fi
 
-           NEW_TAG=$(echo "$LATEST_TAG" | awk -F'-r' '{suffix=$2+1; printf "%s-r%d", $1, suffix}')
-           echo "New tag: $NEW_TAG"
-           echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+         NEW_TAG=$(echo "$LATEST_TAG" | awk -F'-r' '{suffix=$2+1; printf "%s-r%d", $1, suffix}')
+         echo "New tag: $NEW_TAG"
+         echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
 
-           # Create tag using GitHub API instead of git push
-           gh api \
-           --method POST \
-           -H "Accept: application/vnd.github+json" \
-           repos/$REPO_OWNER/$REPO_NAME/git/refs \
-           -f ref="refs/tags/$NEW_TAG" \
-           -f sha="${GITHUB_SHA}"
+         # Configure git
+         git config user.name "github-actions[bot]"
+         git config user.email "github-actions[bot]@users.noreply.github.com"
     
-           echo "Tag $NEW_TAG created and pushed."
+         # Create annotated tag
+         git tag -a "$NEW_TAG" -m "Release $NEW_TAG"
+    
+         # Push tag
+         git push origin "$NEW_TAG"
+    
+         echo "Tag $NEW_TAG created and pushed."
         env:
-         GH_TOKEN: ${{ github.token }}
+         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+       
 
       - name: Set Build Date
         id: set-build-date
