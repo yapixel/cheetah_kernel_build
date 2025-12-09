@@ -210,7 +210,7 @@ jobs:
         run: |
           echo "Navigating to AnyKernel3 directory..."
           cd ./AnyKernel3
-          ZIP_NAME="MKSU-${{ env.KSUVER }}-zuma-sultan-16.0-susfs-1.5.12-ak3.zip"
+          ZIP_NAME="MKSU-${{ env.KSUVER }}-zuma-sultan-16.0-susfs-2.0.0-ak3.zip"
           echo "Creating zip file $ZIP_NAME..."
           zip -r "../$ZIP_NAME" ./*
 
