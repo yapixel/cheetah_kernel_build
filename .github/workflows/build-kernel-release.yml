@@ -54,67 +54,52 @@ jobs:
       - build-kernel-zuma-ksu
       - build-kernel-zuma-mksu
     if: ${{ inputs.make_release }}
+    permissions:
+      contents: write
     env:
       REPO_OWNER: yapixel
       REPO_NAME: Sultan_KernelSU_SUSFS
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
         with:
-         fetch-depth: 0
-         token: ${{ secrets.GITHUB_TOKEN }}
+          path: ./downloaded-artifacts
 
-      - name: Generate New Tag & Push
-        id: generate-tag
-        run: |
-         LATEST_TAG=$(gh api repos/$REPO_OWNER/$REPO_NAME/tags --jq '.[0].name' 2>/dev/null || echo "")
-         if [ -z "$LATEST_TAG" ]; then
-         LATEST_TAG="v2.0.0-r0"
-         fi
-
-         NEW_TAG=$(echo "$LATEST_TAG" | awk -F'-r' '{suffix=$2+1; printf "%s-r%d", $1, suffix}')
-         echo "New tag: $NEW_TAG"
-         echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
-
-         # Configure git
-         git config user.name "github-actions[bot]"
-         git config user.email "github-actions[bot]@users.noreply.github.com"
-    
-         # Create annotated tag
-         git tag -a "$NEW_TAG" -m "Release $NEW_TAG"
-    
-         # Push tag
-         git push origin "$NEW_TAG"
-    
-         echo "Tag $NEW_TAG created and pushed."
+      - name: Create Release Tag
         env:
-         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-       
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          LATEST_TAG=$(gh api repos/$REPO_OWNER/$REPO_NAME/tags --jq '.[0].name' 2>/dev/null || echo "")
+          if [ -z "$LATEST_TAG" ]; then
+            LATEST_TAG="v2.0.0-r0"
+          fi
+
+          NEW_TAG=$(echo "$LATEST_TAG" | awk -F'-r' '{suffix=$2+1; printf "%s-r%d", $1, suffix}')
+          echo "New tag: $NEW_TAG"
+          
+          git tag "$NEW_TAG" || true
+          git push origin "$NEW_TAG" || true
+          echo "TAG=$NEW_TAG" >> $GITHUB_ENV
 
       - name: Set Build Date
-        id: set-build-date
         run: |
           BUILD_DATE=$(date '+%Y-%m-%d %H:%M:%S UTC')
-          echo "build_date=$BUILD_DATE" >> $GITHUB_OUTPUT
+          echo "BUILD_DATE=$BUILD_DATE" >> $GITHUB_ENV
 
       - name: Extract SUSFS Version
-        id: extract-version
         run: |
-          SUSFS_VERSION=$(echo "${{ steps.generate-tag.outputs.new_tag }}" | cut -d'-' -f1 | sed 's/v//')
-          echo "susfs_version=v$SUSFS_VERSION" >> $GITHUB_OUTPUT
+          SUSFS_VERSION=$(echo "${{ env.TAG }}" | cut -d'-' -f1 | sed 's/v//')
+          echo "SUSFS_VERSION=v$SUSFS_VERSION" >> $GITHUB_ENV
 
-      - name: Set Release Name
-        run: |
-          echo "RELEASE_NAME=*TEST BUILD* Sultan Kernels With MKSU & SUSFS_Minimal ${{ steps.extract-version.outputs.susfs_version }} *TEST BUILD*" >> $GITHUB_ENV
-
-      - name: Define Release Notes
-        id: define-release-notes
-        run: |
-          BUILD_DATE="${{ steps.set-build-date.outputs.build_date }}"
-          SUSFS_VERSION="${{ steps.extract-version.outputs.susfs_version }}"
-          RELEASE_NOTES=$(cat << EOF
-            This release contains MKSU with SUSFS_Minimal $SUSFS_VERSION
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: "*TEST BUILD* Sultan Kernels With MKSU & SUSFS_Minimal ${{ env.SUSFS_VERSION }} *TEST BUILD*"
+          prerelease: true
+          body: |
+            This release contains MKSU with SUSFS_Minimal ${{ env.SUSFS_VERSION }}
             
             ⚠️ **COMPATIBILITY NOTICE** ⚠️
             Please ensure compatibility by comparing release dates with official Sultan kernel releases:
@@ -131,45 +116,12 @@ jobs:
             
             Features:
             [+] KernelSU Magic Managers
-            [+] SUSFS $SUSFS_VERSION
+            [+] SUSFS ${{ env.SUSFS_VERSION }}
             [+] Maphide LineageOS Detections
             [+] Futile Maphide for jit-zygote-cache Detections
             [+] Magic Mount Support
             
             📅 **Release Date Compatibility Check:**
-            - Built on: $BUILD_DATE
-          EOF
-          )
-          echo "release_notes<<EOF" >> $GITHUB_OUTPUT
-          echo "$RELEASE_NOTES" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Download Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ./downloaded-artifacts
-
-      - name: Create GitHub Release
-        uses: actions/create-release@v1
-        with:
-          tag_name: ${{ steps.generate-tag.outputs.new_tag }}
-          release_name: ${{ env.RELEASE_NAME }}
-          body: ${{ steps.define-release-notes.outputs.release_notes }}
-          prerelease: true
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-
-      - name: Upload Release Assets Dynamically
-        run: |
-          for file in ./downloaded-artifacts/kernel-*/*; do
-            [[ -f "$file" ]] || continue
-            echo "Uploading $file..."
-            gh release upload ${{ steps.generate-tag.outputs.new_tag }} "$file" --clobber
-          done
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-
-      - name: Display Files Uploaded
-        run: |
-          echo "GitHub release created with tag ${{ steps.generate-tag.outputs.new_tag }}:"
-          ls -la ./downloaded-artifacts/**/* || true
+            - Built on: ${{ env.BUILD_DATE }}
+          files: |
+            downloaded-artifacts/**/*.zip
