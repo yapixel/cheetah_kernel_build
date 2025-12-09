@@ -18,9 +18,7 @@ on:
       kernel_version:
         required: true
         type: string
-      release_tag:
-        required: true
-        type: string
+      
   
 jobs:
   build-kernel-sultan-ksu-susfs:
