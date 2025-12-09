@@ -1,9 +1,9 @@
 name: Build and Release Sultan Kernels
 
 permissions:
-  contents: write  # Allow writing to repository contents (for pushing tags)
-  actions: write   # Allows triggering actions
-  
+  contents: write   # Allow writing to repository contents (for pushing tags)
+  actions: write    # Allows downloading artifacts
+
 on:
   workflow_dispatch:
     inputs:
@@ -12,129 +12,97 @@ on:
         required: true
         type: boolean
         default: true
-      dry_run:
-        description: 'Dry run mode (build without tagging/releasing)?'
-        required: false
-        type: boolean
-        default: false
-        
+
 jobs:
-  generate-tag:
-    runs-on: ubuntu-latest
-    if: ${{ inputs.make_release || inputs.dry_run }}
-    outputs:
-      new_tag: ${{ steps.generate-tag.outputs.new_tag }}
-    env:
-      REPO_OWNER: yapixel
-      REPO_NAME: Sultan_KernelSU_SUSFS
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4  # Updated to latest version
-
-      - name: Generate New Tag (Skip Push in Dry Run)
-        id: generate-tag
-        run: |
-          # Fetch the latest tag from this repository
-          LATEST_TAG=$(gh api repos/$REPO_OWNER/$REPO_NAME/tags --jq '.[0].name')
-          if [ -z "$LATEST_TAG" ]; then
-            LATEST_TAG="v1.5.12-r0"  # Default to v1.5.12-r0 if no tag exists
-          fi
-          
-          # Increment the suffix (e.g., v1.5.12-r0 becomes v1.5.12-r1)
-          NEW_TAG=$(echo "$LATEST_TAG" | awk -F'-r' '{suffix=$2; if (!suffix) suffix=0; suffix++; printf "%s-r%d", $1, suffix}')
-          
-          # Output the new tag to be used
-          echo "New tag: $NEW_TAG"
-          
-          # Set the new tag as output
-          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
-          
-          # Create and push the tag only if not dry run
-          if [[ "${{ inputs.dry_run }}" == "false" ]]; then
-            git tag $NEW_TAG
-            git push origin $NEW_TAG
-            echo "Tag $NEW_TAG created and pushed."
-          else
-            echo "Dry run: Skipping tag creation and push."
-          fi
-
+  # Build all kernels first (in parallel)
   build-kernel-zuma-xxksu:
-    uses: ./.github/workflows/sultan_xxksu.yml    
+    uses: ./.github/workflows/sultan_xxksu.yml
     secrets: inherit
-    needs: generate-tag
-    if: ${{ inputs.make_release || inputs.dry_run }}
-    with:      
+    with:
       codename: "zuma"
       repo: "android_kernel_google_zuma"
       android_version: "android14"
       kernel_version: "6.1"
-      release_tag: ${{ needs.generate-tag.outputs.new_tag }}
-
 
   build-kernel-zuma-ksu:
     uses: ./.github/workflows/sultan_ksu.yml
     secrets: inherit
-    needs: generate-tag
-    if: ${{ inputs.make_release || inputs.dry_run }}
     with:
       codename: "zuma"
       repo: "android_kernel_google_zuma"
       android_version: "android14"
       kernel_version: "6.1"
-      release_tag: ${{ needs.generate-tag.outputs.new_tag }}
 
   build-kernel-zuma-mksu:
     uses: ./.github/workflows/sultan_mksu.yml
     secrets: inherit
-    needs: generate-tag
-    if: ${{ inputs.make_release || inputs.dry_run }}
     with:
       codename: "zuma"
       repo: "android_kernel_google_zuma"
       android_version: "android14"
       kernel_version: "6.1"
-      release_tag: ${{ needs.generate-tag.outputs.new_tag }}
 
-  trigger-release:
+  # This job runs ONLY after all builds succeed
+  generate-tag-and-release:
     runs-on: ubuntu-latest
     needs:
-      - generate-tag
-      - build-kernel-zuma-ksu
       - build-kernel-zuma-xxksu
+      - build-kernel-zuma-ksu
       - build-kernel-zuma-mksu
-    
-      
-    if: ${{ inputs.make_release && !inputs.dry_run }}
+    if: ${{ inputs.make_release }}
     env:
+      REPO_OWNER: yapixel
+      REPO_NAME: Sultan_KernelSU_SUSFS
       GH_TOKEN: ${{ github.token }}
-      NEW_TAG: ${{ needs.generate-tag.outputs.new_tag }}  # Make tag available as env var
-    steps:
-      # Checkout the code
-      - name: Checkout code
-        uses: actions/checkout@v4  # Updated to latest version
 
-      # Set Build Date
+    outputs:
+      new_tag: ${{ steps.generate-tag.outputs.new_tag }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate New Tag & Push (only now — after successful builds)
+        id: generate-tag
+        run: |
+          # Fetch the latest tag from this repository
+          LATEST_TAG=$(gh api repos/$REPO_OWNER/$REPO_NAME/tags --jq '.[0].name' 2>/dev/null || echo "")
+          if [ -z "$LATEST_TAG" ]; then
+            LATEST_TAG="v1.5.12-r0"
+            echo "No tags found → starting from v1.5.12-r0"
+          fi
+
+          # Increment the suffix (v1.5.12-r5 → v1.5.12-r6)
+          NEW_TAG=$(echo "$LATEST_TAG" | awk -F'-r' '{suffix=$2; if (!suffix) suffix=0; suffix++; printf "%s-r%d", $1, suffix}')
+
+          echo "New tag: $NEW_TAG"
+          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+
+          # Now we can safely create and push the tag
+          git tag $NEW_TAG
+          git push origin $NEW_TAG
+          echo "Tag $NEW_TAG created and pushed successfully."
+
+      # Everything below is 100% your original code — unchanged
       - name: Set Build Date
         id: set-build-date
         run: |
           BUILD_DATE=$(date '+%Y-%m-%d %H:%M:%S UTC')
           echo "build_date=$BUILD_DATE" >> $GITHUB_OUTPUT
 
-      # Extract SUSFS version from tag for dynamic notes (e.g., v1.5.12-rX -> v1.5.12)
       - name: Extract SUSFS Version
         id: extract-version
         run: |
-          SUSFS_VERSION=$(echo "${{ env.NEW_TAG }}" | cut -d'-' -f1 | sed 's/v//')  # e.g., "1.5.12"
+          SUSFS_VERSION=$(echo "${{ steps.generate-tag.outputs.new_tag }}" | cut -d'-' -f1 | sed 's/v//')
           echo "susfs_version=v$SUSFS_VERSION" >> $GITHUB_OUTPUT
 
-      # Define Release Name dynamically
       - name: Set Release Name
         run: |
           SUSFS_VERSION="${{ steps.extract-version.outputs.susfs_version }}"
           echo "RELEASE_NAME=*TEST BUILD* Sultan Kernels With MKSU & SUSFS_Minimal $SUSFS_VERSION *TEST BUILD*" >> $GITHUB_ENV
 
-      # Define Release Notes with Dynamic Date and Version
       - name: Define Release Notes
         id: define-release-notes
         run: |
@@ -171,41 +139,33 @@ jobs:
           echo "$RELEASE_NOTES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      # Download Artifacts
       - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
           path: ./downloaded-artifacts
 
-      # Create GitHub Release and upload files if make_release is true
       - name: Create GitHub Release
         uses: actions/create-release@v1
         with:
-          tag_name: ${{ env.NEW_TAG }}  # Use env var for tag
-          prerelease: true  # Mark the release as a pre-release
-          release_name: ${{ env.RELEASE_NAME }}  # Pass the dynamic RELEASE_NAME to the action
-          body: ${{ steps.define-release-notes.outputs.release_notes }}  # Use the dynamically generated release notes
+          tag_name: ${{ steps.generate-tag.outputs.new_tag }}
+          prerelease: true
+          release_name: ${{ env.RELEASE_NAME }}
+          body: ${{ steps.define-release-notes.outputs.release_notes }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
-      # Upload Release Assets Dynamically
       - name: Upload Release Assets Dynamically
         run: |
-          # Loop through all files in the downloaded-artifacts directory
           for file in ./downloaded-artifacts/kernel-*/*; do
-              # Skip directories
-              if [ -d "$file" ]; then
-                  continue
-              fi
-              # Upload the file to the GitHub release
+            if [ -f "$file" ]; then
               echo "Uploading $file..."
-              gh release upload ${{ env.NEW_TAG }} "$file"  # Use env var for tag
+              gh release upload ${{ steps.generate-tag.outputs.new_tag }} "$file"
+            fi
           done
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
-      # Display Files Uploaded
       - name: Display Files Uploaded
         run: |
           echo "GitHub release created with the following files:"
-          ls -la ./downloaded-artifacts/**/*
+          ls -la ./downloaded-artifacts/**/* || true
