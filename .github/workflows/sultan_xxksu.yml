@@ -1,4 +1,3 @@
-
 name: Sultan xxKSU
 permissions:
   contents: write  # Allow writing to repository contents (for pushing tags)
@@ -210,6 +209,17 @@ jobs:
           ZIP_NAME="xxKSU-${{ env.KSUVER }}-zuma-sultan-16.0-susfs-2.0.0-ak3.zip"
           echo "Creating zip file $ZIP_NAME..."
           zip -r "../$ZIP_NAME" ./*
+
+      - name: Upload Patch Rejects and Original Files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: patch-rejects-${{ inputs.codename }}
+          path: |
+            ${{ env.CONFIG }}/**/*.rej
+            ${{ env.CONFIG }}/**/*.orig
+            ${{ env.CONFIG }}/**/*.porig
+          if-no-files-found: ignore
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
