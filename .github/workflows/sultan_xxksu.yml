@@ -69,8 +69,6 @@ jobs:
           git clone https://github.com/yapixel/kernel_patches.git
           git clone https://github.com/kerneltoast/${{ inputs.repo }}
 
-          
-
       
       - name: Add KernelSU
         run: |
@@ -94,7 +92,7 @@ jobs:
           cd ./KernelSU
           echo "Apply KSU integration patches"
           cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
-          patch -p1 < 10_enable_susfs_for_ksu.patch || true    
+          patch -p1 < 10_enable_susfs_for_ksu.patch    
 
         
 
