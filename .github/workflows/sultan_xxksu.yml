@@ -1,4 +1,5 @@
-name: Sultan xxKSU
+
+name: Sultan MKSU
 permissions:
   contents: write  # Allow writing to repository contents (for pushing tags)
   actions: write   # Allows triggering actions
@@ -23,15 +24,11 @@ on:
         type: string
   
 jobs:
-  build-kernel-sultan-xxksu-susfs:
+  build-kernel-sultan-mksu-susfs:
     runs-on: ubuntu-latest
     env:
      build_date: "Tue Dec 3 09:17:32 UTC 2025"
     steps:
-    #  - name: Installing dependencies
-    #    run: |
-    #      sudo apt update
-    #      sudo apt install -y gcc-aarch64-linux-gnu
 
       - name: Download GCC 13.3.0
         run: |
@@ -69,14 +66,13 @@ jobs:
           git clone https://github.com/yapixel/kernel_patches.git
           git clone https://github.com/kerneltoast/${{ inputs.repo }}
 
-      
-      - name: Add KernelSU
+      - name: Add xxKSU
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
-          echo "Adding xxKernelSU..."
-          curl -LSs "https://raw.githubusercontent.com/backslashxx/KernelSU/master/kernel/setup.sh" | bash -s master
-          
+          echo "Adding xxKSU..."
+           curl -LSs "https://raw.githubusercontent.com/backslashxx/KernelSU/master/kernel/setup.sh" | bash -s master
+
       - name: Apply SUSFS Patches
         run: |
           echo "Changing to configuration directory: $CONFIG..."
@@ -92,7 +88,7 @@ jobs:
           cd ./KernelSU
           echo "Apply KSU integration patches"
           cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
-          patch -p1 < 10_enable_susfs_for_ksu.patch    
+          patch -p1 < 10_enable_susfs_for_ksu.patch || true    
 
         
 
@@ -103,13 +99,14 @@ jobs:
 
           cp ../kernel_patches/sultan/sys.c_fix.patch ./
           patch -p1 --fuzz=3 < sys.c_fix.patch
-         
+
 
       - name: Getting KernelSU Version
         run: |
           cd "$CONFIG/KernelSU/kernel"
-          # Get hardcoded version from Makefile
-          KSU_VERSION=$(grep -oP '[[:space:]]*-DKSU_VERSION=\K\d+' Makefile | head -1 || echo "")
+          BASE_VERSION=30000
+          COMMIT_COUNT=$(/usr/bin/git rev-list --count HEAD)
+          KSU_VERSION=$(expr $COMMIT_COUNT "+" $BASE_VERSION)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
 
       - name: Apply Hide Stuff Patches
@@ -128,7 +125,6 @@ jobs:
           echo "CONFIG_KSU_KPROBES_HOOK=n" >> ./arch/arm64/configs/${{ inputs.codename }}_defconfig
           echo "CONFIG_KSU_SUSFS=y" >> ./arch/arm64/configs/${{ inputs.codename }}_defconfig
           echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./arch/arm64/configs/${{ inputs.codename }}_defconfig
-          echo "CONFIG_KSU_LSM_SECURITY_HOOKS=y" >> ./arch/arm64/configs/${{ inputs.codename }}_defconfig
           echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./arch/arm64/configs/${{ inputs.codename }}_defconfig
           echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./arch/arm64/configs/${{ inputs.codename }}_defconfig
           echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./arch/arm64/configs/${{ inputs.codename }}_defconfig
@@ -184,10 +180,10 @@ jobs:
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
           sed -i 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
-          sed -i 's/CONFIG_LOCALVERSION="-Sultan"/CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"/' arch/arm64/configs/$DEFCONFIG
+          sed -i 's/CONFIG_LOCALVERSION="-Sultan"/CONFIG_LOCALVERSION="-android14-11-a834abb484ccc-ab14524903"/' arch/arm64/configs/$DEFCONFIG
           perl -pi -e "s/build-timestamp = \\$\(or \\$\(KBUILD_BUILD_TIMESTAMP\), \\$\(build-timestamp-auto\)\\)/build-timestamp = \"${{ env.build_date }}\"/" init/Makefile
 
-          
+      
       - name: Build Kernel
         run: |
           cd "$CONFIG"
@@ -196,7 +192,6 @@ jobs:
           
           make O=out CROSS_COMPILE="${{ env.GCC_PATH }}" CC="${{ env.GCC_PATH }}gcc" zuma_defconfig
           make O=out CROSS_COMPILE="${{ env.GCC_PATH }}" CC="${{ env.GCC_PATH }}gcc" -j$(nproc --all)
-
 
       - name: Copy Images
         run: |
@@ -216,13 +211,13 @@ jobs:
         run: |
           echo "Navigating to AnyKernel3 directory..."
           cd ./AnyKernel3
-          ZIP_NAME="xxKSU-${{ env.KSUVER }}-zuma_A16_Sultan-${{ env.LATEST_SULTAN_TAG }}_KSU_SUSFS-${{ inputs.release_tag }}.zip"
+          ZIP_NAME="xxKSU-${{ env.KSUVER }}-zuma-sultan-16.0-susfs-2.0.0-ak3.zip"
           echo "Creating zip file $ZIP_NAME..."
           zip -r "../$ZIP_NAME" ./*
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: kernel-${{ inputs.codename }}-xxksu
+          name: kernel-${{ inputs.codename }}-mksu
           path: |
             *.zip
