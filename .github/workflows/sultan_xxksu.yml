@@ -19,15 +19,11 @@ on:
       kernel_version:
         required: true
         type: string
-      release_tag:
-        required: true
-        type: string
+    
   
 jobs:
   build-kernel-sultan-xxksu-susfs:
     runs-on: ubuntu-latest
-    env:
-     build_date: "Tue Dec 3 09:17:32 UTC 2025"
     steps:
 
       - name: Download GCC 13.3.0
@@ -88,7 +84,7 @@ jobs:
           cd ./KernelSU
           echo "Apply KSU integration patches"
           cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
-          patch -p1 < 10_enable_susfs_for_ksu.patch || true    
+          patch -p1 < 10_enable_susfs_for_ksu.patch  
 
         
 
