@@ -15,14 +15,14 @@ on:
 
 jobs:
   # Build all kernels first
- # build-kernel-zuma-xxksu:
- #   uses: ./.github/workflows/sultan_xxksu.yml
- #   secrets: inherit
- #   with:
- #     codename: "zuma"
- #     repo: "android_kernel_google_zuma"
- #     android_version: "android14"
- #     kernel_version: "6.1"
+  build-kernel-zuma-xxksu:
+    uses: ./.github/workflows/sultan_xxksu.yml
+    secrets: inherit
+    with:
+      codename: "zuma"
+      repo: "android_kernel_google_zuma"
+      android_version: "android14"
+      kernel_version: "6.1"
 
   build-kernel-zuma-ksu:
     uses: ./.github/workflows/sultan_ksu.yml
