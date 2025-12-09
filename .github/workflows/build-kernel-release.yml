@@ -14,7 +14,7 @@ on:
         default: true
 
 jobs:
-  # Build all kernels first (in parallel)
+  # Build all kernels first — pass a dummy tag (child workflows don't actually need it for building)
   build-kernel-zuma-xxksu:
     uses: ./.github/workflows/sultan_xxksu.yml
     secrets: inherit
@@ -23,6 +23,7 @@ jobs:
       repo: "android_kernel_google_zuma"
       android_version: "android14"
       kernel_version: "6.1"
+      release_tag: "pending-$(date +%s)"   # dummy — just to satisfy required input
 
   build-kernel-zuma-ksu:
     uses: ./.github/workflows/sultan_ksu.yml
@@ -32,6 +33,7 @@ jobs:
       repo: "android_kernel_google_zuma"
       android_version: "android14"
       kernel_version: "6.1"
+      release_tag: "pending-$(date +%s)"
 
   build-kernel-zuma-mksu:
     uses: ./.github/workflows/sultan_mksu.yml
@@ -41,8 +43,9 @@ jobs:
       repo: "android_kernel_google_zuma"
       android_version: "android14"
       kernel_version: "6.1"
+      release_tag: "pending-$(date +%s)"
 
-  # This job runs ONLY after all builds succeed
+  # This job runs ONLY after all 3 builds succeed
   generate-tag-and-release:
     runs-on: ubuntu-latest
     needs:
@@ -53,10 +56,6 @@ jobs:
     env:
       REPO_OWNER: yapixel
       REPO_NAME: Sultan_KernelSU_SUSFS
-      GH_TOKEN: ${{ github.token }}
-
-    outputs:
-      new_tag: ${{ steps.generate-tag.outputs.new_tag }}
 
     steps:
       - name: Checkout code
@@ -64,28 +63,23 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Generate New Tag & Push (only now — after successful builds)
+      - name: Generate New Tag & Push
         id: generate-tag
         run: |
-          # Fetch the latest tag from this repository
           LATEST_TAG=$(gh api repos/$REPO_OWNER/$REPO_NAME/tags --jq '.[0].name' 2>/dev/null || echo "")
           if [ -z "$LATEST_TAG" ]; then
             LATEST_TAG="v1.5.12-r0"
-            echo "No tags found → starting from v1.5.12-r0"
           fi
 
-          # Increment the suffix (v1.5.12-r5 → v1.5.12-r6)
           NEW_TAG=$(echo "$LATEST_TAG" | awk -F'-r' '{suffix=$2; if (!suffix) suffix=0; suffix++; printf "%s-r%d", $1, suffix}')
 
           echo "New tag: $NEW_TAG"
           echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
 
-          # Now we can safely create and push the tag
           git tag $NEW_TAG
           git push origin $NEW_TAG
-          echo "Tag $NEW_TAG created and pushed successfully."
+          echo "Tag $NEW_TAG created and pushed."
 
-      # Everything below is 100% your original code — unchanged
       - name: Set Build Date
         id: set-build-date
         run: |
@@ -100,10 +94,9 @@ jobs:
 
       - name: Set Release Name
         run: |
-          SUSFS_VERSION="${{ steps.extract-version.outputs.susfs_version }}"
-          echo "RELEASE_NAME=*TEST BUILD* Sultan Kernels With MKSU & SUSFS_Minimal $SUSFS_VERSION *TEST BUILD*" >> $GITHUB_ENV
+          echo "RELEASE_NAME=*TEST BUILD* Sultan Kernels With MKSU & SUSFS_Minimal ${{ steps.extract-version.outputs.susfs_version }} *TEST BUILD*" >> $GITHUB_ENV
 
-      - name: Define Release Notes
+     - name: Define Release Notes
         id: define-release-notes
         run: |
           BUILD_DATE="${{ steps.set-build-date.outputs.build_date }}"
@@ -138,7 +131,7 @@ jobs:
           echo "release_notes<<EOF" >> $GITHUB_OUTPUT
           echo "$RELEASE_NOTES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-
+          
       - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -148,24 +141,23 @@ jobs:
         uses: actions/create-release@v1
         with:
           tag_name: ${{ steps.generate-tag.outputs.new_tag }}
-          prerelease: true
           release_name: ${{ env.RELEASE_NAME }}
           body: ${{ steps.define-release-notes.outputs.release_notes }}
+          prerelease: true
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
-      - name: Upload Release Assets Dynamically
+      - name: Upload Release Assets
         run: |
           for file in ./downloaded-artifacts/kernel-*/*; do
-            if [ -f "$file" ]; then
-              echo "Uploading $file..."
-              gh release upload ${{ steps.generate-tag.outputs.new_tag }} "$file"
-            fi
+            [[ -f "$file" ]] || continue
+            echo "Uploading $file..."
+            gh release upload ${{ steps.generate-tag.outputs.new_tag }} "$file"
           done
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
-      - name: Display Files Uploaded
+      - name: Show uploaded files
         run: |
-          echo "GitHub release created with the following files:"
+          echo "Release created successfully!"
           ls -la ./downloaded-artifacts/**/* || true
