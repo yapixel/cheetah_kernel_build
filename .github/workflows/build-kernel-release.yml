@@ -14,7 +14,7 @@ on:
         default: true
 
 jobs:
-  # Build all kernels first — pass a dummy tag (child workflows don't actually need it for building)
+  # Build all kernels first — dummy tag to satisfy required input
   build-kernel-zuma-xxksu:
     uses: ./.github/workflows/sultan_xxksu.yml
     secrets: inherit
@@ -23,7 +23,7 @@ jobs:
       repo: "android_kernel_google_zuma"
       android_version: "android14"
       kernel_version: "6.1"
-      release_tag: "pending-$(date +%s)"   # dummy — just to satisfy required input
+      release_tag: "temp-${{ github.run_id }}"
 
   build-kernel-zuma-ksu:
     uses: ./.github/workflows/sultan_ksu.yml
@@ -33,7 +33,7 @@ jobs:
       repo: "android_kernel_google_zuma"
       android_version: "android14"
       kernel_version: "6.1"
-      release_tag: "pending-$(date +%s)"
+      release_tag: "temp-${{ github.run_id }}"
 
   build-kernel-zuma-mksu:
     uses: ./.github/workflows/sultan_mksu.yml
@@ -43,9 +43,9 @@ jobs:
       repo: "android_kernel_google_zuma"
       android_version: "android14"
       kernel_version: "6.1"
-      release_tag: "pending-$(date +%s)"
+      release_tag: "temp-${{ github.run_id }}"
 
-  # This job runs ONLY after all 3 builds succeed
+  # Only runs after ALL builds succeed
   generate-tag-and-release:
     runs-on: ubuntu-latest
     needs:
@@ -71,8 +71,7 @@ jobs:
             LATEST_TAG="v1.5.12-r0"
           fi
 
-          NEW_TAG=$(echo "$LATEST_TAG" | awk -F'-r' '{suffix=$2; if (!suffix) suffix=0; suffix++; printf "%s-r%d", $1, suffix}')
-
+          NEW_TAG=$(echo "$LATEST_TAG" | awk -F'-r' '{suffix=$2+1; printf "%s-r%d", $1, suffix}')
           echo "New tag: $NEW_TAG"
           echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
 
@@ -96,7 +95,7 @@ jobs:
         run: |
           echo "RELEASE_NAME=*TEST BUILD* Sultan Kernels With MKSU & SUSFS_Minimal ${{ steps.extract-version.outputs.susfs_version }} *TEST BUILD*" >> $GITHUB_ENV
 
-     - name: Define Release Notes
+      - name: Define Release Notes
         id: define-release-notes
         run: |
           BUILD_DATE="${{ steps.set-build-date.outputs.build_date }}"
@@ -131,7 +130,7 @@ jobs:
           echo "release_notes<<EOF" >> $GITHUB_OUTPUT
           echo "$RELEASE_NOTES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-          
+
       - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -147,17 +146,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
-      - name: Upload Release Assets
+      - name: Upload Release Assets Dynamically
         run: |
           for file in ./downloaded-artifacts/kernel-*/*; do
             [[ -f "$file" ]] || continue
             echo "Uploading $file..."
-            gh release upload ${{ steps.generate-tag.outputs.new_tag }} "$file"
+            gh release upload ${{ steps.generate-tag.outputs.new_tag }} "$file" --clobber
           done
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
-      - name: Show uploaded files
+      - name: Display Files Uploaded
         run: |
-          echo "Release created successfully!"
+          echo "GitHub release created with tag ${{ steps.generate-tag.outputs.new_tag }}:"
           ls -la ./downloaded-artifacts/**/* || true
