@@ -15,8 +15,8 @@ on:
 
 jobs:
   # Build all kernels first
-  build-kernel-zuma-xxksu:
-    uses: ./.github/workflows/sultan_xxksu.yml
+  build-kernel-zuma-kowsu:
+    uses: ./.github/workflows/sultan_kowsu.yml
     secrets: inherit
     with:
       codename: "zuma"
