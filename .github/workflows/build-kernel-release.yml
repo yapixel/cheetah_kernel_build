@@ -62,37 +62,45 @@ jobs:
         with:
           path: ./downloaded-artifacts
 
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # VERY IMPORTANT – fetch ALL history and ALL tags
+          fetch-depth: 0
+          # If you use a personal token with more permissions (optional but recommended)
+          token: ${{ secrets.GH_PAT || github.token }}
+
       - name: Create Release Tag
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          REPO="https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
-          
-          # Fetch all tags from remote (critical!)
+          # Make sure git knows who is pushing
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Double-check we really have all tags
           git fetch --tags --force
-          
-          # Get the latest tag that looks like vX.Y.Z-rN  (or empty if none)
-          LATEST_TAG=$(git tag -l "v*-r*" --sort=-version:refname | head -n1 || echo "")
-          
+
+          # Find the pattern you actually use
+          LATEST_TAG=$(git tag -l "v*-r*" --sort=-version:refname | head -n1)
+
           if [ -z "$LATEST_TAG" ]; then
-            echo "No previous tag found, starting from v2.0.0-r0"
             NEW_TAG="v2.0.0-r0"
           else
-            echo "Latest tag found: $LATEST_TAG"
-            # Split base and -r suffix
             BASE=$(echo "$LATEST_TAG" | sed 's/-r[0-9]*$//')
-            REV=$(echo "$LATEST_TAG" | grep -o 'r[0-9]*$' | tr -d 'r')
-            NEW_REV=$((REV + 1))
-            NEW_TAG="${BASE}-r${NEW_REV}"
+            REV=$(echo "$LATEST_TAG" | sed 's/.*-r//')
+            NEW_TAG="${BASE}-r$((REV + 1))"
           fi
-          
-          echo "Creating new tag: $NEW_TAG"
+
+          echo "Creating and pushing tag: $NEW_TAG"
           echo "TAG=$NEW_TAG" >> $GITHUB_ENV
+
+          git tag -a "$NEW_TAG" -m "Automatic test build $NEW_TAG"
           
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git tag -a "$NEW_TAG" -m "Automatic release $NEW_TAG"
-          git push "$REPO" "$NEW_TAG"
+          # This is the trick that always works
+          git push https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git "$NEW_TAG"
+
+      
 
       - name: Set Build Date
         run: |
