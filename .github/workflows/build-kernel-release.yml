@@ -54,7 +54,7 @@ jobs:
       contents: write
     env:
       REPO_OWNER: yapixel
-      REPO_NAME: Sultan_KernelSU_SUSFS
+      REPO_NAME: Husky_KSU_workflow
 
     steps:
       - name: Download Artifacts
