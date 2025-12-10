@@ -342,20 +342,28 @@ jobs:
           path: ./artifacts
 
       - name: Create Release Tag
+        id: tag
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG=$(date +"%Y.%m.%d")
-          LATEST=$(gh api repos/${{ github.repository }}/tags --jq '.[0].name' 2>/dev/null || echo "")
+          LATEST=\( (gh api repos/ \){{ github.repository }}/tags --jq '.[0].name' 2>/dev/null || echo "")
+
           if [[ "$LATEST" == "$TAG"* ]]; then
-            REV=$(echo "$LATEST" | grep -o 'r[0-9]*$' | tr -d 'r')
+            REV=$(echo "\( LATEST" | grep -o 'r[0-9]* \)' | tr -d 'r')
             REV=$((REV + 1))
-            TAG="${TAG}-r${REV}"
+            TAG="\( {TAG}-r \){REV}"
           else
             TAG="${TAG}-r1"
           fi
-          git tag "$TAG" || true
-          git push origin "$TAG" || true
+
+          echo "Creating tag $TAG"
+          gh api repos/${{ github.repository }}/git/refs \
+            -X POST \
+            -f ref="refs/tags/$TAG" \
+            -f sha=${{ github.sha }}
+
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "TAG=$TAG" >> $GITHUB_ENV
 
       - name: Create Release
