@@ -145,4 +145,4 @@ jobs:
             
             📅 **Built on:** ${{ env.BUILD_DATE }}
           files: |
-            downloaded-artifacts/*/*.zip
+            downloaded-artifacts/**/*.zip
