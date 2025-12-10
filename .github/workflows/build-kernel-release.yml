@@ -60,7 +60,9 @@ jobs:
       - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
-          path: ./downloaded-artifacts
+          path: all-artifacts              # everything goes here
+          pattern: "*"                     # download every artifact
+          merge-multiple: true 
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -145,4 +147,5 @@ jobs:
             
             📅 **Built on:** ${{ env.BUILD_DATE }}
           files: |
-            downloaded-artifacts/**/*.zip
+            all-artifacts/*.zip
+          fail_on_unmatched_files: false
