@@ -346,8 +346,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          LATEST=\( (gh api repos/ \){{ github.repository }}/tags --jq '.[0].name' 2>/dev/null || echo "")
+          TAG=$(date +"%Y.%m.%d")
 
+          # Get the latest existing tag (if any)
+          LATEST=\( (gh api "repos/ \){{ github.repository }}/tags" \
+                    --jq '.[0].name' 2>/dev/null || echo "")
+
+          # If today already has a release, increment -r1, -r2, ...
           if [[ "$LATEST" == "$TAG"* ]]; then
             REV=$(echo "\( LATEST" | grep -o 'r[0-9]* \)' | tr -d 'r')
             REV=$((REV + 1))
@@ -356,13 +361,15 @@ jobs:
             TAG="${TAG}-r1"
           fi
 
-          echo "Creating tag $TAG"
-          gh api repos/${{ github.repository }}/git/refs \
-            -X POST \
-            -f ref="refs/tags/$TAG" \
-            -f sha=${{ github.sha }}
+          echo "Creating tag: $TAG"
 
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          # Create the tag via GitHub API (no local git needed)
+          gh api "repos/${{ github.repository }}/git/refs" \
+            -X POST \
+            \
+            -f ref="refs/tags/$TAG" \
+            -f sha="${{ github.sha }}"
+
           echo "TAG=$TAG" >> $GITHUB_ENV
 
       - name: Create Release
