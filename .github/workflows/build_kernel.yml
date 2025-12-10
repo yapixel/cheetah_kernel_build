@@ -346,7 +346,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          #TAG=$(date +"%Y.%m.%d")
           LATEST=\( (gh api repos/ \){{ github.repository }}/tags --jq '.[0].name' 2>/dev/null || echo "")
 
           if [[ "$LATEST" == "$TAG"* ]]; then
