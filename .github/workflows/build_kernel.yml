@@ -124,6 +124,9 @@ jobs:
   kowsu-gki-susfs:
    runs-on: ubuntu-latest
    name: KowSU | Husky | susfs
+   outputs:
+      ksu_ver: ${{ steps.ksu_ver.outputs.ksu_ver }}
+      zip_name: ${{ steps.package.outputs.zip_name }}
     
    env:
     ANDROID_VERSION: "android14"
@@ -208,10 +211,12 @@ jobs:
           curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/master/kernel/setup.sh" | bash -s  master
 
       - name: Get KowSU Version
+        id: ksu_ver
         run: |
           cd ${{ env.kernel_root }}
           KSU_VER=$(./sh/get_ksuver.sh "KOWX712" "KernelSU" "master" || echo "unknown")
           echo "KSU_VER=$KSU_VER" >> $GITHUB_ENV
+          echo "ksu_ver=$KSU_VER" >> $GITHUB_OUTPUT
 
       - name: Configure GKI Fragment
         run: |
@@ -294,6 +299,7 @@ jobs:
          echo "=== Build Complete ==="
 
       - name: Package
+        id: package
         run: |
          cd ${{ env.kernel_root }}
     
@@ -308,6 +314,7 @@ jobs:
     
          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
          echo "ZIP_PATH=${GITHUB_WORKSPACE}/${ZIP_NAME}" >> $GITHUB_ENV
+         echo "zip_name=$ZIP_NAME" >> $GITHUB_OUTPUT
          
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -322,9 +329,16 @@ jobs:
    permissions:
       contents: write
    steps:
-      - name: Download Artifacts
+      - name: Download Sultan Artifact
         uses: actions/download-artifact@v4
         with:
+          name: ${{ needs.xxksu-sultan.outputs.zip_name }}
+          path: ./artifacts
+
+      - name: Download GKI Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.kowsu-gki-susfs.outputs.zip_name }}
           path: ./artifacts
 
       - name: Create Release Tag
