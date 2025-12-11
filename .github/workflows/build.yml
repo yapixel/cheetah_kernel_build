@@ -124,7 +124,7 @@ jobs:
       - name: Add SukiSU
         run: |
           cd "$CONFIG"
-          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash -s susfs-main
+          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash -s builtin
 
       # -------------------------------------------------
       # 8. Apply SUSFS + SukiSU Patches
