@@ -62,27 +62,37 @@ jobs:
         with:
           path: all-artifacts
 
-
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # VERY IMPORTANT – fetch ALL history and ALL tags
           fetch-depth: 0
-          # If you use a personal token with more permissions (optional but recommended)
           token: ${{ secrets.GH_PAT || github.token }}
+
+      # Debug step to see the actual structure
+      - name: List downloaded artifacts structure
+        run: |
+          echo "=== Directory structure ==="
+          ls -laR all-artifacts/
+          echo ""
+          echo "=== All ZIP files found ==="
+          find all-artifacts -name "*.zip" -type f
+
+      - name: Flatten artifacts for release
+        run: |
+          mkdir -p release-files
+          # Find all zip files recursively and copy to release-files
+          find all-artifacts -name "*.zip" -type f -exec cp {} release-files/ \;
+          echo "Files prepared for release:"
+          ls -lh release-files/
 
       - name: Create Release Tag
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Make sure git knows who is pushing
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Double-check we really have all tags
           git fetch --tags --force
 
-          # Find the pattern you actually use
           LATEST_TAG=$(git tag -l "v*-r*" --sort=-version:refname | head -n1)
 
           if [ -z "$LATEST_TAG" ]; then
@@ -97,11 +107,7 @@ jobs:
           echo "TAG=$NEW_TAG" >> $GITHUB_ENV
 
           git tag -a "$NEW_TAG" -m "Automatic test build $NEW_TAG"
-          
-          # This is the trick that always works
           git push https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git "$NEW_TAG"
-
-      
 
       - name: Set Build Date
         run: |
@@ -110,7 +116,6 @@ jobs:
 
       - name: Extract SUSFS Version
         run: |
-          # TAG is now correctly set from the step above
           SUSFS_VERSION=$(echo "${{ env.TAG }}" | sed 's/-r.*//' | sed 's/^v//')
           echo "SUSFS_VERSION=v$SUSFS_VERSION" >> $GITHUB_ENV
 
@@ -145,5 +150,6 @@ jobs:
             [+] Magic Mount Support
             
             📅 **Built on:** ${{ env.BUILD_DATE }}
-          files: |
-             release-files/*.zip
+          files: release-files/*.zip
+          fail_on_unmatched_files: truezygote-cache Detections
+    
