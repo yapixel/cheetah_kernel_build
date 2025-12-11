@@ -69,7 +69,7 @@ jobs:
       - name: Add KernelSU
         run: |
           cd $CONFIG
-          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash -s builtin
+          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s builtin
 
       - name: Apply SUSFS 
         run: |
