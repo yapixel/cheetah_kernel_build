@@ -142,10 +142,10 @@ jobs:
           patch --fuzz=10 -p1 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
 
 
-          # Syscall Hook
+          #  KSU Integration Patch
           cd ../KernelSU
           cp ../../kernel_patches/kowsu/10_enable_susfs_for_ksu.patch .
-          patch -p1 --forward < scope_min_manual_hooks_v1.6.patch || true
+          patch -p1 --forward < 10_enable_susfs_for_ksu.patch
 
           # Hide Stuff
           cd ../common
