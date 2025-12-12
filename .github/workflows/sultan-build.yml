@@ -210,7 +210,7 @@ jobs:
       - name: Package ZIP
         run: |
           cd AnyKernel3
-          ZIP="SukiSU-${{ env.KSUVER }}-${{ inputs.codename }}_Sultan-${{ steps.sultan_version.outputs.version }}-SUSFS-${{ inputs.susfs_version }}.zip"
+          ZIP="SukiSU-r${{ env.KSUVER }}-${{ inputs.codename }}_Sultan-${{ steps.sultan_version.outputs.version }}-SUSFS-${{ inputs.susfs_version }}.zip"
           zip -r9 "../$ZIP" ./*
           echo "ZIP_NAME=$ZIP" >> $GITHUB_ENV
 
