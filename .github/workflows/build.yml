@@ -32,7 +32,7 @@ on:
         type: boolean
         default: true
       susfs_version:                  
-        description: "SUSFS version (e.g. 1.5.12)"
+        description: "SUSFS version (e.g. 2.0.0)"
         required: true
         type: string
 
@@ -119,15 +119,15 @@ jobs:
           repo sync -c -j$(nproc --all) --no-tags --fail-fast
 
       # -------------------------------------------------
-      # 7. Add KernelSU (SukiSU)
+      # 7. Add KernelSU KowSU)
       # -------------------------------------------------
       - name: Add SukiSU
         run: |
           cd "$CONFIG"
-          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s builtin
+          curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/master/kernel/setup.sh" | bash -s master
 
       # -------------------------------------------------
-      # 8. Apply SUSFS + SukiSU Patches
+      # 8. Apply SUSFS + KowSU Patches
       # -------------------------------------------------
       - name: Apply SUSFS Patches for KernelSU Variants
         run: |
@@ -135,7 +135,7 @@ jobs:
 
           # SUSFS
           echo "Applying SUSFS patches..."
-          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch ./common/
+          cp ../kernel_patches/kowsu/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch ./common/
           cp -r ../susfs4ksu/kernel_patches/fs/* ./common/fs/
           cp -r ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
           cd ./common
@@ -143,11 +143,12 @@ jobs:
 
 
           # Syscall Hook
-          cd ../common
-          cp ../../kernel_patches/sukisu/scope_min_manual_hooks_v1.6.patch .
+          cd ../common/KernelSU
+          cp ../../kernel_patches/kowsu/10_enable_susfs_for_ksu.patch .
           patch -p1 --forward < scope_min_manual_hooks_v1.6.patch || true
 
           # Hide Stuff
+          cd ../common
           cp ../../kernel_patches/69_hide_stuff.patch .
           patch -p1 -F 3 < 69_hide_stuff.patch || true
 
@@ -156,7 +157,7 @@ jobs:
         run: |
           cd "$CONFIG"
           git clone --depth=1 https://github.com/TheSillyOk/sh sh
-          KSU_VER=$(./sh/extract_ksuver.sh "https://github.com/SukiSU-Ultra/SukiSU-Ultra" "kernel/Makefile" "." "susfs-main" || echo "unknown")
+          KSU_VER=$(./sh/gett_ksuver.sh "KOWX712" "KernelSU"  "master" || echo "unknown")
           echo "KSUVER=$KSU_VER" >> $GITHUB_ENV
 
       # -------------------------------------------------
@@ -272,7 +273,7 @@ jobs:
           cp "$DIST_DIR/Image.lz4" "$AK3_DIR/Image"
           cd "$AK3_DIR"
 
-          ZIP_NAME="SukiSU-r${{ env.KSUVER }}-GKI-${{ inputs.kernel_version }}.${{ inputs.sub_level }}-SUSFS-${{ inputs.susfs_version }}.zip"
+          ZIP_NAME="KowSU-r${{ env.KSUVER }}-GKI-${{ inputs.kernel_version }}.${{ inputs.sub_level }}-SUSFS-${{ inputs.susfs_version }}.zip"
           ZIP_PATH="$BUILD_DIR/$ZIP_NAME"
 
           zip -r9 "$ZIP_PATH" ./* > /dev/null
@@ -286,7 +287,7 @@ jobs:
       - name: Upload Kernel ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: SukiSU-${{ inputs.kernel_version }}.${{ inputs.sub_level }}-${{ inputs.os_patch_level }}
+          name: KowSU-${{ inputs.kernel_version }}.${{ inputs.sub_level }}-${{ inputs.os_patch_level }}
           path: ${{ env.ZIP_PATH }}
           retention-days: 7
 
