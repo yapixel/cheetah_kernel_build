@@ -168,7 +168,7 @@ jobs:
             -> https://github.com/SukiSU-Ultra/SukiSU-Ultra
             
             Features:
-            [+] KernelSU Magic Managers v1.0.5
+            [+] KernelSU Managers v3.0.0+
             [+] SUSFS $SUSFS_VERSION
             [+] Maphide LineageOS Detections
             [+] Futile Maphide for jit-zygote-cache Detections
