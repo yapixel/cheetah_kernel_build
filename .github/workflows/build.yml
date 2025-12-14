@@ -125,7 +125,19 @@ jobs:
         run: |
           cd "$CONFIG"
           curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/master/kernel/setup.sh" | bash -s master
-
+          
+      - name: Fix KernelSU symlink for Bazel
+        run: |
+         cd "$CONFIG"/common/drivers
+    
+         # Store the symlink target
+         KERNELSU_TARGET=$(readlink kernelsu)
+    
+         # Remove symlink and copy actual files
+         rm kernelsu
+         cp -r "$KERNELSU_TARGET" kernelsu
+    
+         echo "KernelSU symlink replaced with actual files"
 
       # -------------------------------------------------
       # 8. Apply SUSFS + KowSU Patches
