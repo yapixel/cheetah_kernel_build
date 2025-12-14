@@ -127,17 +127,6 @@ jobs:
           curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/master/kernel/setup.sh" | bash -s master
 
 
-      - name: Fix KernelSU symlinks for Bazel
-        run: |
-         cd "$CONFIG"
-         # Remove the problematic kernel symlink
-         if [ -L "common/drivers/kernelsu/kernel" ]; then
-         rm common/drivers/kernelsu/kernel
-         echo "Removed KernelSU kernel symlink"
-         fi
-         # Remove any other symlinks in kernelsu directory
-         find common/drivers/kernelsu -type l -delete
-
       # -------------------------------------------------
       # 8. Apply SUSFS + KowSU Patches
       # -------------------------------------------------
