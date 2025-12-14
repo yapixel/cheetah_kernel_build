@@ -252,6 +252,7 @@ jobs:
             --disk_cache=$HOME/.cache/bazel \
             --config=fast \
             --lto=thin \
+            --experimental_allow_unresolved_symlinks \
             //common:kernel_aarch64_dist
 
       # -------------------------------------------------
