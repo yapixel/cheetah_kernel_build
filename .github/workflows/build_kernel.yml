@@ -284,9 +284,6 @@ jobs:
           cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
           patch -p1 --forward < 50_add_susfs_in_gki-android14-6.1.patch || true
 
-          echo "Apply fix patch"
-          cp ../yapixel_patches/sultan/base.c_fix.patch ./
-          patch -p1 --forward < base.c_fix.patch
           
           # Apply KSU integration patches
           cd ./KernelSU
