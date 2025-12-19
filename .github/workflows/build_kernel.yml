@@ -12,6 +12,7 @@ jobs:
       sultan_tag: ${{ steps.tag.outputs.sultan_tag }}
       ksu_ver: ${{ steps.ksu.outputs.ksu_ver }}
       zip_name: ${{ steps.package.outputs.zip_name }}
+      artifact_name: ${{ steps.package.outputs.artifact_name }}
 
     env:
       KERNEL_CODENAME: "zuma"
@@ -106,16 +107,19 @@ jobs:
           cat sultan/out/google-devices/zuma/dts/*.dtb > AK3/dtb
           
           ZIP_NAME="Sultan-zuma-${{ steps.tag.outputs.sultan_tag }}-xxKSU-r${{ steps.ksu.outputs.ksu_ver }}.zip"
+          ARTIFACT_NAME="Sultan-zuma-${{ steps.tag.outputs.sultan_tag }}-xxKSU-r${{ steps.ksu.outputs.ksu_ver }}"
+          
           cd AK3
           zip -r9 "../$ZIP_NAME" . -x "*.git*" "README.md"
           
           echo "zip_name=$ZIP_NAME" >> $GITHUB_OUTPUT
+          echo "artifact_name=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
           echo "ZIP_PATH=$GITHUB_WORKSPACE/$ZIP_NAME" >> $GITHUB_ENV
 
       - name: Upload Kernel ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.package.outputs.zip_name }}
+          name: ${{ steps.package.outputs.artifact_name }}
           path: ${{ env.ZIP_PATH }}
           
   # ===========================================================================
@@ -127,6 +131,7 @@ jobs:
    outputs:
       ksu_ver: ${{ steps.ksu_ver.outputs.ksu_ver }}
       zip_name: ${{ steps.package.outputs.zip_name }}
+      artifact_name: ${{ steps.package.outputs.artifact_name }}
     
    env:
     ANDROID_VERSION: "android14"
@@ -318,6 +323,7 @@ jobs:
          cp out/shusky/dist/Image AnyKernel3/Image
     
          ZIP_NAME="GKI-${{ env.KERNEL_VERSION }}-KowSU-r${{ env.KSU_VER }}-susfs.zip"
+         ARTIFACT_NAME="GKI-${{ env.KERNEL_VERSION }}-KowSU-r${{ env.KSU_VER }}-susfs"
     
          cd AnyKernel3
          zip -r9 "${GITHUB_WORKSPACE}/${ZIP_NAME}" . -x "*.git*" "README.md"
@@ -325,11 +331,12 @@ jobs:
          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
          echo "ZIP_PATH=${GITHUB_WORKSPACE}/${ZIP_NAME}" >> $GITHUB_ENV
          echo "zip_name=$ZIP_NAME" >> $GITHUB_OUTPUT
+         echo "artifact_name=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
          
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.ZIP_NAME }}
+          name: ${{ env.ARTIFACT_NAME }}
           path: ${{ env.ZIP_PATH }}
 
  
@@ -342,13 +349,13 @@ jobs:
       - name: Download Sultan Artifact
         uses: actions/download-artifact@v4
         with:
-          name: ${{ needs.xxksu-sultan.outputs.zip_name }}
+          name: ${{ needs.xxksu-sultan.outputs.artifact_name }}
           path: ./artifacts
 
       - name: Download GKI Artifact
         uses: actions/download-artifact@v4
         with:
-          name: ${{ needs.kowsu-gki-susfs.outputs.zip_name }}
+          name: ${{ needs.kowsu-gki-susfs.outputs.artifact_name }}
           path: ./artifacts
 
       - name: Create Release Tag
