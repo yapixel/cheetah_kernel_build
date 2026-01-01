@@ -96,11 +96,9 @@ jobs:
          cd sultan
          export KBUILD_BUILD_USER="build-user"
          export KBUILD_BUILD_HOST="build-host"
-         export KCFLAGS="-w -Wno-format -Wno-error"
     
          make O=out CROSS_COMPILE="${{ env.GCC_PATH }}" CC="${{ env.GCC_PATH }}gcc" zuma_defconfig
          make O=out CROSS_COMPILE="${{ env.GCC_PATH }}" CC="${{ env.GCC_PATH }}gcc" \
-         KCFLAGS="$KCFLAGS" \
          -j$(nproc --all)
 
       - name: Package AnyKernel3 ZIP
