@@ -98,7 +98,7 @@ jobs:
           export KBUILD_BUILD_HOST="build-host"
           
           make O=out CROSS_COMPILE="${{ env.GCC_PATH }}" CC="${{ env.GCC_PATH }}gcc" zuma_defconfig
-          make O=out CROSS_COMPILE="${{ env.GCC_PATH }}" CC="${{ env.GCC_PATH }}gcc" -j$(nproc --all)
+          make O=out CROSS_COMPILE="${{ env.GCC_PATH }}" CC="${{ env.GCC_PATH }}gcc" KCFLAGS="-Wno-format" -j$(nproc --all)
 
       - name: Package AnyKernel3 ZIP
         id: package
