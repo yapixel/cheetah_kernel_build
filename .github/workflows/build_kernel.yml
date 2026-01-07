@@ -453,8 +453,8 @@ jobs:
         run: |
           cp sultan/out/arch/arm64/boot/Image.lz4 AK3/Image.lz4
           cat sultan/out/google-devices/zuma/dts/*.dtb > AK3/dtb
-          ZIP_NAME="Sultan-zuma-${{ steps.tag.outputs.sultan_tag }}-SukiSU-r${{ steps.sukisu.outputs.sukisu_ver }}-SUSFS-${{ steps.susfs.outputs.susfs_ver }}.zip"
-          ARTIFACT_NAME="Sultan-zuma-${{ steps.tag.outputs.sultan_tag }}-SukiSU-r${{ steps.sukisu.outputs.sukisu_ver }}-SUSFS-${{ steps.susfs.outputs.susfs_ver }}"
+          ZIP_NAME="Sultan-zuma-${{ steps.tag.outputs.sultan_tag }}-SukiSU-r${{ steps.sukisu.outputs.sukisu_ver }}-SUSFS.zip"
+          ARTIFACT_NAME="Sultan-zuma-${{ steps.tag.outputs.sultan_tag }}-SukiSU-r${{ steps.sukisu.outputs.sukisu_ver }}-SUSFS"
           cd AK3
           zip -r9 "../$ZIP_NAME" . -x "*.git*" "README.md"
           echo "zip_name=$ZIP_NAME" >> $GITHUB_OUTPUT
