@@ -469,7 +469,7 @@ jobs:
 
  
   release:
-   needs: [xxksu-sultan, kowsu-gki-susfs]
+   needs: [xxksu-sultan, kowsu-gki-susfs, sukisu-sultan-susfs]
    runs-on: ubuntu-latest
    permissions:
       contents: write
