@@ -128,7 +128,7 @@ jobs:
   # ===========================================================================
   kowsu-gki-susfs:
    runs-on: ubuntu-latest
-   name: KowSU | Husky | susfs
+   name: KowSU | Husky | SUSFS
    outputs:
       ksu_ver: ${{ steps.ksu_ver.outputs.ksu_ver }}
       zip_name: ${{ steps.package.outputs.zip_name }}
@@ -497,31 +497,39 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-         TAG=$(date +"%Y.%m.%d")
-
-         # Get the latest existing tag (if any)
-         LATEST=$(gh api "repos/${{ github.repository }}/tags" \
-              --jq '.[0].name' 2>/dev/null || echo "")
-
-         # If today already has a release, increment -r1, -r2, ...
-         if [[ "$LATEST" == "$TAG"* ]]; then
-         REV=$(echo "$LATEST" | grep -o 'r[0-9]*' | tr -d 'r')
-         REV=$((REV + 1))
-         TAG="${TAG}-r${REV}"
-         else
-         TAG="${TAG}-r1"
-         fi
-
-         echo "Creating tag: $TAG"
-
-         # Create the tag via GitHub API (no local git needed)
+         BASE_TAG=$(date +"%Y.%m.%d")
+         
+         # Find all tags matching today's date
+         ALL_TAGS=$(gh api "repos/${{ github.repository }}/tags" \
+              --jq '.[].name' 2>/dev/null || echo "")
+         
+         # Find the highest revision number for today
+         MAX_REV=0
+         while IFS= read -r tag; do
+           if [[ "$tag" == "$BASE_TAG-r"* ]]; then
+             REV=$(echo "$tag" | grep -o 'r[0-9]*' | sed 's/r//')
+             if [ "$REV" -gt "$MAX_REV" ]; then
+               MAX_REV=$REV
+             fi
+           fi
+         done <<< "$ALL_TAGS"
+         
+         # Increment to next revision
+         NEXT_REV=$((MAX_REV + 1))
+         TAG="${BASE_TAG}-r${NEXT_REV}"
+         
+         echo "Creating tag: $TAG (previous max revision was r${MAX_REV})"
+         
+         # Create the tag via GitHub API
          gh api "repos/${{ github.repository }}/git/refs" \
          -X POST \
          -f ref="refs/tags/$TAG" \
-         -f sha="${{ github.sha }}"
-
+         -f sha="${{ github.sha }}" || {
+           echo "Tag creation failed - tag might already exist"
+           exit 1
+         }
+         
          echo "TAG=$TAG" >> $GITHUB_ENV
-
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
