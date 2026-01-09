@@ -1,4 +1,4 @@
-name: Build Husky A16 Kernel (Sultan & GKI)
+name: Build Husky A16 Kernel Sultan
 
 on:
   workflow_dispatch:
