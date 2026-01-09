@@ -36,6 +36,7 @@ jobs:
           git clone --depth=1 https://github.com/kerneltoast/android_kernel_google_zuma -b 16.0.0-sultan sultan
           git clone --depth=1 https://github.com/TheWildJames/AnyKernel3.git -b "sultan-zuma" AK3
           git clone --depth=1 https://github.com/TheSillyOk/kernel_ls_patches ok_patches
+          git clone --depth=1 https://github.com/yapixel/kernel_patches pixel_patches
           git clone --depth=1 https://github.com/TheSillyOk/sh sh
 
       - name: Get latest Sultan tag
@@ -60,7 +61,7 @@ jobs:
       - name: Setup Configs & Patches
         run: |
           cd sultan
-          patch -p1 -F 3 < "../ok_patches/sultan/scope-min-hooks-v1.6.patch"
+          patch -p1 -F 3 < "../pixel_patches/syscall_hook/scope-min-hooks-v1.8.patch"
           
           DEFCONFIG="arch/arm64/configs/zuma_defconfig"
           
@@ -184,7 +185,7 @@ jobs:
         id: susfs
         run: |
           cd susfs
-          SUSFS_VER=$(git describe --tags --always || echo "v1.5.12")
+          SUSFS_VER=$(git describe --tags --always || echo "v2.0.0")
           echo "SUSFS version: $SUSFS_VER"
           echo "susfs_ver=$SUSFS_VER" >> $GITHUB_OUTPUT
       - name: Setup Base Configs & Patches
