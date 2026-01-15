@@ -38,7 +38,7 @@ jobs:
           git clone --depth=1 https://github.com/TheSillyOk/kernel_ls_patches ok_patches
           git clone --depth=1 https://github.com/yapixel/kernel_patches yapixel_patches
           git clone --depth=1 https://github.com/TheSillyOk/sh sh
-          git clone --depth=1 https://github.com/maxsteeel/nomount nomount
+          git clone --depth=1 https://github.com/maxsteeel/nomount -b experimental nomount
 
       - name: Get latest Sultan tag
         id: tag
@@ -97,7 +97,7 @@ jobs:
       - name: Patch nomount 
         run: |
           cd sultan
-          patch -p1 -F 3 < "../nomount/patches/nomount-kernel-5.15-6.6.patch"
+          patch -p1 -F 3 < "../nomount/patches/nomount-kernel-5.15-6.1.patch"
           
       - name: Build Kernel
         run: |
@@ -243,8 +243,8 @@ jobs:
       - name: Apply nomount parch 
         run: |
           cd sultan
-          cp ../nomount/patches/nomount-susfs-kernel-5.15-6.6.patch .
-          patch -p1 --fuzz=3 < nomount-susfs-kernel-5.15-6.6.patch
+          cp ../nomount/patches/nomount-susfs-kernel-5.15-6.1.patch .
+          patch -p1 --fuzz=3 < nomount-susfs-kernel-5.15-6.1.patch
           
       - name: Build Kernel
         run: |
