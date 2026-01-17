@@ -1,4 +1,4 @@
-name: Build Husky A16 Kernel Sultan nomount
+name: Build Husky A16 Kernel Sultan hookless
 
 on:
   workflow_dispatch:
@@ -63,7 +63,7 @@ jobs:
         run: |
           cd sultan
           #patch -p1 -F 3 < "../ok_patches/sultan/scope-min-hooks-v1.6.patch"
-          patch -p1 -F 3 < "../yapixel_patches/syscall_hook/scope-min-hooks-v1.8.patch"
+          #patch -p1 -F 3 < "../yapixel_patches/syscall_hook/scope-min-hooks-v1.8.patch"
           
           DEFCONFIG="arch/arm64/configs/zuma_defconfig"
           
@@ -81,6 +81,7 @@ jobs:
           CONFIG_KSU_ALLOWLIST_WORKAROUND=n
           CONFIG_KSU_DEBUG=n
           CONFIG_KSU_KPROBES_HOOK=n
+          CONFIG_KSU_TAMPER_SYSCALL_TABLE=y
           CONFIG_NOMOUNT=y
           CONFIG_KSU_LSM_SECURITY_HOOKS=y CONFIG_KSU_THRONE_TRACKER_ALWAYS_THREADED=y
           EOF
@@ -94,10 +95,6 @@ jobs:
           cd sultan
           curl -LSs "https://raw.githubusercontent.com/backslashxx/KernelSU/master/kernel/setup.sh" | bash -s -- master
       
-      - name: Patch nomount 
-        run: |
-          cd sultan
-          patch -p1 -F 3 < "../nomount/patches/nomount-kernel-5.15-6.1.patch"
           
       - name: Build Kernel
         run: |
