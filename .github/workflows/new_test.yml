@@ -59,11 +59,9 @@ jobs:
           echo "xxKSU version: r$KSU_VER"
           echo "ksu_ver=$KSU_VER" >> $GITHUB_OUTPUT
 
-      - name: Setup Configs & Patches
+      - name: Setup Configs
         run: |
           cd sultan
-          #patch -p1 -F 3 < "../ok_patches/sultan/scope-min-hooks-v1.6.patch"
-          #patch -p1 -F 3 < "../yapixel_patches/syscall_hook/scope-min-hooks-v1.8.patch"
           
           DEFCONFIG="arch/arm64/configs/zuma_defconfig"
           
@@ -82,7 +80,8 @@ jobs:
           CONFIG_KSU_DEBUG=n
           CONFIG_KSU_KPROBES_HOOK=n
           CONFIG_KSU_TAMPER_SYSCALL_TABLE=y
-          CONFIG_KSU_LSM_SECURITY_HOOKS=y CONFIG_KSU_THRONE_TRACKER_ALWAYS_THREADED=y
+          CONFIG_KSU_LSM_SECURITY_HOOKS=y 
+          CONFIG_KSU_THRONE_TRACKER_ALWAYS_THREADED=y
           EOF
           
           sed -i 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
