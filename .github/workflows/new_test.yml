@@ -126,11 +126,6 @@ jobs:
           name: ${{ steps.package.outputs.artifact_name }}
           path: ${{ env.ZIP_PATH }}
 
-      - name: Upload Kernel Config
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.package.outputs.artifact_name }}-config
-          path: sultan/out/.config
 
  
   release:
