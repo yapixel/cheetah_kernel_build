@@ -16,8 +16,8 @@ jobs:
 
     env:
       KERNEL_CODENAME: "zuma"
-      KERNEL_VERSION: "6.1.134"
-      build_date: "Tue Jul 8 09:17:32 UTC 2025"
+      KERNEL_VERSION: "6.1.145"
+      build_date: "Mon Oct 6 16:50:48 UTC 2025"
 
     steps:
       - name: Checkout repository
@@ -85,7 +85,7 @@ jobs:
           EOF
           
           sed -i 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
-          sed -i 's/CONFIG_LOCALVERSION="-Sultan"/CONFIG_LOCALVERSION="-android14-11-g66e758f7d0c0-ab13748739"/' $DEFCONFIG
+          sed -i 's/CONFIG_LOCALVERSION="-Sultan"/CONFIG_LOCALVERSION="-android14-11-gc1de4747ac59-ab14219743"/' $DEFCONFIG
           perl -pi -e "s/build-timestamp = \\$\(or \\$\(KBUILD_BUILD_TIMESTAMP\), \\$\(build-timestamp-auto\)\\)/build-timestamp = \"${{ env.build_date }}\"/" init/Makefile
 
       - name: Integrate xxKSU
