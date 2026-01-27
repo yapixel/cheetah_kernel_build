@@ -25,11 +25,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Download GCC 13.3.0
+      - name: Download GCC 14.2.0
         run: |
-          wget -q https://kernel.org/pub/tools/crosstool/files/bin/x86_64/13.3.0/x86_64-gcc-13.3.0-nolibc-aarch64-linux.tar.gz -O gcc.tar.gz
+          wget -q https://kernel.org/pub/tools/crosstool/files/bin/x86_64/14.2.0/x86_64-gcc-14.2.0-nolibc-aarch64-linux.tar.gz -O gcc.tar.gz
           tar -xf gcc.tar.gz
-          echo "GCC_PATH=$PWD/gcc-13.3.0-nolibc/aarch64-linux/bin/aarch64-linux-" >> $GITHUB_ENV
+          echo "GCC_PATH=$PWD/gcc-14.2.0-nolibc/aarch64-linux/bin/aarch64-linux-" >> $GITHUB_ENV
 
       - name: Clone Source & Dependencies
         run: |
