@@ -1,4 +1,4 @@
-# Wild Kernels for Android
+# Sultan Kernels for Husky
 
 ## Your warranty is no longer valid!
 
