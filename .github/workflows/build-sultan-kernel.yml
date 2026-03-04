@@ -313,30 +313,22 @@ jobs:
 
           echo "Build string spoof applied."
 
-      # ── 10. Configure kernel ─────────────────────────────
-      - name: Configure kernel
+      # ── 10. Build Kernel ─────────────────────────────────
+      - name: Build Kernel
         working-directory: kernel
         run: |
           export PATH="${GCC_BIN}:${GCC32_BIN}:$PATH"
+          export KBUILD_BUILD_USER="build-user"
+          export KBUILD_BUILD_HOST="build-host"
 
-          MAKE_ARGS=(
-            O=out ARCH=arm64
-            CROSS_COMPILE="${GCC_PATH}"
-            CROSS_COMPILE_ARM32="${GCC32_PATH}"
-            CC="ccache ${GCC_PATH}gcc"
-            LD="${GCC_PATH}ld"
-            AR="${GCC_PATH}ar"
-            NM="${GCC_PATH}nm"
-            OBJCOPY="${GCC_PATH}objcopy"
-            OBJDUMP="${GCC_PATH}objdump"
-            STRIP="${GCC_PATH}strip"
-          )
+          # ── defconfig ────────────────────────────────────
+          make O=out \
+            CROSS_COMPILE="${GCC_PATH}" \
+            CC="${GCC_PATH}gcc" \
+            ${{ env.DEFCONFIG }}
 
-          echo "→ Generating ${{ env.DEFCONFIG }}..."
-          make "${MAKE_ARGS[@]}" "${{ env.DEFCONFIG }}"
-
-          # ── Minimal SUSFS features (enabled by default per simonpunk README) ──
-          echo "→ Enabling minimal SUSFS feature set..."
+          # ── KSU + SUSFS — minimal feature set (simonpunk README) ──
+          echo "→ Enabling KSU + SUSFS config options..."
           scripts/config --file out/.config \
             -e CONFIG_KSU \
             -e CONFIG_KSU_SUSFS \
@@ -347,23 +339,20 @@ jobs:
             -e CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG \
             -e CONFIG_KSU_SUSFS_SUS_MAP
 
-          # ── Optional features (disabled by default — user-toggleable via inputs) ──
+          # ── Optional SUSFS features (workflow inputs) ─────
           if [ "${{ github.event.inputs.enable_sus_path }}" = "true" ]; then
-            echo "→ Enabling CONFIG_KSU_SUSFS_SUS_PATH"
             scripts/config --file out/.config -e CONFIG_KSU_SUSFS_SUS_PATH
           else
             scripts/config --file out/.config -d CONFIG_KSU_SUSFS_SUS_PATH
           fi
 
           if [ "${{ github.event.inputs.enable_sus_kstat }}" = "true" ]; then
-            echo "→ Enabling CONFIG_KSU_SUSFS_SUS_KSTAT"
             scripts/config --file out/.config -e CONFIG_KSU_SUSFS_SUS_KSTAT
           else
             scripts/config --file out/.config -d CONFIG_KSU_SUSFS_SUS_KSTAT
           fi
 
           if [ "${{ github.event.inputs.enable_open_redirect }}" = "true" ]; then
-            echo "→ Enabling CONFIG_KSU_SUSFS_OPEN_REDIRECT"
             scripts/config --file out/.config -e CONFIG_KSU_SUSFS_OPEN_REDIRECT
           else
             scripts/config --file out/.config -d CONFIG_KSU_SUSFS_OPEN_REDIRECT
@@ -372,14 +361,11 @@ jobs:
           # ── Extra kernel features ─────────────────────────
           echo "→ Enabling extra kernel features..."
           scripts/config --file out/.config \
-            `# TMPFS` \
             -e CONFIG_TMPFS_XATTR \
             -e CONFIG_TMPFS_POSIX_ACL \
-            `# IPv4/IPv6 TTL/HL targets` \
             -e CONFIG_IP_NF_TARGET_TTL \
             -e CONFIG_IP6_NF_TARGET_HL \
             -e CONFIG_IP6_NF_MATCH_HL \
-            `# BBR congestion control (replaces BIC/Westwood/HTCP)` \
             -e CONFIG_TCP_CONG_ADVANCED \
             -e CONFIG_TCP_CONG_BBR \
             -e CONFIG_NET_SCH_FQ \
@@ -388,12 +374,9 @@ jobs:
             -d CONFIG_TCP_CONG_HTCP \
             --set-str CONFIG_DEFAULT_TCP_CONG bbr \
             -e CONFIG_DEFAULT_BBR \
-            `# BPF stream parser` \
             -e CONFIG_BPF_STREAM_PARSER \
-            `# Netfilter xt modules` \
             -e CONFIG_NETFILTER_XT_MATCH_ADDRTYPE \
             -e CONFIG_NETFILTER_XT_SET \
-            `# IP sets` \
             -e CONFIG_IP_SET \
             --set-val CONFIG_IP_SET_MAX 65534 \
             -e CONFIG_IP_SET_BITMAP_IP \
@@ -412,43 +395,30 @@ jobs:
             -e CONFIG_IP_SET_HASH_NETPORT \
             -e CONFIG_IP_SET_HASH_NETIFACE \
             -e CONFIG_IP_SET_LIST_SET \
-            `# IPv6 NAT / masquerade` \
             -e CONFIG_IP6_NF_NAT \
             -e CONFIG_IP6_NF_TARGET_MASQUERADE
 
           # Regenerate to resolve any newly introduced symbols
-          make "${MAKE_ARGS[@]}" olddefconfig
-
-          echo "→ Final KSU/SUSFS config:"
-          grep -E "^CONFIG_KSU" out/.config | sort
-          echo "→ Final extra features config:"
-          grep -E "^CONFIG_TCP_CONG|^CONFIG_DEFAULT_BBR|^CONFIG_NET_SCH_FQ|^CONFIG_IP_SET|^CONFIG_TMPFS|^CONFIG_IP6_NF|^CONFIG_IP_NF_TARGET_TTL|^CONFIG_BPF_STREAM|^CONFIG_NETFILTER_XT" out/.config | sort
-
-      # ── 11. Compile ──────────────────────────────────────
-      - name: Compile kernel
-        working-directory: kernel
-        run: |
-          export PATH="${GCC_BIN}:${GCC32_BIN}:$PATH"
-          JOBS=$(nproc --all)
-          echo "Building with GCC ${{ env.GCC_VERSION }} on ${JOBS} threads..."
-
-          time make \
-            O=out ARCH=arm64 \
+          make O=out \
             CROSS_COMPILE="${GCC_PATH}" \
-            CROSS_COMPILE_ARM32="${GCC32_PATH}" \
-            CC="ccache ${GCC_PATH}gcc" \
-            LD="${GCC_PATH}ld" \
-            AR="${GCC_PATH}ar" \
-            NM="${GCC_PATH}nm" \
-            OBJCOPY="${GCC_PATH}objcopy" \
-            OBJDUMP="${GCC_PATH}objdump" \
-            STRIP="${GCC_PATH}strip" \
-            -j"${JOBS}" \
+            CC="${GCC_PATH}gcc" \
+            olddefconfig
+
+          echo "→ Final config:"
+          grep -E "^CONFIG_KSU|^CONFIG_TCP_CONG_BBR|^CONFIG_DEFAULT_BBR|^CONFIG_IP_SET[^_]" \
+            out/.config | sort
+
+          # ── Compile ───────────────────────────────────────
+          echo "→ Compiling with $(nproc --all) threads..."
+          time make O=out \
+            CROSS_COMPILE="${GCC_PATH}" \
+            CC="${GCC_PATH}gcc" \
+            -j$(nproc --all) \
             2>&1 | tee build.log
 
           ccache --show-stats
 
-          echo "Kernel images:"
+          echo "→ Kernel images:"
           find out/arch/arm64/boot -maxdepth 1 -name 'Image*' 2>/dev/null \
             || { echo "::error::No kernel image found — build failed"; exit 1; }
 
