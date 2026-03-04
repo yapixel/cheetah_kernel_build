@@ -107,6 +107,8 @@ jobs:
   build:
     name: "Build — Pixel 8 (zuma)"
     runs-on: ubuntu-24.04
+    outputs:
+      ksu_ver: ${{ steps.ksu.outputs.ksu_ver }}
 
     steps:
       # ── 0. Free disk space ───────────────────────────────
@@ -180,22 +182,31 @@ jobs:
             "${{ env.KERNEL_REPO }}" kernel
           echo "HEAD: $(git -C kernel log --oneline -1)"
 
-      # ── 6. Integrate official KernelSU ──────────────────
+      # ── 6. Clone helper scripts ──────────────────────────
+      - name: Clone helper scripts
+        run: git clone --depth=1 https://github.com/TheSillyOk/sh sh
+
+      # ── 7. Get KSU version ───────────────────────────────
+      - name: Get KSU Version
+        id: ksu
+        run: |
+          KSU_VER=$(./sh/get_ksuver.sh "tiann" "KernelSU" "main" || echo "unknown")
+          echo "KSU version: r$KSU_VER"
+          echo "ksu_ver=$KSU_VER" >> $GITHUB_OUTPUT
+
+      # ── 8. Integrate official KernelSU ──────────────────
       - name: Integrate KernelSU (official — tiann/KernelSU)
         working-directory: kernel
         run: |
-          KSU_REF="${{ github.event.inputs.ksu_tag }}"
-          KSU_REF="${KSU_REF:-main}"
+          echo "Setting up KernelSU (version r${{ steps.ksu.outputs.ksu_ver }})..."
 
-          echo "Setting up official KernelSU @ ${KSU_REF}..."
           curl -LSs \
             "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" \
-            | bash -s "${KSU_REF}"
+            | bash -s main
 
-          echo "KernelSU version : $(cat KernelSU/kernel/version 2>/dev/null || echo 'unknown')"
-          echo "KernelSU HEAD    : $(git -C KernelSU log --oneline -1 2>/dev/null || true)"
+          echo "KernelSU HEAD: $(git -C KernelSU log --oneline -1 2>/dev/null || true)"
 
-      # ── 7. Clone SUSFS ───────────────────────────────────
+      # ── 9. Clone SUSFS ───────────────────────────────────
       # Per simonpunk README: clone a tag / release tag or up to
       # a commit containing "Bump version to vX.X.X" for stability.
       - name: Clone SUSFS
@@ -216,7 +227,7 @@ jobs:
 
           echo "SUSFS HEAD: $(git -C susfs4ksu log --oneline -1)"
 
-      # ── 8. Apply SUSFS patches ───────────────────────────
+      # ── 10. Apply SUSFS patches ──────────────────────────
       # Follows simonpunk README step by step (exact order)
       - name: Apply SUSFS patches
         working-directory: kernel
@@ -575,8 +586,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name:  "sultan-shiba-ksu-susfs-${{ github.run_number }}"
-          name:      "Sultan Pixel 8 | KSU + SUSFS | ${{ github.run_number }}"
+          tag_name:  "sultan-shiba-ksu-susfs-${{ needs.build.outputs.ksu_ver }}"
+          name:      "Sultan Pixel 8 | KSU r${{ needs.build.outputs.ksu_ver }} | SUSFS"
           body_path: notes.md
           files: |
             Sultan-*.zip
