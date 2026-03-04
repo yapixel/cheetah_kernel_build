@@ -1,0 +1,551 @@
+# ============================================================
+#  Sultan Kernel Builder — KernelSU-Next + SUSFS
+#
+#  Devices: Pixel 7/7a/7 Pro (gs201) · Pixel 8/8 Pro (zuma)
+#           Pixel 9/9 Pro/Fold/XL (zumapro)
+#
+#  Sources:
+#    Kernel   : github.com/kerneltoast/android_kernel_google_tensynos
+#    KSU-Next : github.com/rifsxd/KernelSU-Next  (next-susfs branch)
+#    SUSFS    : github.com/WildKernels/susfs4ksu  (sultan-shiba-susfs-minimal)
+#    AK3      : github.com/osm0sis/AnyKernel3
+#
+#  SUSFS non-GKI patch procedure (from official README):
+#    1. cp kernel_patches/fs/*                                → kernel/fs/
+#    2. cp kernel_patches/include/linux/*                     → kernel/include/linux/
+#    3. cp kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch → KernelSU-Next/
+#    4. cp kernel_patches/50_add_susfs_in_kernel[-<ver>].patch   → kernel root
+#    5. cd KernelSU-Next && patch -p1 < 10_enable patch
+#    6. cd kernel root   && patch -p1 < 50_add patch
+#
+#  Non-GKI specifics enforced:
+#    - "#ifdef CONFIG_KPROBES" → "#if defined(CONFIG_KPROBES) && 0" in all KSU files
+#    - CONFIG_KSU_SUSFS_SUS_SU = DISABLED  (non-kprobe kernel)
+#    - CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT = ENABLED
+# ============================================================
+
+name: Build Sultan Kernel (KSU-Next + SUSFS)
+
+on:
+  workflow_dispatch:
+    inputs:
+      device_soc:
+        description: "Target SoC"
+        required: true
+        default: "zuma"
+        type: choice
+        options:
+          - gs201      # Pixel 7 · 7a · 7 Pro
+          - zuma       # Pixel 8 · 8 Pro
+          - zumapro    # Pixel 9 · 9 Pro · 9 Pro XL · 9 Pro Fold
+
+      android_version:
+        description: "Android version"
+        required: true
+        default: "16"
+        type: choice
+        options:
+          - "14"
+          - "15"
+          - "16"
+
+      kernel_branch:
+        description: "Sultan kernel branch (blank = auto: <ver>.0.0-sultan)"
+        required: false
+        default: ""
+
+      ksu_ref:
+        description: "KernelSU-Next ref/tag (blank = next-susfs)"
+        required: false
+        default: "next-susfs"
+
+      susfs_repo:
+        description: "SUSFS repository (WildKernels fork tracks sultan-shiba-susfs-minimal)"
+        required: false
+        default: "https://github.com/WildKernels/susfs4ksu"
+
+      enable_lto:
+        description: "LTO mode"
+        required: false
+        default: "thin"
+        type: choice
+        options:
+          - "none"
+          - "thin"
+          - "full"
+
+      publish_release:
+        description: "Publish GitHub Release"
+        required: false
+        default: "true"
+        type: boolean
+
+  # Uncomment to enable nightly builds:
+  # schedule:
+  #   - cron: '0 2 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.inputs.device_soc }}
+  cancel-in-progress: true
+
+env:
+  ARCH: arm64
+  SUSFS_BRANCH: sultan-shiba-susfs-minimal
+
+jobs:
+  # ════════════════════════════════════════════════════════════
+  #  Resolve build parameters
+  # ════════════════════════════════════════════════════════════
+  prepare:
+    name: Resolve parameters
+    runs-on: ubuntu-24.04
+    outputs:
+      kernel_repo:   ${{ steps.vars.outputs.kernel_repo }}
+      kernel_branch: ${{ steps.vars.outputs.kernel_branch }}
+      defconfig:     ${{ steps.vars.outputs.defconfig }}
+      device_name:   ${{ steps.vars.outputs.device_name }}
+      release_tag:   ${{ steps.vars.outputs.release_tag }}
+      release_name:  ${{ steps.vars.outputs.release_name }}
+
+    steps:
+      - name: Resolve variables
+        id: vars
+        run: |
+          SOC="${{ github.event.inputs.device_soc || 'zuma' }}"
+          AVER="${{ github.event.inputs.android_version || '16' }}"
+          USER_BRANCH="${{ github.event.inputs.kernel_branch }}"
+
+          KERNEL_REPO="https://github.com/kerneltoast/android_kernel_google_tensynos"
+
+          case "$SOC" in
+            gs201)
+              DEFCONFIG="slider_defconfig"
+              DEVICE_NAME="Pixel 7 / 7a / 7 Pro" ;;
+            zuma)
+              DEFCONFIG="zuma_defconfig"
+              DEVICE_NAME="Pixel 8 / 8 Pro" ;;
+            zumapro)
+              DEFCONFIG="zumapro_defconfig"
+              DEVICE_NAME="Pixel 9 / 9 Pro / 9 Pro XL / 9 Pro Fold" ;;
+            *)
+              echo "::error::Unknown SoC: $SOC"; exit 1 ;;
+          esac
+
+          KERNEL_BRANCH="${USER_BRANCH:-${AVER}.0.0-sultan}"
+          DATE=$(date +'%Y%m%d-%H%M')
+          TAG="sultan-${SOC}-ksu-susfs-A${AVER}-${DATE}"
+          RNAME="Sultan ${SOC^^} | KSU-Next + SUSFS | Android ${AVER} | ${DATE}"
+
+          echo "kernel_repo=$KERNEL_REPO"     >> "$GITHUB_OUTPUT"
+          echo "kernel_branch=$KERNEL_BRANCH" >> "$GITHUB_OUTPUT"
+          echo "defconfig=$DEFCONFIG"          >> "$GITHUB_OUTPUT"
+          echo "device_name=$DEVICE_NAME"      >> "$GITHUB_OUTPUT"
+          echo "release_tag=$TAG"              >> "$GITHUB_OUTPUT"
+          echo "release_name=$RNAME"           >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Build Parameters"
+            echo "| | |"
+            echo "|---|---|"
+            echo "| SoC | \`$SOC\` |"
+            echo "| Devices | $DEVICE_NAME |"
+            echo "| Android | $AVER |"
+            echo "| Kernel branch | \`$KERNEL_BRANCH\` |"
+            echo "| Defconfig | \`$DEFCONFIG\` |"
+            echo "| LTO | ${{ github.event.inputs.enable_lto || 'thin' }} |"
+            echo "| KSU ref | \`${{ github.event.inputs.ksu_ref || 'next-susfs' }}\` |"
+            echo "| SUSFS branch | \`${{ env.SUSFS_BRANCH }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ════════════════════════════════════════════════════════════
+  #  Build
+  # ════════════════════════════════════════════════════════════
+  build:
+    name: Build (${{ needs.prepare.outputs.defconfig }})
+    needs: prepare
+    runs-on: ubuntu-24.04
+
+    steps:
+      # ── Free ~25 GB of runner disk space ──────────────────
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      # ── Build tools ───────────────────────────────────────
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            bc bison build-essential ca-certificates ccache cpio curl \
+            flex git kmod libelf-dev libssl-dev libncurses-dev lld llvm \
+            lz4 make pahole python3 rsync unzip wget zip zstd \
+            device-tree-compiler gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
+
+      # ── ccache ────────────────────────────────────────────
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-sultan-${{ needs.prepare.outputs.defconfig }}-${{ github.sha }}
+          restore-keys: |
+            ccache-sultan-${{ needs.prepare.outputs.defconfig }}-
+            ccache-sultan-
+
+      - name: Configure ccache
+        run: |
+          ccache --max-size=5G
+          ccache --zero-stats
+          echo "CCACHE_DIR=$HOME/.ccache" >> "$GITHUB_ENV"
+
+      # ── Android Clang 18 (r510928) ────────────────────────
+      - name: Download Android Clang toolchain
+        run: |
+          CLANG_VER="r510928"
+          mkdir -p "$HOME/toolchains"
+          git clone --depth=1 --filter=blob:none --sparse \
+            https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 \
+            "$HOME/toolchains/clang-prebuilts"
+          cd "$HOME/toolchains/clang-prebuilts"
+          git sparse-checkout set "clang-${CLANG_VER}"
+          CLANG_BIN="$HOME/toolchains/clang-prebuilts/clang-${CLANG_VER}/bin"
+          echo "CLANG_DIR=$CLANG_BIN" >> "$GITHUB_ENV"
+          echo "Clang: $("$CLANG_BIN/clang" --version | head -1)"
+
+      # ── Clone Sultan kernel ───────────────────────────────
+      - name: Clone Sultan kernel source
+        run: |
+          echo "→ ${{ needs.prepare.outputs.kernel_repo }} @ ${{ needs.prepare.outputs.kernel_branch }}"
+          git clone --depth=1 \
+            --branch "${{ needs.prepare.outputs.kernel_branch }}" \
+            "${{ needs.prepare.outputs.kernel_repo }}" \
+            kernel
+          echo "HEAD: $(git -C kernel log --oneline -1)"
+
+      # ── KernelSU-Next ─────────────────────────────────────
+      - name: Integrate KernelSU-Next
+        working-directory: kernel
+        run: |
+          KSU_REF="${{ github.event.inputs.ksu_ref || 'next-susfs' }}"
+          echo "→ KernelSU-Next @ $KSU_REF"
+          curl -LSs \
+            "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/${KSU_REF}/kernel/setup.sh" \
+            | bash -s "$KSU_REF"
+          echo "KSU-Next version: $(cat KernelSU-Next/kernel/version 2>/dev/null || echo unknown)"
+
+      # ── Disable kprobe hooks ──────────────────────────────
+      # SUSFS README: replace "#ifdef CONFIG_KPROBES" with
+      # "#if defined(CONFIG_KPROBES) && 0" in all KernelSU files
+      # so Sultan's manual (non-kprobe) hooks are used instead.
+      - name: Disable kprobe hooks in KernelSU-Next
+        working-directory: kernel/KernelSU-Next
+        run: |
+          grep -rl '#ifdef CONFIG_KPROBES' . | while read -r f; do
+            sed -i 's/#ifdef CONFIG_KPROBES/#if defined(CONFIG_KPROBES) \&\& 0/g' "$f"
+            echo "  patched kprobe guard: $f"
+          done
+
+      # ── Clone SUSFS ───────────────────────────────────────
+      - name: Clone SUSFS (sultan-shiba-susfs-minimal)
+        run: |
+          SUSFS_REPO="${{ github.event.inputs.susfs_repo || 'https://github.com/WildKernels/susfs4ksu' }}"
+          echo "→ $SUSFS_REPO @ ${{ env.SUSFS_BRANCH }}"
+          git clone --depth=1 --branch "${{ env.SUSFS_BRANCH }}" \
+            "$SUSFS_REPO" susfs4ksu
+          echo "HEAD: $(git -C susfs4ksu log --oneline -1)"
+          echo "kernel_patches layout:"
+          find susfs4ksu/kernel_patches -maxdepth 2 | sort
+
+      # ── Apply SUSFS patches ───────────────────────────────
+      - name: Apply SUSFS patches
+        run: |
+          SUSFS="$GITHUB_WORKSPACE/susfs4ksu/kernel_patches"
+          KROOT="$GITHUB_WORKSPACE/kernel"
+          KSU="$KROOT/KernelSU-Next"
+
+          # 1. Copy fs/ sources (susfs.c, sus_su.c, etc.)
+          echo "=== Step 1: cp kernel_patches/fs/* → kernel/fs/ ==="
+          [ -d "$SUSFS/fs" ] && cp -v "$SUSFS/fs/"* "$KROOT/fs/" \
+            || echo "::warning::kernel_patches/fs/ not present"
+
+          # 2. Copy include/linux/ headers (susfs.h, sus_su.h, etc.)
+          echo "=== Step 2: cp kernel_patches/include/linux/* → kernel/include/linux/ ==="
+          [ -d "$SUSFS/include/linux" ] && cp -v "$SUSFS/include/linux/"* "$KROOT/include/linux/" \
+            || echo "::warning::kernel_patches/include/linux/ not present"
+
+          # 3. Copy 10_enable patch into KernelSU-Next dir
+          echo "=== Step 3: cp 10_enable_susfs_for_ksu.patch → KernelSU-Next/ ==="
+          PATCH_10="$SUSFS/KernelSU/10_enable_susfs_for_ksu.patch"
+          [ ! -f "$PATCH_10" ] && { echo "::error::10_ patch missing!"; ls "$SUSFS/KernelSU/" 2>/dev/null; exit 1; }
+          cp -v "$PATCH_10" "$KSU/"
+
+          # 4. Find the 50_add_susfs kernel patch (version-specific first, then generic)
+          echo "=== Step 4: Locate 50_add_susfs patch ==="
+          KERN_VER=$(make -C "$KROOT" kernelversion 2>/dev/null | head -1)
+          MAJOR=$(echo "$KERN_VER" | cut -d. -f1)
+          MINOR=$(echo "$KERN_VER" | cut -d. -f2)
+          echo "Kernel version: $KERN_VER"
+
+          PATCH_50=""
+          for CAND in \
+            "$SUSFS/50_add_susfs_in_kernel-${MAJOR}.${MINOR}.patch" \
+            "$SUSFS/50_add_susfs_in_kernel.patch" \
+            "$SUSFS/50_add_susfs_in_non-gki.patch"
+          do
+            [ -f "$CAND" ] && { PATCH_50="$CAND"; break; }
+          done
+
+          [ -z "$PATCH_50" ] && {
+            echo "::error::No 50_add_susfs patch found! Contents of kernel_patches/:"
+            ls "$SUSFS/"
+            exit 1
+          }
+          echo "Using: $(basename $PATCH_50)"
+          cp -v "$PATCH_50" "$KROOT/50_add_susfs.patch"
+
+          # 5. Apply 10_ patch inside KernelSU-Next/
+          echo "=== Step 5: patch KernelSU-Next with 10_enable_susfs_for_ksu.patch ==="
+          cd "$KSU"
+          patch -p1 --forward < 10_enable_susfs_for_ksu.patch \
+            || echo "::warning::10_ patch had conflicts (may already be applied)"
+          cd "$GITHUB_WORKSPACE"
+
+          # 6. Apply 50_ patch in kernel root
+          echo "=== Step 6: patch kernel with 50_add_susfs.patch ==="
+          cd "$KROOT"
+          patch -p1 --forward < 50_add_susfs.patch || {
+            echo "::warning::50_ patch had conflicts — listing .rej files:"
+            find . -name "*.rej" | head -20
+          }
+          cd "$GITHUB_WORKSPACE"
+          echo "SUSFS patching complete."
+
+      # ── Configure ─────────────────────────────────────────
+      - name: Configure kernel
+        working-directory: kernel
+        run: |
+          export PATH="${{ env.CLANG_DIR }}:$PATH"
+          LTO="${{ github.event.inputs.enable_lto || 'thin' }}"
+          DEFCONFIG="${{ needs.prepare.outputs.defconfig }}"
+
+          MAKE_ARGS=(
+            O=out ARCH=arm64
+            CC="ccache clang"
+            CLANG_TRIPLE="aarch64-linux-gnu-"
+            CROSS_COMPILE="aarch64-linux-gnu-"
+            CROSS_COMPILE_ARM32="arm-linux-gnueabi-"
+            LLVM=1 LLVM_IAS=1
+            LD=ld.lld AR=llvm-ar NM=llvm-nm
+            OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip
+          )
+
+          make "${MAKE_ARGS[@]}" "$DEFCONFIG"
+
+          # Enable all SUSFS 1.5.x features from sultan-shiba-susfs-minimal
+          scripts/config --file out/.config \
+            -e CONFIG_KSU \
+            -e CONFIG_KSU_SUSFS \
+            -e CONFIG_KSU_SUSFS_SUS_PATH \
+            -e CONFIG_KSU_SUSFS_SUS_MOUNT \
+            -e CONFIG_KSU_SUSFS_SUS_KSTAT \
+            -e CONFIG_KSU_SUSFS_SUS_OVERLAYFS \
+            -e CONFIG_KSU_SUSFS_TRY_UMOUNT \
+            -e CONFIG_KSU_SUSFS_SPOOF_UNAME \
+            -e CONFIG_KSU_SUSFS_ENABLE_LOG \
+            -e CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT \
+            -e CONFIG_KSU_SUSFS_OPEN_REDIRECT \
+            -e CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT \
+            -e CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT \
+            -e CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT \
+            -e CONFIG_KSU_SUSFS_SPOOF_BOOTCONFIG \
+            -e CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS \
+            -d CONFIG_KSU_SUSFS_SUS_SU  # DISABLED: requires kprobe hooks (not present)
+
+          # LTO
+          case "$LTO" in
+            full) scripts/config --file out/.config \
+                    -e CONFIG_LTO_CLANG -e CONFIG_LTO_CLANG_FULL \
+                    -d CONFIG_LTO_CLANG_THIN -d CONFIG_LTO_NONE ;;
+            thin) scripts/config --file out/.config \
+                    -e CONFIG_LTO_CLANG -e CONFIG_LTO_CLANG_THIN \
+                    -d CONFIG_LTO_CLANG_FULL -d CONFIG_LTO_NONE ;;
+            none) scripts/config --file out/.config \
+                    -d CONFIG_LTO_CLANG -d CONFIG_LTO_CLANG_THIN \
+                    -d CONFIG_LTO_CLANG_FULL -e CONFIG_LTO_NONE ;;
+          esac
+
+          make "${MAKE_ARGS[@]}" olddefconfig
+
+          echo "KSU + SUSFS + LTO config:"
+          grep -E "^CONFIG_KSU|^CONFIG_LTO" out/.config | sort
+
+      # ── Compile ───────────────────────────────────────────
+      - name: Compile kernel
+        working-directory: kernel
+        run: |
+          export PATH="${{ env.CLANG_DIR }}:$PATH"
+          JOBS=$(nproc --all)
+          echo "Building with $JOBS jobs..."
+
+          time make \
+            O=out ARCH=arm64 \
+            CC="ccache clang" \
+            CLANG_TRIPLE="aarch64-linux-gnu-" \
+            CROSS_COMPILE="aarch64-linux-gnu-" \
+            CROSS_COMPILE_ARM32="arm-linux-gnueabi-" \
+            LLVM=1 LLVM_IAS=1 \
+            LD=ld.lld AR=llvm-ar NM=llvm-nm \
+            OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip \
+            -j"$JOBS" 2>&1 | tee build.log
+
+          ccache --show-stats
+
+          echo "Kernel images:"
+          find out/arch/arm64/boot -maxdepth 1 -name 'Image*' 2>/dev/null \
+            || { echo "::error::No image found — build failed"; exit 1; }
+
+      # ── Package ───────────────────────────────────────────
+      - name: Package with AnyKernel3
+        run: |
+          SOC="${{ github.event.inputs.device_soc || 'zuma' }}"
+          AVER="${{ github.event.inputs.android_version || '16' }}"
+          LTO="${{ github.event.inputs.enable_lto || 'thin' }}"
+          DATE=$(date +'%Y%m%d')
+
+          git clone --depth=1 https://github.com/osm0sis/AnyKernel3 anykernel3
+
+          IMAGE=""
+          for CAND in \
+            kernel/out/arch/arm64/boot/Image.lz4-dtb \
+            kernel/out/arch/arm64/boot/Image.lz4 \
+            kernel/out/arch/arm64/boot/Image-dtb \
+            kernel/out/arch/arm64/boot/Image
+          do
+            [ -f "$CAND" ] && { IMAGE="$CAND"; break; }
+          done
+          [ -z "$IMAGE" ] && { echo "::error::No kernel image."; exit 1; }
+          cp "$IMAGE" anykernel3/Image
+          echo "Image: $IMAGE"
+
+          DTB_DIR="kernel/out/arch/arm64/boot/dts"
+          [ -d "$DTB_DIR" ] && {
+            find "$DTB_DIR" -name "*.dtb"  -exec cp {} anykernel3/ \; 2>/dev/null || true
+            find "$DTB_DIR" -name "*.dtbo" -exec cp {} anykernel3/ \; 2>/dev/null || true
+          }
+
+          cat > anykernel3/anykernel.sh << AKEOF
+          kernel.string=Sultan | KSU-Next + SUSFS | A${AVER} | ${DATE}
+          do.devicecheck=0
+          do.modules=0
+          do.systemless=1
+          do.cleanup=1
+          do.cleanuponabort=0
+          device.name1=${SOC}
+          supported.versions=
+          supported.patchlevels=
+          . tools/ak3-core.sh
+          split_boot
+          flash_boot
+          AKEOF
+
+          ZIP="Sultan-${SOC^^}-A${AVER}-KSU-SUSFS-LTO${LTO^^}-${DATE}.zip"
+          cd anykernel3 && zip -r9 "../$ZIP" . -x "*.git*" README.md && cd ..
+
+          echo "ZIP=$ZIP" >> "$GITHUB_ENV"
+          sha256sum "$ZIP" | tee "${ZIP}.sha256"
+          echo "$ZIP  ($(du -sh "$ZIP" | cut -f1))"
+
+      # ── Upload ────────────────────────────────────────────
+      - name: Upload kernel zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ZIP }}
+          path: |
+            ${{ env.ZIP }}
+            ${{ env.ZIP }}.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-${{ needs.prepare.outputs.defconfig }}
+          path: kernel/build.log
+          retention-days: 7
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Build Result"
+            echo "| | |"
+            echo "|---|---|"
+            echo "| SoC | ${{ github.event.inputs.device_soc }} |"
+            echo "| Branch | \`${{ needs.prepare.outputs.kernel_branch }}\` |"
+            echo "| KSU ref | \`${{ github.event.inputs.ksu_ref || 'next-susfs' }}\` |"
+            echo "| SUSFS branch | \`${{ env.SUSFS_BRANCH }}\` |"
+            echo "| LTO | ${{ github.event.inputs.enable_lto || 'thin' }} |"
+            [ -n "$ZIP" ] && echo "| Output | \`$ZIP\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ════════════════════════════════════════════════════════════
+  #  Release
+  # ════════════════════════════════════════════════════════════
+  release:
+    name: Publish Release
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    if: github.event.inputs.publish_release == 'true'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "Sultan-*"
+          merge-multiple: true
+
+      - name: Generate release notes
+        run: |
+          cat > notes.md << 'EOF'
+          ## Sultan Kernel | KernelSU-Next + SUSFS
+
+          ### Features
+          - ✅ KernelSU-Next (`next-susfs`) — Magic Mount, non-kprobe hooks
+          - ✅ SUSFS from `sultan-shiba-susfs-minimal`
+          - ✅ SUS_PATH · SUS_MOUNT · SUS_KSTAT · SUS_OVERLAYFS
+          - ✅ AUTO_ADD mounts · SPOOF_UNAME · SPOOF_BOOTCONFIG
+          - ✅ HIDE_KSU_SUSFS_SYMBOLS · OPEN_REDIRECT
+
+          ### Installation
+          1. Flash via [HorizonKernelFlasher](https://github.com/libxzr/HorizonKernelFlasher)
+          2. Install [susfs4ksu-module](https://github.com/sidex15/susfs4ksu-module)
+          3. Use [KernelSU-Next manager](https://github.com/KernelSU-Next/KernelSU-Next/releases)
+
+          ### SHA-256
+          EOF
+          echo '```' >> notes.md
+          cat *.sha256 2>/dev/null >> notes.md || echo "(see workflow artifacts)" >> notes.md
+          echo '```' >> notes.md
+          echo "" >> notes.md
+          echo "> ⚠️ Flashing voids your warranty. Back up your data first." >> notes.md
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name:  ${{ needs.prepare.outputs.release_tag }}
+          name:      ${{ needs.prepare.outputs.release_name }}
+          body_path: notes.md
+          files: |
+            Sultan-*.zip
+            Sultan-*.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
