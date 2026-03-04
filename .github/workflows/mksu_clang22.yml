@@ -29,7 +29,7 @@ env:
   BUILD_CLEAN: ${{ github.event.inputs.build_clean || 'always' }}
   RETRY: 3
   REPO_DEPTH: 1
-  KSUN_BRANCH: main
+  KSUN_BRANCH: dev
   ANYKERNEL_DIR: AnyKernel3-p8a
   ANYKERNEL_BRANCH: gki-2.0
   SUSFS_REPO: https://gitlab.com/simonpunk/susfs4ksu.git
