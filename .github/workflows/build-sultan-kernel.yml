@@ -1,57 +1,77 @@
 # ============================================================
 #  Sultan Kernel Builder — Official KernelSU + SUSFS
+#  Target    : Pixel 8 (Shiba / zuma) — Android 16
+#  Kernel    : github.com/kerneltoast/android_kernel_google_tensynos @ 16.0.0-sultan
+#  KSU       : github.com/tiann/KernelSU  (official)
+#  SUSFS     : gitlab.com/simonpunk/susfs4ksu @ sultan-shiba-susfs-minimal
 #  Toolchain : GCC 14.2.0 (kernel.org nolibc)
 #
-#  Supports  : Pixel 7/7a/7 Pro  (gs201)
-#              Pixel 8/8 Pro     (zuma)
-#              Pixel 9 series    (zumapro)
+#  Patch procedure follows simonpunk's README exactly:
+#    1. cp kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch → KernelSU/
+#    2. cp kernel_patches/50_add_susfs_in_kernel-<ver>.patch     → kernel root
+#    3. cp kernel_patches/fs/*                                   → fs/
+#    4. cp kernel_patches/include/linux/*                        → include/linux/
+#    5. cd KernelSU && patch -p1 < 10_enable_susfs_for_ksu.patch
+#    6. cd kernel   && patch -p1 < 50_add_susfs_in_kernel.patch
 #
-#  Sources:
-#    Kernel  : github.com/kerneltoast/android_kernel_google_tensynos
-#    KSU     : github.com/tiann/KernelSU  (official — main branch)
-#    SUSFS   : gitlab.com/simonpunk/susfs4ksu  (sultan-shiba-susfs-minimal)
-#    AK3     : github.com/osm0sis/AnyKernel3
+#  Default SUSFS features (from simonpunk README — minimal set):
+#    CONFIG_KSU_SUSFS_SUS_MOUNT                  = y
+#    CONFIG_KSU_SUSFS_SPOOF_UNAME                = y
+#    CONFIG_KSU_SUSFS_ENABLE_LOG                 = y
+#    CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS     = y
+#    CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG= y
+#    CONFIG_KSU_SUSFS_SUS_MAP                    = y
+#  Optional (disabled by default, toggleable via inputs):
+#    CONFIG_KSU_SUSFS_SUS_PATH
+#    CONFIG_KSU_SUSFS_SUS_KSTAT
+#    CONFIG_KSU_SUSFS_OPEN_REDIRECT
 # ============================================================
 
-name: Build Sultan Kernel (KSU + SUSFS)
+name: Build Sultan Kernel — Pixel 8 (KSU + SUSFS)
 
 on:
   workflow_dispatch:
     inputs:
-      device_soc:
-        description: "Target SoC"
-        required: true
-        default: "zuma"
-        type: choice
-        options:
-          - gs201      # Pixel 7 / 7a / 7 Pro
-          - zuma       # Pixel 8 / 8 Pro
-          - zumapro    # Pixel 9 / 9 Pro / 9 Pro XL / 9 Pro Fold
-
-      android_version:
-        description: "Android version"
-        required: true
-        default: "16"
-        type: choice
-        options:
-          - "14"
-          - "15"
-          - "16"
-
       kernel_branch:
-        description: "Sultan kernel branch (blank = auto: <ver>.0.0-sultan)"
+        description: "Sultan kernel branch"
         required: false
-        default: ""
+        default: "16.0.0-sultan"
 
       ksu_tag:
-        description: "KernelSU tag/ref (blank = latest main)"
+        description: "KernelSU tag/ref (blank = main)"
         required: false
         default: ""
 
-      susfs_branch:
-        description: "SUSFS branch"
+      susfs_ref:
+        description: "SUSFS tag or commit (blank = latest). Prefer a stable 'Bump version to vX.X.X' commit."
         required: false
-        default: "sultan-shiba-susfs-minimal"
+        default: ""
+
+      # Optional SUSFS features (disabled by default per simonpunk README)
+      enable_sus_path:
+        description: "Enable CONFIG_KSU_SUSFS_SUS_PATH"
+        required: false
+        default: "false"
+        type: boolean
+
+      enable_sus_kstat:
+        description: "Enable CONFIG_KSU_SUSFS_SUS_KSTAT"
+        required: false
+        default: "false"
+        type: boolean
+
+      enable_open_redirect:
+        description: "Enable CONFIG_KSU_SUSFS_OPEN_REDIRECT"
+        required: false
+        default: "false"
+        type: boolean
+
+      # Optional: spoof /proc/version build strings (simonpunk README section)
+      spoof_build_strings:
+        description: "Spoof kernel build strings (/proc/version)"
+        required: false
+        default: "false"
+        type: boolean
 
       publish_release:
         description: "Create a GitHub Release after build"
@@ -59,81 +79,33 @@ on:
         default: "true"
         type: boolean
 
-  # Uncomment to enable nightly builds:
+  # Uncomment for nightly builds:
   # schedule:
   #   - cron: '0 2 * * *'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.inputs.device_soc }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  ARCH: arm64
+  # Fixed target per simonpunk README
+  KERNEL_REPO: "https://github.com/kerneltoast/android_kernel_google_tensynos"
+  DEFCONFIG: "zuma_defconfig"
+  ARCH: "arm64"
+
+  # GCC 14.2.0 from kernel.org
   GCC_VERSION: "14.2.0"
   GCC_BASE_URL: "https://kernel.org/pub/tools/crosstool/files/bin/x86_64/14.2.0"
+
+  # SUSFS
+  SUSFS_REPO: "https://gitlab.com/simonpunk/susfs4ksu.git"
+  SUSFS_BRANCH: "sultan-shiba-susfs-minimal"
 
 # ════════════════════════════════════════════════════════════
 jobs:
 
-  # ── Resolve parameters ────────────────────────────────────
-  prepare:
-    name: Resolve parameters
-    runs-on: ubuntu-24.04
-    outputs:
-      kernel_repo:   ${{ steps.vars.outputs.kernel_repo }}
-      kernel_branch: ${{ steps.vars.outputs.kernel_branch }}
-      defconfig:     ${{ steps.vars.outputs.defconfig }}
-      device_name:   ${{ steps.vars.outputs.device_name }}
-      release_tag:   ${{ steps.vars.outputs.release_tag }}
-      release_name:  ${{ steps.vars.outputs.release_name }}
-
-    steps:
-      - name: Resolve variables
-        id: vars
-        run: |
-          SOC="${{ github.event.inputs.device_soc || 'zuma' }}"
-          AVER="${{ github.event.inputs.android_version || '16' }}"
-          USER_BRANCH="${{ github.event.inputs.kernel_branch }}"
-
-          KERNEL_REPO="https://github.com/kerneltoast/android_kernel_google_tensynos"
-
-          case "$SOC" in
-            gs201)   DEFCONFIG="slider_defconfig";  DEVICE_NAME="Pixel 7 / 7a / 7 Pro" ;;
-            zuma)    DEFCONFIG="zuma_defconfig";     DEVICE_NAME="Pixel 8 / 8 Pro" ;;
-            zumapro) DEFCONFIG="zumapro_defconfig";  DEVICE_NAME="Pixel 9 / 9 Pro / 9 Pro XL / 9 Pro Fold" ;;
-            *)       echo "::error::Unknown SoC: $SOC"; exit 1 ;;
-          esac
-
-          KERNEL_BRANCH="${USER_BRANCH:-${AVER}.0.0-sultan}"
-          DATE=$(date +'%Y%m%d-%H%M')
-          TAG="sultan-${SOC}-ksu-susfs-A${AVER}-${DATE}"
-          RNAME="Sultan ${SOC^^} | KSU + SUSFS | Android ${AVER} | ${DATE}"
-
-          echo "kernel_repo=$KERNEL_REPO"     >> "$GITHUB_OUTPUT"
-          echo "kernel_branch=$KERNEL_BRANCH" >> "$GITHUB_OUTPUT"
-          echo "defconfig=$DEFCONFIG"          >> "$GITHUB_OUTPUT"
-          echo "device_name=$DEVICE_NAME"      >> "$GITHUB_OUTPUT"
-          echo "release_tag=$TAG"              >> "$GITHUB_OUTPUT"
-          echo "release_name=$RNAME"           >> "$GITHUB_OUTPUT"
-
-          {
-            echo "### Build Parameters"
-            echo "| | |"
-            echo "|---|---|"
-            echo "| SoC | \`$SOC\` |"
-            echo "| Devices | $DEVICE_NAME |"
-            echo "| Android | $AVER |"
-            echo "| Kernel branch | \`$KERNEL_BRANCH\` |"
-            echo "| Defconfig | \`$DEFCONFIG\` |"
-            echo "| KSU | Official — [tiann/KernelSU](https://github.com/tiann/KernelSU) |"
-            echo "| SUSFS branch | \`${{ github.event.inputs.susfs_branch || 'sultan-shiba-susfs-minimal' }}\` |"
-            echo "| GCC | ${{ env.GCC_VERSION }} |"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-  # ── Build ─────────────────────────────────────────────────
   build:
-    name: Build (${{ needs.prepare.outputs.defconfig }})
-    needs: prepare
+    name: "Build — Pixel 8 (zuma)"
     runs-on: ubuntu-24.04
 
     steps:
@@ -164,9 +136,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.ccache
-          key: ccache-gcc-sultan-${{ needs.prepare.outputs.defconfig }}-${{ github.sha }}
+          key: ccache-gcc-sultan-zuma-${{ github.sha }}
           restore-keys: |
-            ccache-gcc-sultan-${{ needs.prepare.outputs.defconfig }}-
+            ccache-gcc-sultan-zuma-
             ccache-gcc-sultan-
 
       - name: Configure ccache
@@ -175,7 +147,7 @@ jobs:
           ccache --zero-stats
           echo "CCACHE_DIR=$HOME/.ccache" >> "$GITHUB_ENV"
 
-      # ── 3. GCC 14.2.0 aarch64 ───────────────────────────
+      # ── 3. GCC 14.2.0 — aarch64 ─────────────────────────
       - name: Download GCC 14.2.0
         run: |
           wget -q \
@@ -187,7 +159,7 @@ jobs:
           echo "GCC_PATH=${GCC_BIN}/aarch64-linux-" >> "$GITHUB_ENV"
           echo "GCC: $(${GCC_BIN}/aarch64-linux-gcc --version | head -1)"
 
-      # ── 4. GCC 14.2.0 arm32 (vDSO compat) ───────────────
+      # ── 4. GCC 14.2.0 — arm32 (vDSO compat) ─────────────
       - name: Download GCC 14.2.0 (arm32)
         run: |
           wget -q \
@@ -195,27 +167,25 @@ jobs:
             -O gcc-arm32.tar.gz
           tar -xf gcc-arm32.tar.gz
           GCC32_BIN="$PWD/gcc-${{ env.GCC_VERSION }}-nolibc/arm-linux-gnueabi/bin"
-          echo "GCC32_BIN=${GCC32_BIN}"                      >> "$GITHUB_ENV"
-          echo "GCC32_PATH=${GCC32_BIN}/arm-linux-gnueabi-"  >> "$GITHUB_ENV"
+          echo "GCC32_BIN=${GCC32_BIN}"                     >> "$GITHUB_ENV"
+          echo "GCC32_PATH=${GCC32_BIN}/arm-linux-gnueabi-" >> "$GITHUB_ENV"
           echo "GCC32: $(${GCC32_BIN}/arm-linux-gnueabi-gcc --version | head -1)"
 
       # ── 5. Clone Sultan kernel ───────────────────────────
       - name: Clone Sultan kernel
         run: |
-          echo "Repo  : ${{ needs.prepare.outputs.kernel_repo }}"
-          echo "Branch: ${{ needs.prepare.outputs.kernel_branch }}"
-          git clone --depth=1 \
-            --branch "${{ needs.prepare.outputs.kernel_branch }}" \
-            "${{ needs.prepare.outputs.kernel_repo }}" \
-            kernel
-          echo "HEAD  : $(git -C kernel log --oneline -1)"
+          BRANCH="${{ github.event.inputs.kernel_branch || '16.0.0-sultan' }}"
+          echo "Cloning ${{ env.KERNEL_REPO }} @ ${BRANCH}"
+          git clone --depth=1 --branch "${BRANCH}" \
+            "${{ env.KERNEL_REPO }}" kernel
+          echo "HEAD: $(git -C kernel log --oneline -1)"
 
       # ── 6. Integrate official KernelSU ──────────────────
-      - name: Integrate KernelSU (official)
+      - name: Integrate KernelSU (official — tiann/KernelSU)
         working-directory: kernel
         run: |
-          KSU_TAG="${{ github.event.inputs.ksu_tag }}"
-          KSU_REF="${KSU_TAG:-main}"
+          KSU_REF="${{ github.event.inputs.ksu_tag }}"
+          KSU_REF="${KSU_REF:-main}"
 
           echo "Setting up official KernelSU @ ${KSU_REF}..."
           curl -LSs \
@@ -225,74 +195,110 @@ jobs:
           echo "KernelSU version : $(cat KernelSU/kernel/version 2>/dev/null || echo 'unknown')"
           echo "KernelSU HEAD    : $(git -C KernelSU log --oneline -1 2>/dev/null || true)"
 
-      # ── 7. Apply SUSFS patches ───────────────────────────
+      # ── 7. Clone SUSFS ───────────────────────────────────
+      # Per simonpunk README: clone a tag / release tag or up to
+      # a commit containing "Bump version to vX.X.X" for stability.
+      - name: Clone SUSFS
+        run: |
+          SUSFS_REF="${{ github.event.inputs.susfs_ref }}"
+
+          git clone --depth=1 \
+            --branch "${{ env.SUSFS_BRANCH }}" \
+            "${{ env.SUSFS_REPO }}" \
+            susfs4ksu
+
+          # If a specific ref was requested, check it out
+          if [ -n "$SUSFS_REF" ]; then
+            echo "Checking out SUSFS ref: ${SUSFS_REF}"
+            git -C susfs4ksu fetch --depth=1 origin "${SUSFS_REF}"
+            git -C susfs4ksu checkout FETCH_HEAD
+          fi
+
+          echo "SUSFS HEAD: $(git -C susfs4ksu log --oneline -1)"
+
+      # ── 8. Apply SUSFS patches ───────────────────────────
+      # Follows simonpunk README step by step (exact order)
       - name: Apply SUSFS patches
         working-directory: kernel
-        env:
-          SUSFS_BRANCH: ${{ github.event.inputs.susfs_branch || 'sultan-shiba-susfs-minimal' }}
-          AVER: ${{ github.event.inputs.android_version || '16' }}
         run: |
-          echo "Cloning SUSFS @ ${SUSFS_BRANCH}..."
-          git clone --depth=1 \
-            --branch "${SUSFS_BRANCH}" \
-            "https://gitlab.com/simonpunk/susfs4ksu.git" \
-            ../susfs4ksu
-          SUSFS="$(pwd)/../susfs4ksu"
+          SUSFS="$GITHUB_WORKSPACE/susfs4ksu"
 
+          # Detect kernel version for patch filename
           KERNEL_VER=$(make kernelversion 2>/dev/null | head -1)
           MAJOR=$(echo "$KERNEL_VER" | cut -d. -f1)
           MINOR=$(echo "$KERNEL_VER" | cut -d. -f2)
           echo "Kernel version: ${KERNEL_VER} (${MAJOR}.${MINOR})"
 
-          # 1. fs/ sources
-          if [ -d "${SUSFS}/kernel_patches/fs" ]; then
-            echo "→ Copying fs/ sources"
-            cp -v "${SUSFS}/kernel_patches/fs/"* fs/
-          fi
+          # Step 1 — cp kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch → KernelSU/
+          echo "→ Step 1: Copy KSU enablement patch"
+          cp "${SUSFS}/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch" KernelSU/
 
-          # 2. include/linux/ headers
-          if [ -d "${SUSFS}/kernel_patches/include/linux" ]; then
-            echo "→ Copying include/linux/ headers"
-            cp -v "${SUSFS}/kernel_patches/include/linux/"* include/linux/
-          fi
-
-          # 3. KSU enablement patch (applied inside KernelSU/)
-          KSU_PATCH="${SUSFS}/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch"
-          if [ -f "$KSU_PATCH" ]; then
-            echo "→ Applying KSU SUSFS enablement patch"
-            cp "$KSU_PATCH" KernelSU/
-            patch -p1 --forward -d KernelSU < KernelSU/10_enable_susfs_for_ksu.patch \
-              || echo "::warning::KSU patch already applied or had minor conflicts"
-          else
-            echo "::warning::KSU enablement patch not found"
-          fi
-
-          # 4. Main kernel SUSFS patch — version-specific first, then generic
-          PATCH_FILE=""
+          # Step 2 — cp kernel_patches/50_add_susfs_in_kernel-<ver>.patch → kernel root
+          echo "→ Step 2: Copy kernel SUSFS patch"
+          KERNEL_PATCH=""
           for CANDIDATE in \
             "${SUSFS}/kernel_patches/50_add_susfs_in_kernel-${MAJOR}.${MINOR}.patch" \
-            "${SUSFS}/kernel_patches/50_add_susfs_in_gki-android${AVER}-${MAJOR}.${MINOR}.patch" \
             "${SUSFS}/kernel_patches/50_add_susfs_in_kernel.patch"
           do
-            [ -f "$CANDIDATE" ] && { PATCH_FILE="$CANDIDATE"; break; }
+            [ -f "$CANDIDATE" ] && { KERNEL_PATCH="$CANDIDATE"; break; }
           done
-
-          if [ -n "$PATCH_FILE" ]; then
-            echo "→ Applying kernel SUSFS patch: $(basename $PATCH_FILE)"
-            patch -p1 --forward < "$PATCH_FILE" \
-              || echo "::warning::Kernel SUSFS patch had conflicts — check build.log"
-          else
-            echo "::warning::No SUSFS patch found for kernel ${MAJOR}.${MINOR}"
+          if [ -z "$KERNEL_PATCH" ]; then
+            echo "::error::No SUSFS kernel patch found for ${MAJOR}.${MINOR}"; exit 1
           fi
+          cp "$KERNEL_PATCH" 50_add_susfs_in_kernel.patch
+          echo "  Using: $(basename $KERNEL_PATCH)"
+
+          # Step 3 — cp kernel_patches/fs/* → fs/
+          echo "→ Step 3: Copy fs/ sources"
+          cp -v "${SUSFS}/kernel_patches/fs/"* fs/
+
+          # Step 4 — cp kernel_patches/include/linux/* → include/linux/
+          echo "→ Step 4: Copy include/linux/ headers"
+          cp -v "${SUSFS}/kernel_patches/include/linux/"* include/linux/
+
+          # Step 5 — cd KernelSU && patch -p1 < 10_enable_susfs_for_ksu.patch
+          echo "→ Step 5: Apply KSU enablement patch"
+          ( cd KernelSU && patch -p1 < 10_enable_susfs_for_ksu.patch ) \
+            || echo "::warning::KSU patch already applied or had minor conflicts"
+
+          # Step 6 — cd kernel && patch -p1 < 50_add_susfs_in_kernel.patch
+          echo "→ Step 6: Apply kernel SUSFS patch"
+          patch -p1 < 50_add_susfs_in_kernel.patch \
+            || echo "::warning::Kernel SUSFS patch had conflicts — review build output"
 
           echo "SUSFS patch step complete."
 
-      # ── 8. Configure kernel ──────────────────────────────
+      # ── 9. Optional: spoof build strings ────────────────
+      # Per simonpunk README: export env vars + reset .version
+      # + sed LINUX_COMPILER in scripts/mkcompile_h
+      - name: Spoof kernel build strings
+        if: github.event.inputs.spoof_build_strings == 'true'
+        working-directory: kernel
+        run: |
+          echo "→ Spoofing /proc/version build strings..."
+
+          # Reset the kernel build counter
+          echo 0 > out/.version 2>/dev/null || mkdir -p out && echo 0 > out/.version
+
+          # Spoof LINUX_COMPILER to match stock Pixel 8 build strings
+          sed -i \
+            's@^#define LINUX_COMPILER.*$@#define LINUX_COMPILER\t\t"Android (10087095, +pgo, +bolt, +lto, -mlgo, based on r487747c) clang version 17.0.2 (https://android.googlesource.com/toolchain/llvm-project d9f89f4d16663d5012e5c09495f3b30ece3d2362), LLD 17.0.2"@g' \
+            scripts/mkcompile_h
+
+          # Set build metadata env vars (picked up by Kbuild)
+          echo "KBUILD_BUILD_VERSION=1"                          >> "$GITHUB_ENV"
+          echo "KBUILD_BUILD_USER=build-user"                    >> "$GITHUB_ENV"
+          echo "KBUILD_BUILD_HOST=build-host"                    >> "$GITHUB_ENV"
+          echo "KBUILD_BUILD_TIMESTAMP=Mon Oct  6 16:50:48 UTC 2025" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=14587043"                           >> "$GITHUB_ENV"
+
+          echo "Build string spoof applied."
+
+      # ── 10. Configure kernel ─────────────────────────────
       - name: Configure kernel
         working-directory: kernel
         run: |
           export PATH="${GCC_BIN}:${GCC32_BIN}:$PATH"
-          DEFCONFIG="${{ needs.prepare.outputs.defconfig }}"
 
           MAKE_ARGS=(
             O=out ARCH=arm64
@@ -307,35 +313,50 @@ jobs:
             STRIP="${GCC_PATH}strip"
           )
 
-          echo "→ Generating ${DEFCONFIG}..."
-          make "${MAKE_ARGS[@]}" "$DEFCONFIG"
+          echo "→ Generating ${{ env.DEFCONFIG }}..."
+          make "${MAKE_ARGS[@]}" "${{ env.DEFCONFIG }}"
 
-          echo "→ Enabling KSU + SUSFS Kconfig options..."
+          # ── Minimal SUSFS features (enabled by default per simonpunk README) ──
+          echo "→ Enabling minimal SUSFS feature set..."
           scripts/config --file out/.config \
             -e CONFIG_KSU \
             -e CONFIG_KSU_SUSFS \
-            -e CONFIG_KSU_SUSFS_SUS_PATH \
             -e CONFIG_KSU_SUSFS_SUS_MOUNT \
-            -e CONFIG_KSU_SUSFS_SUS_KSTAT \
-            -e CONFIG_KSU_SUSFS_SUS_OVERLAYFS \
-            -e CONFIG_KSU_SUSFS_TRY_UMOUNT \
             -e CONFIG_KSU_SUSFS_SPOOF_UNAME \
             -e CONFIG_KSU_SUSFS_ENABLE_LOG \
-            -e CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT \
-            -e CONFIG_KSU_SUSFS_OPEN_REDIRECT \
-            -e CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT \
-            -e CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT \
-            -e CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT \
-            -e CONFIG_KSU_SUSFS_SPOOF_BOOTCONFIG \
             -e CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS \
-            -d CONFIG_KSU_SUSFS_SUS_SU   # Disabled: requires kprobes (not present in Sultan)
+            -e CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG \
+            -e CONFIG_KSU_SUSFS_SUS_MAP
 
+          # ── Optional features (disabled by default — user-toggleable via inputs) ──
+          if [ "${{ github.event.inputs.enable_sus_path }}" = "true" ]; then
+            echo "→ Enabling CONFIG_KSU_SUSFS_SUS_PATH"
+            scripts/config --file out/.config -e CONFIG_KSU_SUSFS_SUS_PATH
+          else
+            scripts/config --file out/.config -d CONFIG_KSU_SUSFS_SUS_PATH
+          fi
+
+          if [ "${{ github.event.inputs.enable_sus_kstat }}" = "true" ]; then
+            echo "→ Enabling CONFIG_KSU_SUSFS_SUS_KSTAT"
+            scripts/config --file out/.config -e CONFIG_KSU_SUSFS_SUS_KSTAT
+          else
+            scripts/config --file out/.config -d CONFIG_KSU_SUSFS_SUS_KSTAT
+          fi
+
+          if [ "${{ github.event.inputs.enable_open_redirect }}" = "true" ]; then
+            echo "→ Enabling CONFIG_KSU_SUSFS_OPEN_REDIRECT"
+            scripts/config --file out/.config -e CONFIG_KSU_SUSFS_OPEN_REDIRECT
+          else
+            scripts/config --file out/.config -d CONFIG_KSU_SUSFS_OPEN_REDIRECT
+          fi
+
+          # Regenerate to resolve any newly introduced symbols
           make "${MAKE_ARGS[@]}" olddefconfig
 
-          echo "→ Active KSU/SUSFS options:"
+          echo "→ Final KSU/SUSFS config:"
           grep -E "^CONFIG_KSU" out/.config | sort
 
-      # ── 9. Compile ───────────────────────────────────────
+      # ── 11. Compile ──────────────────────────────────────
       - name: Compile kernel
         working-directory: kernel
         run: |
@@ -363,15 +384,15 @@ jobs:
           find out/arch/arm64/boot -maxdepth 1 -name 'Image*' 2>/dev/null \
             || { echo "::error::No kernel image found — build failed"; exit 1; }
 
-      # ── 10. Package ──────────────────────────────────────
+      # ── 12. Package with AnyKernel3 ──────────────────────
       - name: Package with AnyKernel3
         run: |
-          SOC="${{ github.event.inputs.device_soc || 'zuma' }}"
-          AVER="${{ github.event.inputs.android_version || '16' }}"
           DATE=$(date +'%Y%m%d')
+          BRANCH="${{ github.event.inputs.kernel_branch || '16.0.0-sultan' }}"
 
           git clone --depth=1 https://github.com/osm0sis/AnyKernel3 anykernel3
 
+          # Find best kernel image
           IMAGE=""
           for CAND in \
             kernel/out/arch/arm64/boot/Image.lz4-dtb \
@@ -385,35 +406,38 @@ jobs:
           echo "Using image: $IMAGE"
           cp "$IMAGE" anykernel3/Image
 
+          # DTBs / DTBOs
           DTB_DIR="kernel/out/arch/arm64/boot/dts"
           if [ -d "$DTB_DIR" ]; then
             find "$DTB_DIR" -name "*.dtb"  -exec cp {} anykernel3/ \; 2>/dev/null || true
             find "$DTB_DIR" -name "*.dtbo" -exec cp {} anykernel3/ \; 2>/dev/null || true
           fi
 
+          # AnyKernel3 config — Pixel 8 (Shiba) only
           cat > anykernel3/anykernel.sh << EOF
-          kernel.string=Sultan | KernelSU + SUSFS | GCC ${{ env.GCC_VERSION }} | A${AVER} | ${DATE}
-          do.devicecheck=0
+          kernel.string=Sultan | KernelSU + SUSFS | GCC ${{ env.GCC_VERSION }} | ${DATE}
+          do.devicecheck=1
           do.modules=0
           do.systemless=1
           do.cleanup=1
           do.cleanuponabort=0
-          device.name1=${SOC}
-          supported.versions=
+          device.name1=shiba
+          device.name2=zuma
+          supported.versions=16
           supported.patchlevels=
           . tools/ak3-core.sh
           split_boot
           flash_boot
           EOF
 
-          ZIP="Sultan-${SOC^^}-A${AVER}-KSU-SUSFS-GCC${{ env.GCC_VERSION }}-${DATE}.zip"
+          ZIP="Sultan-Shiba-KSU-SUSFS-GCC${{ env.GCC_VERSION }}-${DATE}.zip"
           cd anykernel3 && zip -r9 "../$ZIP" . -x "*.git*" README.md && cd ..
 
           echo "ZIP=$ZIP" >> "$GITHUB_ENV"
           sha256sum "$ZIP" | tee "${ZIP}.sha256"
           echo "Output: $ZIP  ($(du -sh "$ZIP" | cut -f1))"
 
-      # ── 11. Upload artifacts ─────────────────────────────
+      # ── 13. Upload artifacts ─────────────────────────────
       - name: Upload kernel zip
         uses: actions/upload-artifact@v4
         with:
@@ -428,29 +452,33 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: build-log-${{ needs.prepare.outputs.defconfig }}
+          name: build-log
           path: kernel/build.log
           retention-days: 7
 
+      # ── 14. Build summary ────────────────────────────────
       - name: Build summary
         if: always()
         run: |
           {
-            echo "## Build Result"
+            echo "## Build Result — Pixel 8 (Shiba)"
             echo "| | |"
             echo "|---|---|"
-            echo "| SoC | \`${{ github.event.inputs.device_soc || 'zuma' }}\` |"
-            echo "| Branch | \`${{ needs.prepare.outputs.kernel_branch }}\` |"
+            echo "| Kernel branch | \`${{ github.event.inputs.kernel_branch || '16.0.0-sultan' }}\` |"
             echo "| KSU | Official — tiann/KernelSU |"
-            echo "| SUSFS | \`${{ github.event.inputs.susfs_branch || 'sultan-shiba-susfs-minimal' }}\` |"
+            echo "| SUSFS | \`${{ env.SUSFS_BRANCH }}\` |"
             echo "| GCC | ${{ env.GCC_VERSION }} |"
+            echo "| SUS_PATH | ${{ github.event.inputs.enable_sus_path || 'false' }} |"
+            echo "| SUS_KSTAT | ${{ github.event.inputs.enable_sus_kstat || 'false' }} |"
+            echo "| OPEN_REDIRECT | ${{ github.event.inputs.enable_open_redirect || 'false' }} |"
+            echo "| Spoof build strings | ${{ github.event.inputs.spoof_build_strings || 'false' }} |"
             [ -n "$ZIP" ] && echo "| Output | \`$ZIP\` |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ── Publish release ──────────────────────────────────────
   release:
     name: Publish Release
-    needs: [prepare, build]
+    needs: build
     runs-on: ubuntu-24.04
     if: github.event.inputs.publish_release == 'true'
     permissions:
@@ -465,22 +493,37 @@ jobs:
 
       - name: Generate release notes
         run: |
-          AVER="${{ github.event.inputs.android_version || '16' }}"
           DATE=$(date +'%B %d, %Y')
+          SUS_PATH="${{ github.event.inputs.enable_sus_path || 'false' }}"
+          SUS_KSTAT="${{ github.event.inputs.enable_sus_kstat || 'false' }}"
+          OPEN_REDIRECT="${{ github.event.inputs.enable_open_redirect || 'false' }}"
+          SPOOF="${{ github.event.inputs.spoof_build_strings || 'false' }}"
+
+          status() { [ "$1" = "true" ] && echo "✅" || echo "☐"; }
 
           cat > notes.md << EOF
-          ## Sultan Kernel | Official KernelSU + SUSFS
+          ## Sultan Kernel — Pixel 8 (Shiba) | Official KernelSU + SUSFS
 
           Built with **GCC ${{ env.GCC_VERSION }}** via GitHub Actions on ${DATE}.
 
-          ### Features
-          - ✅ Official KernelSU ([tiann/KernelSU](https://github.com/tiann/KernelSU))
-          - ✅ SUSFS \`sultan-shiba-susfs-minimal\` patches
-          - ✅ SUS_PATH · SUS_MOUNT · SUS_KSTAT · SUS_OVERLAYFS
-          - ✅ TRY_UMOUNT · SPOOF_UNAME · SPOOF_BOOTCONFIG
-          - ✅ OPEN_REDIRECT · HIDE_KSU_SUSFS_SYMBOLS
-          - ✅ AUTO_ADD mounts · Magic Mount
-          - ✅ GCC ${{ env.GCC_VERSION }} (kernel.org nolibc)
+          ### Requirements (per simonpunk README)
+          - Full stock factory Pixel 8 (Shiba) images
+          - 16.0.0-sultan supported \`boot.img\` and \`vendor_kernel_boot.img\`
+          - Security Patch: **2026-02-05**
+
+          ### SUSFS Feature Set
+          | Feature | Status |
+          |---------|--------|
+          | CONFIG_KSU_SUSFS_SUS_MOUNT | ✅ enabled |
+          | CONFIG_KSU_SUSFS_SPOOF_UNAME | ✅ enabled |
+          | CONFIG_KSU_SUSFS_ENABLE_LOG | ✅ enabled |
+          | CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS | ✅ enabled |
+          | CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG | ✅ enabled |
+          | CONFIG_KSU_SUSFS_SUS_MAP | ✅ enabled |
+          | CONFIG_KSU_SUSFS_SUS_PATH | $(status $SUS_PATH) |
+          | CONFIG_KSU_SUSFS_SUS_KSTAT | $(status $SUS_KSTAT) |
+          | CONFIG_KSU_SUSFS_OPEN_REDIRECT | $(status $OPEN_REDIRECT) |
+          | Spoof build strings | $(status $SPOOF) |
 
           ### Installation
           1. Unlock bootloader
@@ -499,8 +542,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name:  ${{ needs.prepare.outputs.release_tag }}
-          name:      ${{ needs.prepare.outputs.release_name }}
+          tag_name:  "sultan-shiba-ksu-susfs-${{ github.run_number }}"
+          name:      "Sultan Pixel 8 | KSU + SUSFS | ${{ github.run_number }}"
           body_path: notes.md
           files: |
             Sultan-*.zip
