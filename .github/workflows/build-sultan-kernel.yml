@@ -108,7 +108,8 @@ jobs:
     name: "Build — Pixel 8 (zuma)"
     runs-on: ubuntu-24.04
     outputs:
-      ksu_ver: ${{ steps.ksu.outputs.ksu_ver }}
+      ksu_ver:    ${{ steps.ksu.outputs.ksu_ver }}
+      sultan_tag: ${{ steps.tag.outputs.sultan_tag }}
 
     steps:
       # ── 0. Free disk space ───────────────────────────────
@@ -182,11 +183,24 @@ jobs:
             "${{ env.KERNEL_REPO }}" kernel
           echo "HEAD: $(git -C kernel log --oneline -1)"
 
-      # ── 6. Clone helper scripts ──────────────────────────
+      # ── 6. Get latest Sultan tag ─────────────────────────
+      - name: Get latest Sultan tag
+        id: tag
+        run: |
+          cd kernel
+          SULTAN_TAG=$(git tag --sort=-committerdate | head -n1)
+          if [ -z "$SULTAN_TAG" ]; then
+            echo "Error: No tags found in sultan repo!"
+            exit 1
+          fi
+          echo "Latest Sultan tag: $SULTAN_TAG"
+          echo "sultan_tag=$SULTAN_TAG" >> $GITHUB_OUTPUT
+
+      # ── 7. Clone helper scripts ──────────────────────────
       - name: Clone helper scripts
         run: git clone --depth=1 https://github.com/TheSillyOk/sh sh
 
-      # ── 7. Get KSU version ───────────────────────────────
+      # ── 9. Get KSU version ───────────────────────────────
       - name: Get KSU Version
         id: ksu
         run: |
@@ -194,7 +208,7 @@ jobs:
           echo "KSU version: r$KSU_VER"
           echo "ksu_ver=$KSU_VER" >> $GITHUB_OUTPUT
 
-      # ── 8. Integrate official KernelSU ──────────────────
+      # ── 10. Integrate official KernelSU ─────────────────
       - name: Integrate KernelSU (official — tiann/KernelSU)
         working-directory: kernel
         run: |
@@ -206,7 +220,7 @@ jobs:
 
           echo "KernelSU HEAD: $(git -C KernelSU log --oneline -1 2>/dev/null || true)"
 
-      # ── 9. Clone SUSFS ───────────────────────────────────
+      # ── 11. Clone SUSFS ──────────────────────────────────
       # Per simonpunk README: clone a tag / release tag or up to
       # a commit containing "Bump version to vX.X.X" for stability.
       - name: Clone SUSFS
@@ -227,7 +241,7 @@ jobs:
 
           echo "SUSFS HEAD: $(git -C susfs4ksu log --oneline -1)"
 
-      # ── 10. Apply SUSFS patches ──────────────────────────
+      # ── 12. Apply SUSFS patches ──────────────────────────
       # Follows simonpunk README step by step (exact order)
       - name: Apply SUSFS patches
         working-directory: kernel
@@ -298,7 +312,7 @@ jobs:
 
           echo "SUSFS patch step complete."
 
-      # ── 10. Build Kernel ─────────────────────────────────
+      # ── 13. Build Kernel ─────────────────────────────────
       - name: Build Kernel
         working-directory: kernel
         run: |
@@ -428,7 +442,7 @@ jobs:
           find out/arch/arm64/boot -maxdepth 1 -name 'Image*' 2>/dev/null \
             || { echo "::error::No kernel image found — build failed"; exit 1; }
 
-      # ── 12. Package with AnyKernel3 ──────────────────────
+      # ── 14. Package with AnyKernel3 ──────────────────────
       - name: Package with AnyKernel3
         run: |
           DATE=$(date +'%Y%m%d')
@@ -481,7 +495,7 @@ jobs:
           sha256sum "$ZIP" | tee "${ZIP}.sha256"
           echo "Output: $ZIP  ($(du -sh "$ZIP" | cut -f1))"
 
-      # ── 13. Upload artifacts ─────────────────────────────
+      # ── 15. Upload artifacts ─────────────────────────────
       - name: Upload kernel zip
         uses: actions/upload-artifact@v4
         with:
@@ -500,7 +514,7 @@ jobs:
           path: kernel/build.log
           retention-days: 7
 
-      # ── 14. Build summary ────────────────────────────────
+      # ── 16. Build summary ────────────────────────────────
       - name: Build summary
         if: always()
         run: |
@@ -587,7 +601,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name:  "sultan-shiba-ksu-susfs-${{ needs.build.outputs.ksu_ver }}"
-          name:      "Sultan Pixel 8 | KSU r${{ needs.build.outputs.ksu_ver }} | SUSFS"
+          name:      "Sultan Pixel 8 ${{ needs.build.outputs.sultan_tag }} | KSU r${{ needs.build.outputs.ksu_ver }} | SUSFS"
           body_path: notes.md
           files: |
             Sultan-*.zip
