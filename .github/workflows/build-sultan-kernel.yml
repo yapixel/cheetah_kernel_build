@@ -223,30 +223,49 @@ jobs:
         run: |
           SUSFS="$GITHUB_WORKSPACE/susfs4ksu"
 
-          # Detect kernel version for patch filename
-          KERNEL_VER=$(make kernelversion 2>/dev/null | head -1)
-          MAJOR=$(echo "$KERNEL_VER" | cut -d. -f1)
-          MINOR=$(echo "$KERNEL_VER" | cut -d. -f2)
-          echo "Kernel version: ${KERNEL_VER} (${MAJOR}.${MINOR})"
+          # Detect kernel version cleanly from Makefile — avoids
+          # make noise polluting the string when no out/ dir exists yet
+          MAJOR=$(grep -m1 "^VERSION ="   Makefile | awk '{print $3}')
+          MINOR=$(grep -m1 "^PATCHLEVEL =" Makefile | awk '{print $3}')
+          KERNEL_VER="${MAJOR}.${MINOR}"
+          echo "Kernel version: ${KERNEL_VER}"
+
+          # Show all available SUSFS patches to aid debugging
+          echo "Available SUSFS patches:"
+          ls "${SUSFS}/kernel_patches/"*.patch 2>/dev/null || echo "(none found)"
 
           # Step 1 — cp kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch → KernelSU/
           echo "→ Step 1: Copy KSU enablement patch"
           cp "${SUSFS}/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch" KernelSU/
 
           # Step 2 — cp kernel_patches/50_add_susfs_in_kernel-<ver>.patch → kernel root
+          # Try version-specific first, then any 50_ patch present, then generic fallback
           echo "→ Step 2: Copy kernel SUSFS patch"
           KERNEL_PATCH=""
           for CANDIDATE in \
-            "${SUSFS}/kernel_patches/50_add_susfs_in_kernel-${MAJOR}.${MINOR}.patch" \
+            "${SUSFS}/kernel_patches/50_add_susfs_in_kernel-${KERNEL_VER}.patch" \
+            "${SUSFS}/kernel_patches/50_add_susfs_in_gki-android16-${KERNEL_VER}.patch" \
+            "${SUSFS}/kernel_patches/50_add_susfs_in_gki-android15-${KERNEL_VER}.patch" \
             "${SUSFS}/kernel_patches/50_add_susfs_in_kernel.patch"
           do
-            [ -f "$CANDIDATE" ] && { KERNEL_PATCH="$CANDIDATE"; break; }
+            if [ -f "$CANDIDATE" ]; then
+              KERNEL_PATCH="$CANDIDATE"
+              break
+            fi
           done
+
+          # Last resort: pick the first 50_ patch that exists in the directory
           if [ -z "$KERNEL_PATCH" ]; then
-            echo "::error::No SUSFS kernel patch found for ${MAJOR}.${MINOR}"; exit 1
+            KERNEL_PATCH=$(ls "${SUSFS}/kernel_patches/50_"*.patch 2>/dev/null | head -1)
           fi
-          cp "$KERNEL_PATCH" 50_add_susfs_in_kernel.patch
+
+          if [ -z "$KERNEL_PATCH" ]; then
+            echo "::error::No SUSFS kernel patch found for ${KERNEL_VER}. Patches available:"
+            ls "${SUSFS}/kernel_patches/" || true
+            exit 1
+          fi
           echo "  Using: $(basename $KERNEL_PATCH)"
+          cp "$KERNEL_PATCH" 50_add_susfs_in_kernel.patch
 
           # Step 3 — cp kernel_patches/fs/* → fs/
           echo "→ Step 3: Copy fs/ sources"
@@ -350,11 +369,60 @@ jobs:
             scripts/config --file out/.config -d CONFIG_KSU_SUSFS_OPEN_REDIRECT
           fi
 
+          # ── Extra kernel features ─────────────────────────
+          echo "→ Enabling extra kernel features..."
+          scripts/config --file out/.config \
+            `# TMPFS` \
+            -e CONFIG_TMPFS_XATTR \
+            -e CONFIG_TMPFS_POSIX_ACL \
+            `# IPv4/IPv6 TTL/HL targets` \
+            -e CONFIG_IP_NF_TARGET_TTL \
+            -e CONFIG_IP6_NF_TARGET_HL \
+            -e CONFIG_IP6_NF_MATCH_HL \
+            `# BBR congestion control (replaces BIC/Westwood/HTCP)` \
+            -e CONFIG_TCP_CONG_ADVANCED \
+            -e CONFIG_TCP_CONG_BBR \
+            -e CONFIG_NET_SCH_FQ \
+            -d CONFIG_TCP_CONG_BIC \
+            -d CONFIG_TCP_CONG_WESTWOOD \
+            -d CONFIG_TCP_CONG_HTCP \
+            --set-str CONFIG_DEFAULT_TCP_CONG bbr \
+            -e CONFIG_DEFAULT_BBR \
+            `# BPF stream parser` \
+            -e CONFIG_BPF_STREAM_PARSER \
+            `# Netfilter xt modules` \
+            -e CONFIG_NETFILTER_XT_MATCH_ADDRTYPE \
+            -e CONFIG_NETFILTER_XT_SET \
+            `# IP sets` \
+            -e CONFIG_IP_SET \
+            --set-val CONFIG_IP_SET_MAX 65534 \
+            -e CONFIG_IP_SET_BITMAP_IP \
+            -e CONFIG_IP_SET_BITMAP_IPMAC \
+            -e CONFIG_IP_SET_BITMAP_PORT \
+            -e CONFIG_IP_SET_HASH_IP \
+            -e CONFIG_IP_SET_HASH_IPMARK \
+            -e CONFIG_IP_SET_HASH_IPPORT \
+            -e CONFIG_IP_SET_HASH_IPPORTIP \
+            -e CONFIG_IP_SET_HASH_IPPORTNET \
+            -e CONFIG_IP_SET_HASH_IPMAC \
+            -e CONFIG_IP_SET_HASH_MAC \
+            -e CONFIG_IP_SET_HASH_NETPORTNET \
+            -e CONFIG_IP_SET_HASH_NET \
+            -e CONFIG_IP_SET_HASH_NETNET \
+            -e CONFIG_IP_SET_HASH_NETPORT \
+            -e CONFIG_IP_SET_HASH_NETIFACE \
+            -e CONFIG_IP_SET_LIST_SET \
+            `# IPv6 NAT / masquerade` \
+            -e CONFIG_IP6_NF_NAT \
+            -e CONFIG_IP6_NF_TARGET_MASQUERADE
+
           # Regenerate to resolve any newly introduced symbols
           make "${MAKE_ARGS[@]}" olddefconfig
 
           echo "→ Final KSU/SUSFS config:"
           grep -E "^CONFIG_KSU" out/.config | sort
+          echo "→ Final extra features config:"
+          grep -E "^CONFIG_TCP_CONG|^CONFIG_DEFAULT_BBR|^CONFIG_NET_SCH_FQ|^CONFIG_IP_SET|^CONFIG_TMPFS|^CONFIG_IP6_NF|^CONFIG_IP_NF_TARGET_TTL|^CONFIG_BPF_STREAM|^CONFIG_NETFILTER_XT" out/.config | sort
 
       # ── 11. Compile ──────────────────────────────────────
       - name: Compile kernel
