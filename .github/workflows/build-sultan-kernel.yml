@@ -287,32 +287,6 @@ jobs:
 
           echo "SUSFS patch step complete."
 
-      # ── 9. Optional: spoof build strings ────────────────
-      # Per simonpunk README: export env vars + reset .version
-      # + sed LINUX_COMPILER in scripts/mkcompile_h
-      - name: Spoof kernel build strings
-        if: github.event.inputs.spoof_build_strings == 'true'
-        working-directory: kernel
-        run: |
-          echo "→ Spoofing /proc/version build strings..."
-
-          # Reset the kernel build counter
-          echo 0 > out/.version 2>/dev/null || mkdir -p out && echo 0 > out/.version
-
-          # Spoof LINUX_COMPILER to match stock Pixel 8 build strings
-          sed -i \
-            's@^#define LINUX_COMPILER.*$@#define LINUX_COMPILER\t\t"Android (10087095, +pgo, +bolt, +lto, -mlgo, based on r487747c) clang version 17.0.2 (https://android.googlesource.com/toolchain/llvm-project d9f89f4d16663d5012e5c09495f3b30ece3d2362), LLD 17.0.2"@g' \
-            scripts/mkcompile_h
-
-          # Set build metadata env vars (picked up by Kbuild)
-          echo "KBUILD_BUILD_VERSION=1"                          >> "$GITHUB_ENV"
-          echo "KBUILD_BUILD_USER=build-user"                    >> "$GITHUB_ENV"
-          echo "KBUILD_BUILD_HOST=build-host"                    >> "$GITHUB_ENV"
-          echo "KBUILD_BUILD_TIMESTAMP=Mon Oct  6 16:50:48 UTC 2025" >> "$GITHUB_ENV"
-          echo "BUILD_NUMBER=14587043"                           >> "$GITHUB_ENV"
-
-          echo "Build string spoof applied."
-
       # ── 10. Build Kernel ─────────────────────────────────
       - name: Build Kernel
         working-directory: kernel
@@ -321,11 +295,32 @@ jobs:
           export KBUILD_BUILD_USER="build-user"
           export KBUILD_BUILD_HOST="build-host"
 
-          # ── defconfig ────────────────────────────────────
+          # ── defconfig ─────────────────────────────────────
+          # out/ is created here — spoof steps below require it to exist
           make O=out \
             CROSS_COMPILE="${GCC_PATH}" \
             CC="${GCC_PATH}gcc" \
             ${{ env.DEFCONFIG }}
+
+          # ── Optional: spoof /proc/version build strings ───
+          # Per simonpunk README — MUST run after defconfig so out/ exists
+          if [ "${{ github.event.inputs.spoof_build_strings }}" = "true" ]; then
+            echo "→ Spoofing /proc/version build strings..."
+
+            # Reset kernel build counter (out/ now exists)
+            echo 0 > out/.version
+
+            # Spoof LINUX_COMPILER to match stock Pixel 8 strings
+            sed -i \
+              's@^#define LINUX_COMPILER.*$@#define LINUX_COMPILER\t\t"Android (10087095, +pgo, +bolt, +lto, -mlgo, based on r487747c) clang version 17.0.2 (https://android.googlesource.com/toolchain/llvm-project d9f89f4d16663d5012e5c09495f3b30ece3d2362), LLD 17.0.2"@g' \
+              scripts/mkcompile_h
+
+            export KBUILD_BUILD_VERSION="1"
+            export KBUILD_BUILD_TIMESTAMP="Mon Oct  6 16:50:48 UTC 2025"
+            export BUILD_NUMBER="14587043"
+
+            echo "→ Build string spoof applied."
+          fi
 
           # ── KSU + SUSFS — minimal feature set (simonpunk README) ──
           echo "→ Enabling KSU + SUSFS config options..."
