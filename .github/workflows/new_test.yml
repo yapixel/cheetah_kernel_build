@@ -129,65 +129,65 @@ jobs:
 
  
   release:
-   needs: [xxksu-sultan]
-   runs-on: ubuntu-latest
-   permissions:
-      contents: write
-   steps:
+    needs: [xxksu-sultan]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # ← must be indented at job level, not under steps
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4  # ← ADD THIS - needed so github.sha is valid
+
       - name: Download Sultan Artifact
         uses: actions/download-artifact@v4
         with:
           name: ${{ needs.xxksu-sultan.outputs.artifact_name }}
           path: ./artifacts
-          
+
       - name: Create Release Tag
         id: tag
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-         BASE_TAG=$(date +"%Y.%m.%d")
-         
-         # Find all tags matching today's date
-         ALL_TAGS=$(gh api "repos/${{ github.repository }}/tags" \
-              --jq '.[].name' 2>/dev/null || echo "")
-         
-         # Find the highest revision number for today
-         MAX_REV=0
-         while IFS= read -r tag; do
-           if [[ "$tag" == "$BASE_TAG-r"* ]]; then
-             REV=$(echo "$tag" | grep -o 'r[0-9]*' | sed 's/r//')
-             if [ "$REV" -gt "$MAX_REV" ]; then
-               MAX_REV=$REV
-             fi
-           fi
-         done <<< "$ALL_TAGS"
-         
-         # Increment to next revision
-         NEXT_REV=$((MAX_REV + 1))
-         TAG="${BASE_TAG}-r${NEXT_REV}"
-         
-         echo "Creating tag: $TAG (previous max revision was r${MAX_REV})"
-         
-         # Create the tag via GitHub API
-         gh api "repos/${{ github.repository }}/git/refs" \
-         -X POST \
-         -f ref="refs/tags/$TAG" \
-         -f sha="${{ github.sha }}" || {
-           echo "Tag creation failed - tag might already exist"
-           exit 1
-         }
-         
-         echo "TAG=$TAG" >> $GITHUB_ENV
+          BASE_TAG=$(date +"%Y.%m.%d")
+
+          ALL_TAGS=$(gh api "repos/${{ github.repository }}/tags" \
+               --jq '.[].name' 2>/dev/null || echo "")
+
+          MAX_REV=0
+          while IFS= read -r tag; do
+            if [[ "$tag" == "$BASE_TAG-r"* ]]; then
+              REV=$(echo "$tag" | grep -o 'r[0-9]*' | sed 's/r//')
+              if [ "$REV" -gt "$MAX_REV" ]; then
+                MAX_REV=$REV
+              fi
+            fi
+          done <<< "$ALL_TAGS"
+
+          NEXT_REV=$((MAX_REV + 1))
+          TAG="${BASE_TAG}-r${NEXT_REV}"
+
+          echo "Creating tag: $TAG (previous max revision was r${MAX_REV})"
+
+          gh api "repos/${{ github.repository }}/git/refs" \
+            -X POST \
+            -f ref="refs/tags/$TAG" \
+            -f sha="${{ github.sha }}" || {
+              echo "Tag creation failed - tag might already exist"
+              exit 1
+            }
+
+          echo "TAG=$TAG" >> $GITHUB_ENV
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-         tag_name: ${{ env.TAG }}
-         name: Husky Kernel Build - ${{ env.TAG }}
-         body: |
-          **Kernel Build**
-          - **Manager**: [backslashxx/KernelSU](https://github.com/backslashxx/KernelSU)
-          - **Date**: ${{ env.TAG }}
-      
-          Contains **Sultan (GCC)** variant with xxKSU.
-         files: |
-          artifacts/**/*.zip
+          tag_name: ${{ env.TAG }}
+          name: Husky Kernel Build - ${{ env.TAG }}
+          body: |
+            **Kernel Build**
+            - **Manager**: [backslashxx/KernelSU](https://github.com/backslashxx/KernelSU)
+            - **Date**: ${{ env.TAG }}
+
+            Contains **Sultan (GCC)** variant with xxKSU.
+          files: |
+            artifacts/**/*.zip
