@@ -108,8 +108,10 @@ jobs:
     name: "Build — Pixel 8 Pro (Husky / zuma)"
     runs-on: ubuntu-24.04
     outputs:
-      ksu_ver:    ${{ steps.ksu.outputs.ksu_ver }}
-      sultan_tag: ${{ steps.tag.outputs.sultan_tag }}
+      ksu_ver:       ${{ steps.ksu.outputs.ksu_ver }}
+      sultan_tag:    ${{ steps.tag.outputs.sultan_tag }}
+      zip_name:      ${{ steps.package.outputs.zip_name }}
+      artifact_name: ${{ steps.package.outputs.artifact_name }}
 
     steps:
       # ── 0. Free disk space ───────────────────────────────
@@ -442,67 +444,41 @@ jobs:
           find out/arch/arm64/boot -maxdepth 1 -name 'Image*' 2>/dev/null \
             || { echo "::error::No kernel image found — build failed"; exit 1; }
 
-      # ── 14. Package with AnyKernel3 ──────────────────────
-      - name: Package with AnyKernel3
+      # ── 14. Package AnyKernel3 ZIP ───────────────────────
+      - name: Package AnyKernel3 ZIP
+        id: package
         run: |
-          DATE=$(date +'%Y%m%d')
-          BRANCH="${{ github.event.inputs.kernel_branch || '16.0.0-sultan' }}"
+          git clone --depth=1 https://github.com/TheWildJames/AnyKernel3.git -b "sultan-zuma" AK3
 
-          git clone --depth=1 https://github.com/osm0sis/AnyKernel3 anykernel3
+          # Image.lz4
+          cp kernel/out/arch/arm64/boot/Image.lz4 AK3/Image.lz4
 
-          # Find best kernel image
-          IMAGE=""
-          for CAND in \
-            kernel/out/arch/arm64/boot/Image.lz4-dtb \
-            kernel/out/arch/arm64/boot/Image.lz4 \
-            kernel/out/arch/arm64/boot/Image-dtb \
-            kernel/out/arch/arm64/boot/Image
-          do
-            [ -f "$CAND" ] && { IMAGE="$CAND"; break; }
-          done
-          [ -z "$IMAGE" ] && { echo "::error::No kernel image found."; exit 1; }
-          echo "Using image: $IMAGE"
-          cp "$IMAGE" anykernel3/Image
+          # Concatenate all zuma DTBs into a single dtb file
+          cat kernel/out/google-devices/zuma/dts/*.dtb > AK3/dtb
 
-          # DTBs / DTBOs
-          DTB_DIR="kernel/out/arch/arm64/boot/dts"
-          if [ -d "$DTB_DIR" ]; then
-            find "$DTB_DIR" -name "*.dtb"  -exec cp {} anykernel3/ \; 2>/dev/null || true
-            find "$DTB_DIR" -name "*.dtbo" -exec cp {} anykernel3/ \; 2>/dev/null || true
-          fi
+          ZIP_NAME="Sultan-Husky-${{ steps.tag.outputs.sultan_tag }}-KSU-r${{ steps.ksu.outputs.ksu_ver }}-SUSFS.zip"
+          ARTIFACT_NAME="Sultan-Husky-${{ steps.tag.outputs.sultan_tag }}-KSU-r${{ steps.ksu.outputs.ksu_ver }}-SUSFS"
 
-          # AnyKernel3 config — Pixel 8 Pro (Husky) only
-          cat > anykernel3/anykernel.sh << EOF
-          kernel.string=Sultan | KernelSU + SUSFS | GCC ${{ env.GCC_VERSION }} | ${DATE}
-          do.devicecheck=1
-          do.modules=0
-          do.systemless=1
-          do.cleanup=1
-          do.cleanuponabort=0
-          device.name1=husky
-          device.name2=zuma
-          supported.versions=16
-          supported.patchlevels=
-          . tools/ak3-core.sh
-          split_boot
-          flash_boot
-          EOF
+          cd AK3
+          zip -r9 "../$ZIP_NAME" . -x "*.git*" "README.md"
+          cd ..
 
-          ZIP="Sultan-Husky-${{ steps.tag.outputs.sultan_tag }}-KSU-r${{ steps.ksu.outputs.ksu_ver }}-SUSFS.zip"
-          cd anykernel3 && zip -r9 "../$ZIP" . -x "*.git*" README.md && cd ..
+          echo "zip_name=$ZIP_NAME"         >> $GITHUB_OUTPUT
+          echo "artifact_name=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
+          echo "ZIP_PATH=$GITHUB_WORKSPACE/$ZIP_NAME" >> $GITHUB_ENV
+          echo "ZIP=$ZIP_NAME"              >> $GITHUB_ENV
 
-          echo "ZIP=$ZIP" >> "$GITHUB_ENV"
-          sha256sum "$ZIP" | tee "${ZIP}.sha256"
-          echo "Output: $ZIP  ($(du -sh "$ZIP" | cut -f1))"
+          sha256sum "$ZIP_NAME" | tee "${ZIP_NAME}.sha256"
+          echo "Output: $ZIP_NAME  ($(du -sh "$ZIP_NAME" | cut -f1))"
 
       # ── 15. Upload artifacts ─────────────────────────────
       - name: Upload kernel zip
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.ZIP }}
+          name: ${{ steps.package.outputs.artifact_name }}
           path: |
-            ${{ env.ZIP }}
-            ${{ env.ZIP }}.sha256
+            ${{ steps.package.outputs.zip_name }}
+            ${{ steps.package.outputs.zip_name }}.sha256
           if-no-files-found: error
           retention-days: 30
 
@@ -546,7 +522,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: "Sultan-*"
+          name: ${{ needs.build.outputs.artifact_name }}
           merge-multiple: true
 
       - name: Generate release notes
