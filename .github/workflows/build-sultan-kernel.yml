@@ -246,80 +246,19 @@ jobs:
           echo "SUSFS HEAD: $(git -C susfs4ksu log --oneline -1)"
 
       # ── 12. Apply SUSFS patches ──────────────────────────
-      # Follows simonpunk README step by step (exact order)
       - name: Apply SUSFS patches
         working-directory: kernel
         run: |
-          SUSFS="$GITHUB_WORKSPACE/susfs4ksu"
+          echo "Applying SUSFS patches..."
 
-          # Detect kernel version cleanly from Makefile — avoids
-          # make noise polluting the string when no out/ dir exists yet
-          MAJOR=$(grep -m1 "^VERSION ="   Makefile | awk '{print $3}')
-          MINOR=$(grep -m1 "^PATCHLEVEL =" Makefile | awk '{print $3}')
-          KERNEL_VER="${MAJOR}.${MINOR}"
-          echo "Kernel version: ${KERNEL_VER}"
+          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android16-6.1.patch ./
+          cp ../susfs4ksu/kernel_patches/fs/* ./fs/
+          cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
 
-          # Show all available SUSFS patches to aid debugging
-          echo "Available SUSFS patches:"
-          ls "${SUSFS}/kernel_patches/"*.patch 2>/dev/null || echo "(none found)"
+          patch -p1 < 50_add_susfs_in_gki-android16-6.1.patch || true
 
-          # Step 1 — cp kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch → KernelSU/
-          echo "→ Step 1: Copy KSU enablement patch"
-          cp "${SUSFS}/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch" KernelSU/
-
-          # Step 2 — cp kernel_patches/50_add_susfs_in_kernel-<ver>.patch → kernel root
-          # Try version-specific first, then any 50_ patch present, then generic fallback
-          echo "→ Step 2: Copy kernel SUSFS patch"
-          KERNEL_PATCH=""
-          for CANDIDATE in \
-            "${SUSFS}/kernel_patches/50_add_susfs_in_kernel-${KERNEL_VER}.patch" \
-            "${SUSFS}/kernel_patches/50_add_susfs_in_gki-android16-${KERNEL_VER}.patch" \
-            "${SUSFS}/kernel_patches/50_add_susfs_in_gki-android15-${KERNEL_VER}.patch" \
-            "${SUSFS}/kernel_patches/50_add_susfs_in_kernel.patch"
-          do
-            if [ -f "$CANDIDATE" ]; then
-              KERNEL_PATCH="$CANDIDATE"
-              break
-            fi
-          done
-
-          # Last resort: pick the first 50_ patch that exists in the directory
-          if [ -z "$KERNEL_PATCH" ]; then
-            KERNEL_PATCH=$(ls "${SUSFS}/kernel_patches/50_"*.patch 2>/dev/null | head -1)
-          fi
-
-          if [ -z "$KERNEL_PATCH" ]; then
-            echo "::error::No SUSFS kernel patch found for ${KERNEL_VER}. Patches available:"
-            ls "${SUSFS}/kernel_patches/" || true
-            exit 1
-          fi
-          echo "  Using: $(basename $KERNEL_PATCH)"
-          cp "$KERNEL_PATCH" 50_add_susfs_in_kernel.patch
-
-          # Step 3 — cp kernel_patches/fs/* → fs/
-          echo "→ Step 3: Copy fs/ sources"
-          cp -v "${SUSFS}/kernel_patches/fs/"* fs/
-
-          # Step 4 — cp kernel_patches/include/linux/* → include/linux/
-          echo "→ Step 4: Copy include/linux/ headers"
-          cp -v "${SUSFS}/kernel_patches/include/linux/"* include/linux/
-
-          # Step 5 — cd KernelSU && patch -p1 < 10_enable_susfs_for_ksu.patch
-          echo "→ Step 5: Apply KSU enablement patch"
-          ( cd KernelSU && patch -p1 < 10_enable_susfs_for_ksu.patch ) \
-            || echo "::warning::KSU patch already applied or had minor conflicts"
-
-          # Step 6 — cd kernel && patch -p1 < 50_add_susfs_in_kernel.patch
-          echo "→ Step 6: Apply kernel SUSFS patch"
-          patch -p1 < 50_add_susfs_in_kernel.patch \
-            || echo "::warning::Kernel SUSFS patch had conflicts — review build output"
-
-          # Step 7 — apply sys.c_fix.patch (required for bootability)
-          echo "→ Step 7: Apply sys.c_fix.patch"
-          cp "$GITHUB_WORKSPACE/kernel_patches/sultan/sys.c_fix.patch" ./
+          cp ../kernel_patches/sultan/sys.c_fix.patch ./
           patch -p1 < sys.c_fix.patch
-
-          echo "SUSFS patch step complete."
 
       # ── 13. Build Kernel ─────────────────────────────────
       - name: Build Kernel
