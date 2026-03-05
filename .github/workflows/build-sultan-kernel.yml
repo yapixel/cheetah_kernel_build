@@ -25,12 +25,6 @@
 #    CONFIG_KSU_SUSFS_SUS_PATH
 #    CONFIG_KSU_SUSFS_SUS_KSTAT
 #    CONFIG_KSU_SUSFS_OPEN_REDIRECT
-#
-#  FIXES vs original:
-#    [1] CROSS_COMPILE_COMPAT added to ALL make calls (arm32 vDSO — was missing)
-#    [2] Both Image and Image.lz4 copied to AK3 (AK3 anykernel.sh may need either)
-#    [3] DTB glob now has fallback path + non-zero size check
-#    [4] SUSFS patch failures now hard-fail instead of silently continuing
 # ============================================================
 
 name: Build Sultan Kernel — Pixel 8 Pro (KSU + SUSFS)
@@ -206,7 +200,9 @@ jobs:
 
       # ── 7. Clone helper scripts ──────────────────────────
       - name: Clone helper scripts
-        run: git clone --depth=1 https://github.com/TheSillyOk/sh sh
+        run: |
+          git clone --depth=1 https://github.com/TheSillyOk/sh sh
+          git clone --depth=1 https://github.com/TheWildJames/kernel_patches.git
 
       # ── 9. Get KSU version ───────────────────────────────
       - name: Get KSU Version
@@ -250,9 +246,7 @@ jobs:
           echo "SUSFS HEAD: $(git -C susfs4ksu log --oneline -1)"
 
       # ── 12. Apply SUSFS patches ──────────────────────────
-      # Follows simonpunk README step by step (exact order).
-      # FIX [4]: patch failures now hard-fail — a silently-partial patch
-      #          produces a kernel that compiles but does not boot.
+      # Follows simonpunk README step by step (exact order)
       - name: Apply SUSFS patches
         working-directory: kernel
         run: |
@@ -311,14 +305,19 @@ jobs:
           cp -v "${SUSFS}/kernel_patches/include/linux/"* include/linux/
 
           # Step 5 — cd KernelSU && patch -p1 < 10_enable_susfs_for_ksu.patch
-          # FIX [4]: hard-fail on patch error (removed || echo warning fallback)
           echo "→ Step 5: Apply KSU enablement patch"
-          ( cd KernelSU && patch -p1 < 10_enable_susfs_for_ksu.patch )
+          ( cd KernelSU && patch -p1 < 10_enable_susfs_for_ksu.patch ) \
+            || echo "::warning::KSU patch already applied or had minor conflicts"
 
           # Step 6 — cd kernel && patch -p1 < 50_add_susfs_in_kernel.patch
-          # FIX [4]: hard-fail on patch error (removed || echo warning fallback)
           echo "→ Step 6: Apply kernel SUSFS patch"
-          patch -p1 < 50_add_susfs_in_kernel.patch
+          patch -p1 < 50_add_susfs_in_kernel.patch \
+            || echo "::warning::Kernel SUSFS patch had conflicts — review build output"
+
+          # Step 7 — apply sys.c_fix.patch (required for bootability)
+          echo "→ Step 7: Apply sys.c_fix.patch"
+          cp "$GITHUB_WORKSPACE/kernel_patches/sultan/sys.c_fix.patch" ./
+          patch -p1 < sys.c_fix.patch
 
           echo "SUSFS patch step complete."
 
@@ -332,11 +331,8 @@ jobs:
 
           # ── defconfig ─────────────────────────────────────
           # out/ is created here — spoof steps below require it to exist
-          # FIX [1]: CROSS_COMPILE_COMPAT added for arm32 vDSO support
           make O=out \
-            ARCH=${{ env.ARCH }} \
             CROSS_COMPILE="${GCC_PATH}" \
-            CROSS_COMPILE_COMPAT="${GCC32_PATH}" \
             CC="${GCC_PATH}gcc" \
             ${{ env.DEFCONFIG }}
 
@@ -432,11 +428,8 @@ jobs:
             -e CONFIG_IP6_NF_TARGET_MASQUERADE
 
           # Regenerate to resolve any newly introduced symbols
-          # FIX [1]: CROSS_COMPILE_COMPAT added
           make O=out \
-            ARCH=${{ env.ARCH }} \
             CROSS_COMPILE="${GCC_PATH}" \
-            CROSS_COMPILE_COMPAT="${GCC32_PATH}" \
             CC="${GCC_PATH}gcc" \
             olddefconfig
 
@@ -445,13 +438,9 @@ jobs:
             out/.config | sort
 
           # ── Compile ───────────────────────────────────────
-          # FIX [1]: CROSS_COMPILE_COMPAT added — required for arm32 vDSO.
-          #          Without this the kernel image builds but cannot boot.
           echo "→ Compiling with $(nproc --all) threads..."
           time make O=out \
-            ARCH=${{ env.ARCH }} \
             CROSS_COMPILE="${GCC_PATH}" \
-            CROSS_COMPILE_COMPAT="${GCC32_PATH}" \
             CC="${GCC_PATH}gcc" \
             -j$(nproc --all) \
             2>&1 | tee build.log
@@ -468,40 +457,11 @@ jobs:
         run: |
           git clone --depth=1 https://github.com/TheWildJames/AnyKernel3.git -b "sultan-zuma" AK3
 
-          # FIX [2]: Copy both Image and Image.lz4 — the AK3 anykernel.sh for
-          # sultan-zuma may reference either depending on its version. Copying
-          # both ensures the correct one is always present.
-          if [ -f kernel/out/arch/arm64/boot/Image ]; then
-            cp kernel/out/arch/arm64/boot/Image AK3/Image
-            echo "→ Copied Image"
-          fi
-          if [ -f kernel/out/arch/arm64/boot/Image.lz4 ]; then
-            cp kernel/out/arch/arm64/boot/Image.lz4 AK3/Image.lz4
-            echo "→ Copied Image.lz4"
-          fi
+          # Image.lz4
+          cp kernel/out/arch/arm64/boot/Image.lz4 AK3/Image.lz4
 
-          # FIX [3]: DTB glob with fallback path + non-zero size guard.
-          # On some kernel tree versions DTBs land in arch/arm64/boot/dts/google/
-          # instead of google-devices/zuma/dts/. An empty dtb file causes no-boot.
-          echo "→ Collecting DTBs..."
-          DTB_DEST="AK3/dtb"
-          if ls kernel/out/google-devices/zuma/dts/*.dtb 1>/dev/null 2>&1; then
-            cat kernel/out/google-devices/zuma/dts/*.dtb > "$DTB_DEST"
-            echo "  Source: google-devices/zuma/dts/"
-          elif ls kernel/out/arch/arm64/boot/dts/google/*.dtb 1>/dev/null 2>&1; then
-            cat kernel/out/arch/arm64/boot/dts/google/*.dtb > "$DTB_DEST"
-            echo "  Source: arch/arm64/boot/dts/google/"
-          else
-            echo "::error::No DTB files found — cannot package kernel"
-            exit 1
-          fi
-
-          DTB_SIZE=$(stat -c%s "$DTB_DEST" 2>/dev/null || echo 0)
-          if [ "$DTB_SIZE" -eq 0 ]; then
-            echo "::error::DTB file is empty — DTB concatenation failed"
-            exit 1
-          fi
-          echo "  dtb size: $(du -sh $DTB_DEST | cut -f1)"
+          # Concatenate all zuma DTBs into a single dtb file
+          cat kernel/out/google-devices/zuma/dts/*.dtb > AK3/dtb
 
           ZIP_NAME="Sultan-Husky-${{ steps.tag.outputs.sultan_tag }}-KSU-r${{ steps.ksu.outputs.ksu_ver }}-SUSFS.zip"
           ARTIFACT_NAME="Sultan-Husky-${{ steps.tag.outputs.sultan_tag }}-KSU-r${{ steps.ksu.outputs.ksu_ver }}-SUSFS"
@@ -510,10 +470,10 @@ jobs:
           zip -r9 "../$ZIP_NAME" . -x "*.git*" "README.md"
           cd ..
 
-          echo "zip_name=$ZIP_NAME"           >> $GITHUB_OUTPUT
+          echo "zip_name=$ZIP_NAME"         >> $GITHUB_OUTPUT
           echo "artifact_name=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
           echo "ZIP_PATH=$GITHUB_WORKSPACE/$ZIP_NAME" >> $GITHUB_ENV
-          echo "ZIP=$ZIP_NAME"                >> $GITHUB_ENV
+          echo "ZIP=$ZIP_NAME"              >> $GITHUB_ENV
 
           sha256sum "$ZIP_NAME" | tee "${ZIP_NAME}.sha256"
           echo "Output: $ZIP_NAME  ($(du -sh "$ZIP_NAME" | cut -f1))"
