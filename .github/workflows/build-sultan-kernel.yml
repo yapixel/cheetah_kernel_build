@@ -1,6 +1,6 @@
 # ============================================================
 #  Sultan Kernel Builder — Official KernelSU + SUSFS
-#  Target    : Pixel 8 (Shiba / zuma) — Android 16
+#  Target    : Pixel 8 Pro (Husky / zuma) — Android 16
 #  Kernel    : github.com/kerneltoast/android_kernel_google_tensynos @ 16.0.0-sultan
 #  KSU       : github.com/tiann/KernelSU  (official)
 #  SUSFS     : gitlab.com/simonpunk/susfs4ksu @ sultan-shiba-susfs-minimal
@@ -27,7 +27,7 @@
 #    CONFIG_KSU_SUSFS_OPEN_REDIRECT
 # ============================================================
 
-name: Build Sultan Kernel — Pixel 8 (KSU + SUSFS)
+name: Build Sultan Kernel — Pixel 8 Pro (KSU + SUSFS)
 
 on:
   workflow_dispatch:
@@ -105,7 +105,7 @@ env:
 jobs:
 
   build:
-    name: "Build — Pixel 8 (zuma)"
+    name: "Build — Pixel 8 Pro (Husky / zuma)"
     runs-on: ubuntu-24.04
     outputs:
       ksu_ver:    ${{ steps.ksu.outputs.ksu_ver }}
@@ -139,9 +139,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.ccache
-          key: ccache-gcc-sultan-zuma-${{ github.sha }}
+          key: ccache-gcc-sultan-husky-${{ github.sha }}
           restore-keys: |
-            ccache-gcc-sultan-zuma-
+            ccache-gcc-sultan-husky-
             ccache-gcc-sultan-
 
       - name: Configure ccache
@@ -335,7 +335,7 @@ jobs:
             # Reset kernel build counter (out/ now exists)
             echo 0 > out/.version
 
-            # Spoof LINUX_COMPILER to match stock Pixel 8 strings
+            # Spoof LINUX_COMPILER to match stock Pixel 8 Pro strings
             sed -i \
               's@^#define LINUX_COMPILER.*$@#define LINUX_COMPILER\t\t"Android (10087095, +pgo, +bolt, +lto, -mlgo, based on r487747c) clang version 17.0.2 (https://android.googlesource.com/toolchain/llvm-project d9f89f4d16663d5012e5c09495f3b30ece3d2362), LLD 17.0.2"@g' \
               scripts/mkcompile_h
@@ -471,7 +471,7 @@ jobs:
             find "$DTB_DIR" -name "*.dtbo" -exec cp {} anykernel3/ \; 2>/dev/null || true
           fi
 
-          # AnyKernel3 config — Pixel 8 (Shiba) only
+          # AnyKernel3 config — Pixel 8 Pro (Husky) only
           cat > anykernel3/anykernel.sh << EOF
           kernel.string=Sultan | KernelSU + SUSFS | GCC ${{ env.GCC_VERSION }} | ${DATE}
           do.devicecheck=1
@@ -479,7 +479,7 @@ jobs:
           do.systemless=1
           do.cleanup=1
           do.cleanuponabort=0
-          device.name1=shiba
+          device.name1=husky
           device.name2=zuma
           supported.versions=16
           supported.patchlevels=
@@ -488,7 +488,7 @@ jobs:
           flash_boot
           EOF
 
-          ZIP="Sultan-Shiba-KSU-SUSFS-GCC${{ env.GCC_VERSION }}-${DATE}.zip"
+          ZIP="Sultan-Husky-${{ steps.tag.outputs.sultan_tag }}-KSU-r${{ steps.ksu.outputs.ksu_ver }}-SUSFS.zip"
           cd anykernel3 && zip -r9 "../$ZIP" . -x "*.git*" README.md && cd ..
 
           echo "ZIP=$ZIP" >> "$GITHUB_ENV"
@@ -519,7 +519,7 @@ jobs:
         if: always()
         run: |
           {
-            echo "## Build Result — Pixel 8 (Shiba)"
+            echo "## Build Result — Pixel 8 Pro (Husky)"
             echo "| | |"
             echo "|---|---|"
             echo "| Kernel branch | \`${{ github.event.inputs.kernel_branch || '16.0.0-sultan' }}\` |"
@@ -560,12 +560,12 @@ jobs:
           status() { [ "$1" = "true" ] && echo "✅" || echo "☐"; }
 
           cat > notes.md << EOF
-          ## Sultan Kernel — Pixel 8 (Shiba) | Official KernelSU + SUSFS
+          ## Sultan Kernel — Pixel 8 Pro (Husky) | Official KernelSU + SUSFS
 
           Built with **GCC ${{ env.GCC_VERSION }}** via GitHub Actions on ${DATE}.
 
           ### Requirements (per simonpunk README)
-          - Full stock factory Pixel 8 (Shiba) images
+          - Full stock factory Pixel 8 Pro (Husky) images
           - 16.0.0-sultan supported \`boot.img\` and \`vendor_kernel_boot.img\`
           - Security Patch: **2026-02-05**
 
@@ -600,8 +600,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name:  "sultan-shiba-ksu-susfs-${{ needs.build.outputs.ksu_ver }}"
-          name:      "Sultan Pixel 8 ${{ needs.build.outputs.sultan_tag }} | KSU r${{ needs.build.outputs.ksu_ver }} | SUSFS"
+          tag_name:  "sultan-husky-ksu-susfs-${{ needs.build.outputs.ksu_ver }}"
+          name:      "Sultan Pixel 8 Pro ${{ needs.build.outputs.sultan_tag }} | KSU r${{ needs.build.outputs.ksu_ver }} | SUSFS"
           body_path: notes.md
           files: |
             Sultan-*.zip
