@@ -99,7 +99,7 @@ env:
 
   # SUSFS
   SUSFS_REPO: "https://gitlab.com/simonpunk/susfs4ksu.git"
-  SUSFS_BRANCH: "sultan-shiba-susfs-minimal"
+  SUSFS_BRANCH: "gki-android14-6.1"
 
 # ════════════════════════════════════════════════════════════
 jobs:
@@ -228,7 +228,7 @@ jobs:
       - name: Clone SUSFS
         run: |
           git clone --depth=1 \
-            --branch "gki-android16-6.1" \
+            --branch "gki-android14-6.1" \
             "${{ env.SUSFS_REPO }}" \
             susfs4ksu
 
