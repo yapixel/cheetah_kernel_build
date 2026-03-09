@@ -83,9 +83,9 @@ jobs:
           patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
           
           # Change to common directory and apply SUSFS patch
-          cd ../
-          cp ../kernel_patches/sultan/sys.c_fix.patch ./
-          patch -p1 --fuzz=3 < sys.c_fix.patch
+          #cd ../
+          #cp ../kernel_patches/sultan/sys.c_fix.patch ./
+          #patch -p1 --fuzz=3 < sys.c_fix.patch
 
 
       - name: Apply Hide Stuff Patches
