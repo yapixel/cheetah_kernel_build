@@ -1,4 +1,4 @@
-name: Build Husky A16 Kernel Sultan KowSU SUSFS-Minimal
+name: Build Husky A16 Kernel Sultan KowSU SUSFS-minimal
 
 on:
   workflow_dispatch:
