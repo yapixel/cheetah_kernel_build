@@ -1,13 +1,13 @@
-name: Build Husky A16 Kernel Sultan SUSFS hookless
+name: Build Husky A16 Kernel Sultan KowSU SUSFS-Minimal
 
 on:
   workflow_dispatch:
   
 
 jobs:
-  xxksu-sultan-susfs:
+  kowsu-sultan-susfs:
     runs-on: ubuntu-latest
-    name: xxKSU | Sultan GCC | SUSFS
+    name: KowSU | Sultan GCC | SUSFS
     outputs:
       sultan_tag: ${{ steps.tag.outputs.sultan_tag }}
       ksu_ver: ${{ steps.ksu.outputs.ksu_ver }}
@@ -16,8 +16,8 @@ jobs:
 
     env:
       KERNEL_CODENAME: "zuma"
-      KERNEL_VERSION: "6.1.134"
-      build_date: "Tue Jul 8 09:17:32 UTC 2025"
+      KERNEL_VERSION: "6.1.145"
+      build_date: "Mon Oct 6 16:50:48 UTC 2025"
 
     steps:
       - name: Checkout repository
@@ -25,11 +25,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Download GCC 13.3.0
+      - name: Download GCC 14.2.0
         run: |
-          wget -q https://kernel.org/pub/tools/crosstool/files/bin/x86_64/13.3.0/x86_64-gcc-13.3.0-nolibc-aarch64-linux.tar.gz -O gcc.tar.gz
+          wget -q https://kernel.org/pub/tools/crosstool/files/bin/x86_64/14.2/x86_64-gcc-14.2.0-nolibc-aarch64-linux.tar.gz -O gcc.tar.gz
           tar -xf gcc.tar.gz
-          echo "GCC_PATH=$PWD/gcc-13.3.0-nolibc/aarch64-linux/bin/aarch64-linux-" >> $GITHUB_ENV
+          echo "GCC_PATH=$PWD/gcc-14.2.0-nolibc/aarch64-linux/bin/aarch64-linux-" >> $GITHUB_ENV
 
       - name: Clone Source & Dependencies
         run: |
@@ -38,7 +38,7 @@ jobs:
           git clone --depth=1 https://github.com/yapixel/kernel_patches.git
           git clone --depth=1 https://github.com/TheSillyOk/sh sh
           
-          SUSFS_BRANCH="gki-android14-6.1-dev"
+          SUSFS_BRANCH="sultan-shiba-susfs-minimal"
           git clone --depth=5 https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH" susfs
 
       - name: Get latest Sultan tag
@@ -56,8 +56,8 @@ jobs:
       - name: Add KernelSU
         run: |
           cd sultan
-          echo "Adding xxKernelSU..."
-          curl -LSs "https://raw.githubusercontent.com/backslashxx/KernelSU/master/kernel/setup.sh" | bash -s master
+          echo "Adding KernelSU..."
+          curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/master/kernel/setup.sh" | bash -s master
 
       - name: Get xxKSU Version
         id: ksu
@@ -74,7 +74,7 @@ jobs:
           cp ../susfs/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./
           cp ../susfs/kernel_patches/fs/* ./fs/
           cp ../susfs/kernel_patches/include/linux/* ./include/linux/
-          cp ../susfs/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
+          cp ../kernel_patches/kowsu/10_enable_susfs_for_ksu.patch ./
           
           patch -p1 --forward < 10_enable_susfs_for_ksu.patch
           patch -p1 --forward < 50_add_susfs_in_gki-android14-6.1.patch || true
@@ -130,7 +130,7 @@ jobs:
           EOF
           
           sed -i 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
-          sed -i 's/CONFIG_LOCALVERSION="-Sultan"/CONFIG_LOCALVERSION="-g4e52994af56a-ab13829026"/' $DEFCONFIG
+          sed -i 's/CONFIG_LOCALVERSION="-Sultan"/CONFIG_LOCALVERSION="-gc1de4747ac59-ab14219743"/' $DEFCONFIG
           perl -pi -e "s/build-timestamp = \\$\(or \\$\(KBUILD_BUILD_TIMESTAMP\), \\$\(build-timestamp-auto\)\\)/build-timestamp = \"${{ env.build_date }}\"/" init/Makefile
 
       - name: Build Kernel
@@ -149,7 +149,7 @@ jobs:
           cp sultan/out/arch/arm64/boot/Image.lz4 AK3/Image.lz4
           cat sultan/out/google-devices/zuma/dts/*.dtb > AK3/dtb
           
-          ZIP_NAME="Sultan-zuma-${{ steps.tag.outputs.sultan_tag }}-xxKSU-r${{ steps.ksu.outputs.ksu_ver }}-SUSFS.zip"
+          ZIP_NAME="Sultan-zuma-${{ steps.tag.outputs.sultan_tag }}-KowSU-r${{ steps.ksu.outputs.ksu_ver }}-SUSFS.zip"
           ARTIFACT_NAME="Sultan-zuma-${{ steps.tag.outputs.sultan_tag }}-xxKSU-r${{ steps.ksu.outputs.ksu_ver }}-SUSFS"
           
           cd AK3
@@ -173,7 +173,7 @@ jobs:
 
  
   release:
-   needs: [xxksu-sultan-susfs]
+   needs: [kowsu-sultan-susfs]
    runs-on: ubuntu-latest
    permissions:
       contents: write
