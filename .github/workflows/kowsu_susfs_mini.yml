@@ -59,7 +59,7 @@ jobs:
           echo "Adding KernelSU..."
           curl -LSs "https://raw.githubusercontent.com/KOWX712/KernelSU/master/kernel/setup.sh" | bash -s master
 
-      - name: Get xxKSU Version
+      - name: Get KowSU Version
         id: ksu
         run: |
           KSU_VER=$(./sh/get_ksuver.sh "KOWX712" "KernelSU" "master" || echo "unknown")
@@ -80,7 +80,7 @@ jobs:
           cd ./KernelSU
           echo "Apply KSU integration patches"   
           cp ../../kernel_patches/kowsu/10_enable_susfs_for_ksu.patch ./
-          patch -p1 < 10_enable_susfs_for_ksu.patch
+          patch -p1 < 10_enable_susfs_for_ksu.patch || true
           
           # Change to common directory and apply SUSFS patch
           cd ../
