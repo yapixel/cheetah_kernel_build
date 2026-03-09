@@ -80,7 +80,7 @@ jobs:
           cd ./KernelSU
           echo "Apply KSU integration patches"   
           cp ../../kernel_patches/kowsu/10_enable_susfs_for_ksu.patch ./
-          patch -p1 < 10_enable_susfs_for_ksu.patch || true
+          patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
           
           # Change to common directory and apply SUSFS patch
           cd ../
