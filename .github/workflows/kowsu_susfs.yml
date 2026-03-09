@@ -62,9 +62,8 @@ jobs:
       - name: Get xxKSU Version
         id: ksu
         run: |
-          cd sultan/KernelSU/kernel
-          KSU_VER=$(grep -oP '[[:space:]]*-DKSU_VERSION=\K\d+' Makefile | head -1 || echo "unknown")
-          echo "xxKSU version: r$KSU_VER"
+          KSU_VER=$(./sh/get_ksuver.sh "KOWX712" "KernelSU" "master" || echo "unknown")
+          echo "KowSU version: r$KSU_VER"
           echo "ksu_ver=$KSU_VER" >> $GITHUB_OUTPUT
 
       - name: Apply SUSFS Patches
@@ -74,11 +73,17 @@ jobs:
           cp ../susfs/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./
           cp ../susfs/kernel_patches/fs/* ./fs/
           cp ../susfs/kernel_patches/include/linux/* ./include/linux/
-          cp ../kernel_patches/kowsu/10_enable_susfs_for_ksu.patch ./
+
           
-          patch -p1 --forward < 10_enable_susfs_for_ksu.patch
           patch -p1 --forward < 50_add_susfs_in_gki-android14-6.1.patch || true
+
+          cd ./KernelSU
+          echo "Apply KSU integration patches"   
+          cp ../../kernel_patches/kowsu/10_enable_susfs_for_ksu.patch ./
+          patch -p1 < 10_enable_susfs_for_ksu.patch
           
+          # Change to common directory and apply SUSFS patch
+          cd ../
           cp ../kernel_patches/sultan/sys.c_fix.patch ./
           patch -p1 --fuzz=3 < sys.c_fix.patch
 
