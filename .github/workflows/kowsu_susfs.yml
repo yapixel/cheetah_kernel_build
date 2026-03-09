@@ -33,7 +33,7 @@ jobs:
 
       - name: Clone Source & Dependencies
         run: |
-          git clone --depth=1 https://github.com/kerneltoast/android_kernel_google_zuma -b 16.0.0-sultan sultan
+          git clone --depth=1 https://github.com/kerneltoast/android_kernel_google_tensynos -b 16.0.0-sultan sultan
           git clone --depth=1 https://github.com/TheWildJames/AnyKernel3.git -b "sultan-zuma" AK3
           git clone --depth=1 https://github.com/yapixel/kernel_patches.git
           git clone --depth=1 https://github.com/TheSillyOk/sh sh
