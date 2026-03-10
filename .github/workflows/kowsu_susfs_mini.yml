@@ -86,11 +86,6 @@ jobs:
           cp ../../kernel_patches/kowsu/10_enable_susfs_for_ksu.patch ./
           patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
           
-          # Change to common directory and apply SUSFS patch
-          #cd ../
-          #cp ../kernel_patches/sultan/sys.c_fix.patch ./
-          #patch -p1 --fuzz=3 < sys.c_fix.patch
-
 
       - name: Apply Hide Stuff Patches
         run: |
@@ -238,11 +233,11 @@ jobs:
          name: Husky Kernel Build - ${{ env.TAG }}
          body: |
           **Kernel Build**
-          - **Manager**: xxKSU with SUSFS
-          - **Source**: [backslashxx/KernelSU](https://github.com/backslashxx/KernelSU)
+          - **Manager**: KowSU with SUSFS mini
+          - **Source**: [KOWX712/KernelSU](https://github.com/KOWX712/KernelSU)
           - **SUSFS**: [simonpunk/susfs4ksu](https://gitlab.com/simonpunk/susfs4ksu)
           - **Date**: ${{ env.TAG }}
       
-          Contains **Sultan (GCC)** variant with xxKSU and SUSFS.
+          Contains **Sultan (GCC)** variant with KowSU and SUSFS.
          files: |
           artifacts/**/*.zip
