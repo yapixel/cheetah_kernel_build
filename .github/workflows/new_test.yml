@@ -35,10 +35,9 @@ jobs:
         run: |
           git clone --depth=1 https://github.com/kerneltoast/android_kernel_google_tensynos -b 16.0.0-sultan sultan
           git clone --depth=1 https://github.com/TheWildJames/AnyKernel3.git -b "sultan-zuma" AK3
-          git clone --depth=1 https://github.com/TheSillyOk/kernel_ls_patches ok_patches
-          git clone --depth=1 https://github.com/yapixel/kernel_patches yapixel_patches
+          git clone --depth=1 https://github.com/yapixel/kernel_patches
           git clone --depth=1 https://github.com/TheSillyOk/sh sh
-          git clone --depth=1 https://github.com/maxsteeel/nomount -b experimental nomount
+         
 
       - name: Get latest Sultan tag
         id: tag
@@ -84,10 +83,17 @@ jobs:
           CONFIG_KSU_THRONE_TRACKER_ALWAYS_THREADED=y
           EOF
           
-          sed -i 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
-          sed -i 's/CONFIG_LOCALVERSION="-Sultan"/CONFIG_LOCALVERSION="-android14-11-gc1de4747ac59-ab14219743"/' $DEFCONFIG
-          perl -pi -e "s/build-timestamp = \\$\(or \\$\(KBUILD_BUILD_TIMESTAMP\), \\$\(build-timestamp-auto\)\\)/build-timestamp = \"${{ env.build_date }}\"/" init/Makefile
+          #sed -i 's/${LOCALVERSION+set}/set/' scripts/setlocalversion
+          #sed -i 's/CONFIG_LOCALVERSION="-Sultan"/CONFIG_LOCALVERSION="-android14-11-gc1de4747ac59-ab14219743"/' $DEFCONFIG
+          #perl -pi -e "s/build-timestamp = \\$\(or \\$\(KBUILD_BUILD_TIMESTAMP\), \\$\(build-timestamp-auto\)\\)/build-timestamp = \"${{ env.build_date }}\"/" init/Makefile
 
+          cp ../kernel_patches/sultan/60_scripts_mkcompile_h.patch .
+          cp ../kernel_patches/61_scripts_setlocalversion.patch .
+          cp ../kernel_patches/62_init_Makefile.patch .
+          patch -p1 < 60_scripts_mkcompile_h.patch
+          patch -p1 < 61_scripts_setlocalversion.patch
+          patch -p1 < 62_init_Makefile.patch
+          
       - name: Integrate xxKSU
         run: |
           cd sultan
