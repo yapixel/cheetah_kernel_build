@@ -88,8 +88,8 @@ jobs:
           #perl -pi -e "s/build-timestamp = \\$\(or \\$\(KBUILD_BUILD_TIMESTAMP\), \\$\(build-timestamp-auto\)\\)/build-timestamp = \"${{ env.build_date }}\"/" init/Makefile
 
           cp ../kernel_patches/sultan/60_scripts_mkcompile_h.patch .
-          cp ../kernel_patches/61_scripts_setlocalversion.patch .
-          cp ../kernel_patches/62_init_Makefile.patch .
+          cp ../kernel_patches/sultan/61_scripts_setlocalversion.patch .
+          cp ../kernel_patches/sultan/62_init_Makefile.patch .
           patch -p1 < 60_scripts_mkcompile_h.patch
           patch -p1 < 61_scripts_setlocalversion.patch
           patch -p1 < 62_init_Makefile.patch
