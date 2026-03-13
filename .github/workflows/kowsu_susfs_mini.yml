@@ -41,9 +41,9 @@ jobs:
           SUSFS_BRANCH="sultan-shiba-susfs-minimal"
           git clone --depth=5 https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH" susfs
 
-          cd susfs
-          git reset --hard b56e26cb27ec7f3d8ce51d2d453f940f24e27bd8
-          cd ..
+          #cd susfs
+          #git reset --hard b56e26cb27ec7f3d8ce51d2d453f940f24e27bd8
+          #cd ..
 
       - name: Get latest Sultan tag
         id: tag
