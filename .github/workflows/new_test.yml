@@ -248,7 +248,7 @@ jobs:
 
           # Find the highest existing revision for today's tag
           ALL_TAGS=$(gh api "repos/${{ github.repository }}/tags" \
-            --jq '.[].name' 2>/dev/null || true)
+            --paginate --jq '.[].name' 2>/dev/null || true)
 
           MAX_REV=0
           while IFS= read -r tag; do
