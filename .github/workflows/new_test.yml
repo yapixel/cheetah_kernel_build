@@ -1,4 +1,4 @@
-name: Build Husky A16 Kernel — Sultan + xxKSU
+name: Build Cheetah A16 Kernel — Sultan + xxKSU
 
 on:
   workflow_dispatch:
@@ -7,12 +7,12 @@ on:
 # Shared environment variables used across jobs
 # ---------------------------------------------------------------------------
 env:
-  KERNEL_CODENAME: zuma
+  KERNEL_CODENAME: gs201
   KERNEL_VERSION: "6.1.145"
   KERNEL_BRANCH: 16.0.0-sultan
   KERNEL_REPO: https://github.com/kerneltoast/android_kernel_google_tensynos
   ANYKERNEL_REPO: https://github.com/TheWildJames/AnyKernel3.git
-  ANYKERNEL_BRANCH: sultan-zuma
+  ANYKERNEL_BRANCH: sultan-gs201
   PATCHES_REPO: https://github.com/yapixel/kernel_patches
   SCRIPTS_REPO: https://github.com/TheSillyOk/sh
   KSU_REPO: backslashxx/KernelSU
@@ -87,7 +87,7 @@ jobs:
       - name: Configure defconfig
         working-directory: sultan
         run: |
-          DEFCONFIG="arch/arm64/configs/zuma_defconfig"
+          DEFCONFIG="arch/arm64/configs/gs201_defconfig"
 
           # ----- Networking / BBR / ipset configs ----------------------------
           EXTRA_CONFIGS=(
@@ -278,7 +278,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          name: Husky Kernel Build — ${{ env.RELEASE_TAG }}
+          name: Cheetah Kernel Build — ${{ env.RELEASE_TAG }}
           body: |
             ## Kernel Build Details
 
